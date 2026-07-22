@@ -1,0 +1,144 @@
+openapi: 3.1.0
+info:
+  title: 平台公共信封与数据模型
+  version: 0.1.0-draft
+paths: {}
+components:
+  schemas:
+    Layer:
+      type: string
+      enum: [business_application, business_engine, foundation]
+    EndpointIdentity:
+      type: object
+      required: [layer, module]
+      properties:
+        layer: { $ref: '#/components/schemas/Layer' }
+        module: { type: string, minLength: 1 }
+        capability: { type: string }
+      additionalProperties: false
+    Actor:
+      type: object
+      required: [actor_id, tenant_id, authenticated]
+      properties:
+        actor_id: { type: string }
+        tenant_id: { type: string }
+        position_ids:
+          type: array
+          items: { type: string }
+          uniqueItems: true
+        authenticated: { type: boolean }
+        identity_assertion_id: { type: string }
+      additionalProperties: false
+    Delegation:
+      type: object
+      required: [agent_id, on_behalf_of]
+      properties:
+        agent_id: { type: string }
+        on_behalf_of: { type: string }
+        delegation_id: { type: string }
+      additionalProperties: false
+    RequestContext:
+      type: object
+      properties:
+        project_id: { type: string }
+        conversation_id: { type: string }
+        locale: { type: string, default: zh-CN }
+        data_scope:
+          type: object
+          additionalProperties: true
+      additionalProperties: true
+    ResourceRef:
+      type: object
+      required: [type, id, tenant_id]
+      properties:
+        type:
+          type: string
+          enum: [file, data, asset, rule, model, task, confirmation, result]
+        id: { type: string }
+        version: { type: string }
+        tenant_id: { type: string }
+        content_hash: { type: string }
+      additionalProperties: false
+    RequestEnvelope:
+      type: object
+      required: [protocol_version, message_id, request_id, trace_id, source, target, actor, request_type, action, payload, expected_response, idempotency_key]
+      properties:
+        protocol_version: { type: string, const: '1.0' }
+        message_id: { type: string, format: uuid }
+        request_id: { type: string, format: uuid }
+        trace_id: { type: string, format: uuid }
+        parent_request_id: { type: [string, 'null'], format: uuid }
+        source: { $ref: '#/components/schemas/EndpointIdentity' }
+        target: { $ref: '#/components/schemas/EndpointIdentity' }
+        actor: { $ref: '#/components/schemas/Actor' }
+        delegation: { oneOf: [{ $ref: '#/components/schemas/Delegation' }, { type: 'null' }] }
+        context: { $ref: '#/components/schemas/RequestContext' }
+        request_type:
+          type: string
+          enum: [query, calculate, write, create, execute, confirm, approve, reject, cancel]
+        action: { type: string, pattern: '^[a-z][a-z0-9_.-]+$' }
+        payload: { type: object, additionalProperties: true }
+        expected_response:
+          type: object
+          required: [mode]
+          properties:
+            mode: { type: string, enum: [sync, async, either] }
+            schema_ref: { type: string }
+          additionalProperties: false
+        idempotency_key: { type: string, minLength: 8 }
+        callback_url: { type: string, format: uri }
+        deadline_at: { type: string, format: date-time }
+      additionalProperties: false
+    Error:
+      type: object
+      required: [code, message, retryable]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        retryable: { type: boolean }
+        details: { type: object, additionalProperties: true }
+      additionalProperties: false
+    ResponseEnvelope:
+      type: object
+      required: [status, trace_id, request_id]
+      properties:
+        status: { type: string, enum: [success, accepted, failed] }
+        trace_id: { type: string, format: uuid }
+        request_id: { type: string, format: uuid }
+        in_reply_to: { type: string, format: uuid }
+        task_id: { type: string, format: uuid }
+        progress: { type: integer, minimum: 0, maximum: 100 }
+        status_url: { type: string, format: uri }
+        data: { type: [object, 'null'], additionalProperties: true }
+        error: { oneOf: [{ $ref: '#/components/schemas/Error' }, { type: 'null' }] }
+      additionalProperties: false
+    TaskStatus:
+      type: object
+      required: [task_id, state, trace_id, updated_at]
+      properties:
+        task_id: { type: string, format: uuid }
+        state: { type: string, enum: [accepted, running, waiting_dependency, waiting_human, succeeded, failed, cancelled] }
+        trace_id: { type: string, format: uuid }
+        progress: { type: integer, minimum: 0, maximum: 100 }
+        result_ref: { $ref: '#/components/schemas/ResourceRef' }
+        confirmation_ref: { $ref: '#/components/schemas/ResourceRef' }
+        error: { $ref: '#/components/schemas/Error' }
+        updated_at: { type: string, format: date-time }
+      additionalProperties: false
+    CallbackEvent:
+      type: object
+      required: [event_id, event_type, message_id, request_id, trace_id, task_id, occurred_at]
+      properties:
+        event_id: { type: string, format: uuid }
+        event_type:
+          type: string
+          enum: [task.accepted, task.started, task.progressed, task.waiting_dependency, task.waiting_human, task.succeeded, task.failed, task.cancelled]
+        message_id: { type: string, format: uuid }
+        request_id: { type: string, format: uuid }
+        trace_id: { type: string, format: uuid }
+        task_id: { type: string, format: uuid }
+        sequence: { type: integer, minimum: 1 }
+        progress: { type: integer, minimum: 0, maximum: 100 }
+        data: { type: object, additionalProperties: true }
+        occurred_at: { type: string, format: date-time }
+      additionalProperties: false

@@ -1,0 +1,57 @@
+openapi: 3.1.0
+info: { title: 意图分析引擎 API, version: 0.1.0-draft }
+paths:
+  /api/v1/intent/instructions:
+    post:
+      operationId: analyzeIntent
+      description: 仅接受业务引擎层接口派发的自然语言请求。
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/IntentInstruction' } } }
+      responses:
+        '202':
+          description: 已生成或正在生成待确认任务清单
+          content: { application/json: { schema: { $ref: './common-envelope.openapi.yaml#/components/schemas/ResponseEnvelope' } } }
+        '403': { description: 来源层或权限不合规 }
+  /api/v1/intent/confirmations/{confirmation_id}/decisions:
+    post:
+      operationId: decideIntentConfirmation
+      parameters:
+        - { name: confirmation_id, in: path, required: true, schema: { type: string } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/IntentDecision' } } }
+      responses:
+        '200': { description: 已确认并形成确定性任务清单 }
+        '409': { description: 确认已失效或版本冲突 }
+components:
+  schemas:
+    IntentInstruction:
+      type: object
+      required: [envelope, utterance]
+      properties:
+        envelope: { $ref: './common-envelope.openapi.yaml#/components/schemas/RequestEnvelope' }
+        utterance: { type: string, minLength: 1 }
+        attachment_refs: { type: array, items: { $ref: './common-envelope.openapi.yaml#/components/schemas/ResourceRef' } }
+      additionalProperties: false
+    TaskItem:
+      type: object
+      required: [task_id, description, capability_code, dependencies, parameters]
+      properties:
+        task_id: { type: string }
+        description: { type: string }
+        capability_code: { type: string }
+        dependencies: { type: array, items: { type: string }, uniqueItems: true }
+        parameters: { type: object, additionalProperties: true }
+      additionalProperties: false
+    IntentDecision:
+      type: object
+      required: [actor, trace_id, content_version, decision]
+      properties:
+        actor: { $ref: './common-envelope.openapi.yaml#/components/schemas/Actor' }
+        trace_id: { type: string, format: uuid }
+        content_version: { type: string }
+        decision: { type: string, enum: [confirm, revise, reject] }
+        revision_text: { type: string }
+      additionalProperties: false

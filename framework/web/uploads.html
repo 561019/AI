@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>案例二文件上传验证</title>
+  <style>
+    :root{--bg:#f3f6fb;--card:#fff;--ink:#172033;--muted:#667085;--line:#dce4ef;--blue:#315ed5;--green:#11815f;--red:#c43e4f;--dark:#101828}
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(135deg,#edf3ff,#f8fafc 48%);color:var(--ink);font:14px/1.55 system-ui,"Microsoft YaHei",sans-serif}
+    .wrap{max-width:1320px;margin:auto;padding:22px}
+    .top{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:16px}
+    h1{font-size:24px;margin:0}
+    h2{font-size:17px;margin:0 0 10px}
+    .muted{color:var(--muted)}
+    .top a{color:var(--blue);margin-left:14px;text-decoration:none}
+    .grid{display:grid;grid-template-columns:390px 1fr;gap:16px}
+    .card{background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:16px;box-shadow:0 12px 35px #253b6410}
+    .panel{padding:18px}
+    .drop{border:2px dashed #aab8d8;border-radius:14px;background:#f8faff;padding:22px;text-align:center;transition:.15s}
+    .drop.drag{border-color:var(--blue);background:#eef3ff}
+    input[type=file]{width:100%;margin-top:12px}
+    label{display:block;font-weight:700;margin:14px 0 7px}
+    select,input[type=text]{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;background:#fff}
+    .btn{border:0;border-radius:10px;padding:11px 15px;font-weight:800;cursor:pointer;background:var(--blue);color:#fff}
+    .btn:disabled{opacity:.55;cursor:not-allowed}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .pill{display:inline-flex;align-items:center;border-radius:999px;background:#eef2ff;color:var(--blue);padding:4px 10px;font-size:12px;margin:4px 5px 0 0}
+    .pill.ok{background:#dff7ed;color:var(--green)}
+    .notice{padding:12px;border-radius:11px;background:#f7f9fc;border:1px solid var(--line);white-space:pre-wrap;margin-top:12px}
+    .file{border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:9px;background:#fbfcff}
+    .file b,.file small{display:block;word-break:break-all}
+    .io{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px}
+    .payload{background:var(--dark);color:#d1fae5;border-radius:13px;overflow:hidden;min-width:0}
+    .payload h3{margin:0;padding:10px 12px;background:#1d2939;color:#a5b4fc;font-size:12px}
+    pre{margin:0;padding:12px;white-space:pre-wrap;word-break:break-word;max-height:480px;overflow:auto;font:12px/1.5 Consolas,monospace}
+    .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+    .step{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}
+    .step b{display:block}
+    .step small{color:var(--muted)}
+    @media(max-width:900px){.grid,.io,.steps{grid-template-columns:1fr}.top{display:block}.top nav{margin-top:8px}}
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <div>
+      <h1>案例二：销售对账文件上传验证</h1>
+      <div class="muted">应用层上传入口，生成标准 uploaded_documents[]，后续可传给文档解析、数据操作和流程执行。</div>
+    </div>
+    <nav>
+      <a href="/chat">对话验证</a>
+      <a href="/cases">多案例验证</a>
+      <a href="/modules">模块验证</a>
+      <a href="/monitor">Trace 查询</a>
+    </nav>
+  </header>
+
+  <section class="grid">
+    <aside class="card panel">
+      <h2>上传业务数据</h2>
+      <div class="muted">建议上传这两份：销售对账测试数据包、合同登记表上传版。也可以上传你自己的 Excel/合同文档。</div>
+
+      <label>场景 ID</label>
+      <input id="scenario" type="text" value="architecture-v3.9-case2-sales-reconciliation">
+
+      <label>文件</label>
+      <div id="drop" class="drop">
+        <b>拖入文件，或点击选择</b>
+        <div class="muted">支持 .xlsx / .xls / .csv / .docx / .pdf 等业务附件</div>
+        <input id="files" type="file" multiple accept=".xlsx,.xls,.csv,.docx,.pdf">
+      </div>
+
+      <div class="row" style="margin-top:14px">
+        <button id="upload" class="btn">上传并生成平台字段</button>
+        <span id="state" class="pill">未上传</span>
+      </div>
+
+      <div class="notice">
+上传接口：
+POST /api/v1/uploads
+
+上传成功后返回：
+file_id、document_role、saved_path、sha256、platform_ref
+      </div>
+
+      <h2 style="margin-top:18px">最近上传</h2>
+      <div id="list" class="muted">暂无记录</div>
+    </aside>
+
+    <section class="card">
+      <div class="steps">
+        <div class="step"><b>1. 应用层</b><small>接收文件上传</small></div>
+        <div class="step"><b>2. 标准化</b><small>生成 uploaded_documents[]</small></div>
+        <div class="step"><b>3. L2 文档/数据</b><small>解析表格、持久化数据</small></div>
+        <div class="step"><b>4. 流程执行</b><small>对账、规则计算、人工确认</small></div>
+      </div>
+      <div class="io">
+        <div class="payload">
+          <h3>REQUEST · 上传接口传入内容摘要</h3>
+          <pre id="request">{}</pre>
+        </div>
+        <div class="payload">
+          <h3>RESPONSE · 上传接口输出内容</h3>
+          <pre id="response">{}</pre>
+        </div>
+      </div>
+      <div class="payload" style="margin:0 14px 14px">
+        <h3>后续流程可直接使用的 payload</h3>
+        <pre id="payload">{}</pre>
+      </div>
+    </section>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const files = $('#files');
+const drop = $('#drop');
+const state = $('#state');
+
+function pretty(x){return JSON.stringify(x,null,2)}
+
+function selectedFiles(){
+  return Array.from(files.files || []);
+}
+
+function requestSummary(){
+  return {
+    method: 'POST',
+    url: '/api/v1/uploads',
+    content_type: 'multipart/form-data',
+    fields: {
+      scenario_id: $('#scenario').value.trim()
+    },
+    files: selectedFiles().map(f => ({
+      field: 'files',
+      name: f.name,
+      size_bytes: f.size,
+      type: f.type || 'application/octet-stream'
+    }))
+  };
+}
+
+function refreshRequest(){
+  $('#request').textContent = pretty(requestSummary());
+}
+
+async function api(url,opt){
+  const r = await fetch(url,opt);
+  const b = await r.json().catch(()=>({}));
+  if(!r.ok) throw Object.assign(new Error(b.error?.code || `HTTP ${r.status}`), {body:b});
+  return b;
+}
+
+function renderList(items){
+  $('#list').innerHTML = items.length ? items.slice().reverse().slice(0,8).map(x => `
+    <div class="file">
+      <b>${escapeHtml(x.original_name)}</b>
+      <small>角色：${escapeHtml(x.document_role)} · ${x.size_bytes} bytes</small>
+      <small>file_id：${escapeHtml(x.file_id)}</small>
+      <small>保存：${escapeHtml(x.saved_path)}</small>
+    </div>
+  `).join('') : '暂无记录';
+}
+
+function escapeHtml(s){
+  return String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function loadUploads(){
+  try{
+    const b = await api('/api/v1/uploads');
+    renderList(b.items || []);
+  }catch(e){
+    $('#list').textContent = '读取上传记录失败：' + e.message;
+  }
+}
+
+async function upload(){
+  const chosen = selectedFiles();
+  refreshRequest();
+  if(!chosen.length){
+    state.textContent = '请先选择文件';
+    return;
+  }
+  const fd = new FormData();
+  fd.append('scenario_id', $('#scenario').value.trim() || 'manual-upload');
+  chosen.forEach(f => fd.append('files', f));
+  state.textContent = '上传中...';
+  $('#upload').disabled = true;
+  try{
+    const b = await api('/api/v1/uploads', {method:'POST', body:fd});
+    $('#response').textContent = pretty(b);
+    $('#payload').textContent = pretty({
+      execution_kind: 'case2_sales_reconciliation_with_uploads',
+      scenario_id: b.scenario_id,
+      uploaded_documents: b.platform_payload.uploaded_documents,
+      next_step: {
+        target_layer: 'business_engine',
+        target_module: 'engine-gateway',
+        suggested_capability: 'workflow.execute'
+      }
+    });
+    state.textContent = `上传成功：${b.count} 个文件`;
+    state.classList.add('ok');
+    await loadUploads();
+  }catch(e){
+    $('#response').textContent = pretty(e.body || {error:e.message});
+    state.textContent = '上传失败：' + e.message;
+    state.classList.remove('ok');
+  }finally{
+    $('#upload').disabled = false;
+  }
+}
+
+drop.addEventListener('dragover', e => {e.preventDefault(); drop.classList.add('drag')});
+drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+drop.addEventListener('drop', e => {
+  e.preventDefault();
+  drop.classList.remove('drag');
+  files.files = e.dataTransfer.files;
+  refreshRequest();
+});
+files.addEventListener('change', refreshRequest);
+$('#upload').addEventListener('click', upload);
+refreshRequest();
+loadUploads();
+</script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+openapi: 3.1.0
+info: { title: 身份与权限 API, version: 0.1.0-draft }
+paths:
+  /api/v1/identity/resolve:
+    post:
+      operationId: resolveIdentity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [access_token]
+              properties: { access_token: { type: string, writeOnly: true } }
+      responses:
+        '200':
+          description: 已验证身份
+          content: { application/json: { schema: { $ref: './common-envelope.openapi.yaml#/components/schemas/Actor' } } }
+        '401': { description: 身份无效 }
+  /api/v1/permissions/check:
+    post:
+      operationId: checkPermission
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/PermissionCheckRequest' } } }
+      responses:
+        '200':
+          description: 权限判定完成；拒绝也使用结构化判定结果
+          content: { application/json: { schema: { $ref: '#/components/schemas/PermissionDecision' } } }
+components:
+  schemas:
+    PermissionCheckRequest:
+      type: object
+      required: [actor, action, resource, trace_id]
+      properties:
+        actor: { $ref: './common-envelope.openapi.yaml#/components/schemas/Actor' }
+        action:
+          type: string
+          enum: [platform.enter, capability.invoke, file.read, file.write, data.read, data.write, asset.use, asset.create, asset.update, asset.delete, asset.publish, project.manage, model.invoke, external.read, external.write, human.confirm, task.cancel, notification.send]
+        resource: { $ref: './common-envelope.openapi.yaml#/components/schemas/ResourceRef' }
+        scope: { type: object, additionalProperties: true }
+        context: { $ref: './common-envelope.openapi.yaml#/components/schemas/RequestContext' }
+        trace_id: { type: string, format: uuid }
+      additionalProperties: false
+    PermissionDecision:
+      type: object
+      required: [decision, decision_id, reason_code, policy_version, decided_at]
+      properties:
+        decision: { type: string, enum: [allow, deny] }
+        decision_id: { type: string }
+        reason_code: { type: string }
+        policy_version: { type: string }
+        obligations:
+          type: array
+          items: { type: string, enum: [mask_fields, require_confirmation, restrict_export, audit_detail] }
+        decided_at: { type: string, format: date-time }
+      additionalProperties: false

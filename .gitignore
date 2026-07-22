@@ -1,0 +1,39 @@
+# Dependencies and generated outputs
+node_modules/
+outputs/
+dist/
+
+# Large delivered-module source packages are managed separately.
+联调文件-7.20-解压/
+
+# Python caches and test caches
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Runtime processes, databases, state and uploaded business files
+framework/.run/
+framework/data/
+framework/uploads/
+*.db
+*.db-shm
+*.db-wal
+*.pid
+*.log
+
+# Local credentials and machine-specific environment
+framework/config/*.env
+!framework/config/*.env.example
+.env
+.env.*
+!.env.example
+
+# Generated inspection artifacts
+*.inspect.ndjson
+
+# Editor and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+~$*

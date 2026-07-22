@@ -1,0 +1,6 @@
+.run/
+data/*.db
+data/*.db-shm
+data/*.db-wal
+__pycache__/
+config/model.env

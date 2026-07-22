@@ -1,0 +1,97 @@
+{
+  "case_id": "architecture-v3.9-case2-sales-reconciliation",
+  "title": "案例二：多智能体协同代办——本月销售对账的并行核对与逐笔拍板",
+  "source_document": "架构/AI平台架构框架说明_v3_9_20260719.docx",
+  "actor": {
+    "tenant_id": "hanhe-demo",
+    "user_id": "fu_shengxian",
+    "actor_id": "fu_shengxian",
+    "person_id": "fu_shengxian",
+    "display_name": "付盛贤",
+    "position_ids": ["sales_staff"],
+    "authenticated": true
+  },
+  "business_application_input": {
+    "entry": "对话框",
+    "request_type": "自然语言",
+    "utterance": "办理本月销售对账：请并行核对我负责项目的回款流水与财务数据、我名下合同登记表、发票一致性；发现疑点逐笔让我拍板，其余自动通过。"
+  },
+  "confirmed_intent_tasks": [
+    {
+      "task_id": "case2-t1-payment-flow-check",
+      "description": "核对本人所负责项目的回款流水与财务数据是否一致",
+      "capability_code": "data.search",
+      "next_capability_code": "rule.calculate",
+      "dependencies": [],
+      "parallel_group": "sales_reconciliation_parallel_checks",
+      "parameters": {
+        "data_scope": "owned_projects_current_month",
+        "datasets": ["payment_flow", "finance_receivable"],
+        "comparison_rule": "payment_vs_receivable_amount_match"
+      }
+    },
+    {
+      "task_id": "case2-t2-contract-ledger-check",
+      "description": "核对本人名下合同登记表中的应收与实收等项",
+      "capability_code": "data.search",
+      "next_capability_code": "rule.calculate",
+      "dependencies": [],
+      "parallel_group": "sales_reconciliation_parallel_checks",
+      "parameters": {
+        "data_scope": "owned_contracts_current_month",
+        "datasets": ["contract_ledger"],
+        "comparison_rule": "contract_receivable_vs_actual_received"
+      }
+    },
+    {
+      "task_id": "case2-t3-invoice-consistency-check",
+      "description": "核对发票抬头、金额等一致性",
+      "capability_code": "external.api.call",
+      "next_capability_code": "rule.calculate",
+      "dependencies": [],
+      "parallel_group": "sales_reconciliation_parallel_checks",
+      "parameters": {
+        "external_system": "finance_or_tax_invoice_system",
+        "query_scope": "owned_invoices_current_month",
+        "comparison_rule": "invoice_title_and_amount_match"
+      }
+    }
+  ],
+  "expected_doubts": [
+    {
+      "doubt_id": "case2-doubt-001",
+      "title": "回款金额与合同尾款相差一笔运费",
+      "decision_type": "关键动作确认",
+      "default_decision": "确认差异成立并标记为运费差异"
+    },
+    {
+      "doubt_id": "case2-doubt-002",
+      "title": "一张发票抬头不一致",
+      "decision_type": "关键动作确认",
+      "default_decision": "确认疑点成立并退回发票修正"
+    }
+  ],
+  "expected_call_chain": [
+    "业务应用层 application-gateway 接收自然语言请求并生成 trace_id",
+    "业务引擎层 engine-gateway 分流到 intent-adapter",
+    "intent-adapter 调用大模型调度或原意图模块，形成三项独立核对任务",
+    "用户确认意图后，workflow-execution 接收三项任务",
+    "workflow-execution 查询 capability-registry 并判定三项互不依赖，可以并行",
+    "每一路执行前调用 foundation-gateway -> permission-adapter 做权限检查",
+    "回款流水核对：data-operation 取数，rule-adapter 做确定性比对",
+    "合同登记核对：data-operation 取数，rule-adapter 做确定性比对",
+    "发票一致性核对：external-system-integration 取外部发票，rule-adapter 做确定性比对",
+    "workflow-execution 汇总两处疑点",
+    "human-collaboration 生成两张关键动作确认卡",
+    "用户逐笔拍板后，data-operation 写回对账记录和状态",
+    "业务应用层按 trace_id 展示办结结果和全链路接口传输内容"
+  ],
+  "acceptance_focus": [
+    "是否所有请求都带同一个 trace_id",
+    "是否能在 /api/v1/traces/{trace_id}/calls 看到每个接口的 request/response",
+    "是否能看到流程执行引擎调用权限模块",
+    "是否能看到三路核对的能力分派",
+    "是否能看到疑点转成人机协同确认任务",
+    "是否能看到最终写回动作走 data.update"
+  ]
+}

@@ -1,0 +1,54 @@
+openapi: 3.1.0
+info: { title: 规则计算引擎 API, version: 0.1.0-draft }
+paths:
+  /api/v1/rules/instructions:
+    post:
+      operationId: executeRuleInstruction
+      description: 只接受流程执行引擎经业务引擎层接口派发的确定性计算任务。
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/RuleInstruction' } } }
+      responses:
+        '200':
+          description: 计算完成或返回前置查询需求
+          content: { application/json: { schema: { $ref: '#/components/schemas/RuleResult' } } }
+        '403': { description: 调用方或权限不合规 }
+        '422': { description: 规则、参数或授权数据不足 }
+components:
+  schemas:
+    RuleInstruction:
+      type: object
+      required: [envelope, operation, rule_ref, data_refs, parameters]
+      properties:
+        envelope: { $ref: './common-envelope.openapi.yaml#/components/schemas/RequestEnvelope' }
+        operation: { type: string, enum: [evaluate, candidate_skill_apply, candidate_trial] }
+        rule_ref: { $ref: './common-envelope.openapi.yaml#/components/schemas/ResourceRef' }
+        data_refs:
+          type: array
+          items: { $ref: './common-envelope.openapi.yaml#/components/schemas/ResourceRef' }
+        parameters: { type: object, additionalProperties: true }
+        expected_unit: { type: string }
+        precision: { type: integer, minimum: 0, maximum: 12 }
+      additionalProperties: false
+    RequiredInput:
+      type: object
+      required: [kind, description]
+      properties:
+        kind: { type: string, enum: [formal_rule, parameter, authorized_data, capability, candidate_implementation] }
+        description: { type: string }
+        query: { type: object, additionalProperties: true }
+      additionalProperties: false
+    RuleResult:
+      type: object
+      required: [trace_id, state]
+      properties:
+        trace_id: { type: string, format: uuid }
+        state: { type: string, enum: [completed, precondition_query_required, waiting_human, blocked] }
+        value: {}
+        unit: { type: string }
+        formula_version: { type: string }
+        evidence_refs: { type: array, items: { $ref: './common-envelope.openapi.yaml#/components/schemas/ResourceRef' } }
+        required_inputs: { type: array, items: { $ref: '#/components/schemas/RequiredInput' } }
+        confirmation_ref: { $ref: './common-envelope.openapi.yaml#/components/schemas/ResourceRef' }
+        result_ref: { $ref: './common-envelope.openapi.yaml#/components/schemas/ResourceRef' }
+      additionalProperties: false

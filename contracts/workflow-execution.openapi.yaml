@@ -1,0 +1,84 @@
+openapi: 3.1.0
+info: { title: 流程执行引擎 API, version: 0.1.0-draft }
+paths:
+  /api/v1/workflows/executions:
+    post:
+      operationId: startWorkflowExecution
+      parameters:
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/WorkflowStart' } } }
+      responses:
+        '202':
+          description: 流程已受理
+          content: { application/json: { schema: { $ref: './common-envelope.openapi.yaml#/components/schemas/ResponseEnvelope' } } }
+  /api/v1/workflows/executions/{execution_id}:
+    get:
+      operationId: getWorkflowExecution
+      parameters:
+        - { name: execution_id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: 流程状态
+          content: { application/json: { schema: { $ref: '#/components/schemas/WorkflowExecution' } } }
+  /api/v1/workflows/executions/{execution_id}/resume:
+    post:
+      operationId: resumeWorkflowExecution
+      parameters:
+        - { name: execution_id, in: path, required: true, schema: { type: string } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [trace_id, resume_token]
+              properties:
+                trace_id: { type: string, format: uuid }
+                resume_token: { type: string }
+                confirmation_ref: { $ref: './common-envelope.openapi.yaml#/components/schemas/ResourceRef' }
+                callback_data: { type: object, additionalProperties: true }
+      responses:
+        '202': { description: 已恢复执行 }
+        '409': { description: 状态、令牌或确认版本冲突 }
+  /api/v1/workflows/callbacks:
+    post:
+      operationId: receiveWorkflowCallback
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: './common-envelope.openapi.yaml#/components/schemas/CallbackEvent' } } }
+      responses:
+        '204': { description: 已幂等接收 }
+components:
+  schemas:
+    WorkflowStart:
+      type: object
+      required: [envelope, tasks]
+      properties:
+        envelope: { $ref: './common-envelope.openapi.yaml#/components/schemas/RequestEnvelope' }
+        workflow_template_ref: { $ref: './common-envelope.openapi.yaml#/components/schemas/ResourceRef' }
+        tasks:
+          type: array
+          minItems: 1
+          items: { $ref: './intent-analysis.openapi.yaml#/components/schemas/TaskItem' }
+      additionalProperties: false
+    WorkflowExecution:
+      type: object
+      required: [execution_id, trace_id, state, tasks]
+      properties:
+        execution_id: { type: string }
+        trace_id: { type: string, format: uuid }
+        state: { type: string, enum: [accepted, running, waiting_dependency, waiting_human, succeeded, failed, cancelled] }
+        tasks:
+          type: array
+          items:
+            type: object
+            required: [task_id, state]
+            properties:
+              task_id: { type: string }
+              state: { type: string, enum: [pending, running, waiting_dependency, waiting_human, succeeded, failed, skipped] }
+              result_ref: { $ref: './common-envelope.openapi.yaml#/components/schemas/ResourceRef' }
+        resume_token: { type: string, writeOnly: true }
+      additionalProperties: false

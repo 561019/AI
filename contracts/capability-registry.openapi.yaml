@@ -1,0 +1,74 @@
+openapi: 3.1.0
+info: { title: 能力登记中心 API, version: 0.1.0-draft }
+paths:
+  /api/v1/capabilities:
+    get:
+      operationId: listCapabilities
+      parameters:
+        - { name: layer, in: query, schema: { type: string } }
+        - { name: enabled, in: query, schema: { type: boolean } }
+      responses:
+        '200':
+          description: 能力列表
+          content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Capability' } } } }
+    post:
+      operationId: registerCapability
+      parameters:
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/Capability' } } }
+      responses:
+        '201': { description: 已登记 }
+        '409': { description: 编码或版本冲突 }
+  /api/v1/capabilities/{capability_code}/resolve:
+    post:
+      operationId: resolveCapability
+      parameters:
+        - { name: capability_code, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id]
+              properties:
+                tenant_id: { type: string }
+                requested_version: { type: string }
+                execution_mode: { type: string, enum: [sync, async] }
+      responses:
+        '200':
+          description: 已解析到可用提供者
+          content: { application/json: { schema: { $ref: '#/components/schemas/ResolvedCapability' } } }
+        '404': { description: 能力不存在 }
+        '503': { description: 能力停用或没有健康提供者 }
+components:
+  schemas:
+    Capability:
+      type: object
+      required: [capability_code, name, layer, provider_module, endpoint, execution_mode, required_action, version, enabled]
+      properties:
+        capability_code: { type: string, pattern: '^[a-z][a-z0-9_.-]+$' }
+        name: { type: string }
+        layer: { type: string, enum: [business_application, business_engine, foundation] }
+        provider_module: { type: string }
+        endpoint: { type: string, format: uri }
+        execution_mode: { type: string, enum: [sync, async, either] }
+        required_action: { type: string }
+        version: { type: string }
+        enabled: { type: boolean }
+        timeout_seconds: { type: integer, minimum: 1 }
+        input_schema_ref: { type: string }
+        output_schema_ref: { type: string }
+      additionalProperties: false
+    ResolvedCapability:
+      type: object
+      required: [capability_code, provider_module, endpoint, version, execution_mode]
+      properties:
+        capability_code: { type: string }
+        provider_module: { type: string }
+        endpoint: { type: string, format: uri }
+        version: { type: string }
+        execution_mode: { type: string, enum: [sync, async] }
+        timeout_seconds: { type: integer }

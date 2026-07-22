@@ -1,0 +1,60 @@
+openapi: 3.1.0
+info: { title: 文件与数据引用 API, version: 0.1.0-draft }
+paths:
+  /api/v1/files:
+    post:
+      operationId: uploadFile
+      parameters:
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, tenant_id]
+              properties:
+                file: { type: string, format: binary }
+                tenant_id: { type: string }
+                project_id: { type: string }
+                classification: { type: string, enum: [public, internal, confidential, restricted] }
+      responses:
+        '201':
+          description: 上传完成
+          content: { application/json: { schema: { $ref: './common-envelope.openapi.yaml#/components/schemas/ResourceRef' } } }
+  /api/v1/resources/{type}/{id}/metadata:
+    get:
+      operationId: getResourceMetadata
+      parameters:
+        - { name: type, in: path, required: true, schema: { type: string, enum: [file, data, asset, rule, model, task, confirmation, result] } }
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: version, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: 元数据；读取前由基础模块层接口完成权限判定
+          content: { application/json: { schema: { $ref: '#/components/schemas/ResourceMetadata' } } }
+        '403': { description: 无读取权限 }
+        '404': { description: 引用不存在 }
+  /api/v1/resources/{type}/{id}/content:
+    get:
+      operationId: readResourceContent
+      parameters:
+        - { name: type, in: path, required: true, schema: { type: string, enum: [file, data, asset, rule, result] } }
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: version, in: query, schema: { type: string } }
+      responses:
+        '200': { description: 受控资源内容或临时下载地址 }
+        '403': { description: 无读取权限 }
+components:
+  schemas:
+    ResourceMetadata:
+      type: object
+      required: [ref, name, media_type, created_at]
+      properties:
+        ref: { $ref: './common-envelope.openapi.yaml#/components/schemas/ResourceRef' }
+        name: { type: string }
+        media_type: { type: string }
+        size_bytes: { type: integer, minimum: 0 }
+        classification: { type: string, enum: [public, internal, confidential, restricted] }
+        created_at: { type: string, format: date-time }
+      additionalProperties: false

@@ -1,0 +1,57 @@
+openapi: 3.1.0
+info: { title: 三层统一接口 API, version: 0.1.0-draft }
+paths:
+  /api/v1/application/instructions:
+    post:
+      operationId: submitApplicationInstruction
+      description: 业务应用层唯一业务请求出口；只向业务引擎层接口转发。
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: './common-envelope.openapi.yaml#/components/schemas/RequestEnvelope' } } }
+      responses:
+        '200': { $ref: '#/components/responses/StandardResponse' }
+        '202': { $ref: '#/components/responses/StandardResponse' }
+  /api/v1/engine/instructions:
+    post:
+      operationId: submitEngineInstruction
+      description: 业务引擎层唯一请求入口；只接受业务应用层请求或本层对内路由。
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: './common-envelope.openapi.yaml#/components/schemas/RequestEnvelope' } } }
+      responses:
+        '200': { $ref: '#/components/responses/StandardResponse' }
+        '202': { $ref: '#/components/responses/StandardResponse' }
+        '403': { description: 来源层不允许 }
+  /api/v1/foundation/instructions:
+    post:
+      operationId: submitFoundationInstruction
+      description: 基础模块层唯一请求入口；只接受业务引擎层请求或本层对内路由。
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: './common-envelope.openapi.yaml#/components/schemas/RequestEnvelope' } } }
+      responses:
+        '200': { $ref: '#/components/responses/StandardResponse' }
+        '202': { $ref: '#/components/responses/StandardResponse' }
+        '403': { description: 来源层不允许 }
+  /api/v1/callbacks:
+    post:
+      operationId: receiveLayerCallback
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: './common-envelope.openapi.yaml#/components/schemas/CallbackEvent' } } }
+      responses:
+        '204': { description: 已幂等接收 }
+  /api/v1/tasks/{task_id}:
+    get:
+      operationId: getTaskStatus
+      parameters:
+        - { name: task_id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: 任务状态
+          content: { application/json: { schema: { $ref: './common-envelope.openapi.yaml#/components/schemas/TaskStatus' } } }
+components:
+  responses:
+    StandardResponse:
+      description: 标准同步结果或异步受理回执
+      content: { application/json: { schema: { $ref: './common-envelope.openapi.yaml#/components/schemas/ResponseEnvelope' } } }

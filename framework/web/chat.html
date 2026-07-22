@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AI 平台全流程对话验收台</title>
+  <style>
+    :root{--bg:#f3f6fb;--paper:#fff;--ink:#172033;--muted:#667085;--line:#dce4ef;--blue:#315ed5;--green:#11815f;--red:#c43e4f;--amber:#c87909;--dark:#101828}
+    *{box-sizing:border-box}
+    body{margin:0;background:radial-gradient(circle at 5% 0,#e5edff,transparent 28%),var(--bg);color:var(--ink);font:14px/1.55 system-ui,"Microsoft YaHei",sans-serif}
+    .shell{max-width:1460px;height:100vh;min-height:720px;margin:auto;padding:18px;display:grid;grid-template-columns:310px minmax(0,1fr) 350px;gap:14px}
+    .panel{background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:16px;box-shadow:0 14px 42px #243b6410;overflow:hidden}
+    .side{padding:18px;overflow:auto}
+    .side h2{font-size:15px;margin:0 0 4px}
+    .muted{color:var(--muted);font-size:12px}
+    .scenario{width:100%;text-align:left;border:1px solid var(--line);background:#fff;border-radius:11px;padding:11px;margin-top:9px;cursor:pointer}
+    .scenario:hover,.scenario.active{border-color:var(--blue);background:#f5f7ff}
+    .scenario b,.scenario small{display:block}
+    .scenario small{color:var(--muted)}
+    .scenario.pass{border-color:#9bd8c3}
+    .scenario.fail{border-color:#efadb5}
+    .chat{display:flex;flex-direction:column;min-height:0}
+    .head{padding:16px 19px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+    .head h1{font-size:18px;margin:0}
+    .health{font-size:12px;color:var(--muted)}
+    .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--amber);margin-right:6px}
+    .dot.ok{background:var(--green)}
+    #messages{flex:1;overflow:auto;padding:18px}
+    .welcome{border:1px dashed #9eb4eb;background:#f7f9ff;border-radius:12px;padding:14px}
+    .row{display:flex;margin:14px 0}
+    .row.user{justify-content:flex-end}
+    .bubble{max-width:86%;padding:11px 13px;border-radius:13px;background:#eef2f7;white-space:pre-wrap}
+    .user .bubble{background:var(--blue);color:#fff;border-bottom-right-radius:4px}
+    .assistant .bubble{border-bottom-left-radius:4px}
+    .meta{font-size:10px;opacity:.6;margin-top:5px}
+    .actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px;padding-top:10px;border-top:1px solid #ccd6e4}
+    .btn{border:0;border-radius:9px;padding:9px 12px;font-weight:700;cursor:pointer}
+    .primary{background:var(--blue);color:#fff}
+    .allow{background:var(--green);color:#fff}
+    .deny{background:var(--red);color:#fff}
+    .secondary{background:#e7ebf2}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .composer{display:grid;grid-template-columns:auto 1fr auto;gap:9px;padding:13px;border-top:1px solid var(--line);align-items:end}
+    textarea{resize:none;width:100%;height:58px;border:1px solid #cad5e4;border-radius:11px;padding:12px;font:inherit;outline:0}
+    textarea:focus{border-color:var(--blue)}
+    .attach-btn{position:relative;overflow:hidden;background:#eef2ff;color:var(--blue)}
+    .attach-btn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+    .attachments{border-top:1px solid var(--line);padding:10px 13px;background:#fbfcff;display:none}
+    .attachments.show{display:block}
+    .file{border:1px solid var(--line);border-radius:10px;padding:8px;margin:6px 0;background:#fff}
+    .file b,.file small{display:block;word-break:break-all}
+    .pill{display:inline-flex;align-items:center;border-radius:999px;background:#eef2ff;color:var(--blue);padding:3px 9px;font-size:12px;margin:4px 5px 0 0}
+    .pill.ok{background:#dff7ed;color:var(--green)}
+    .right h2{display:flex;justify-content:space-between}
+    .check{display:grid;grid-template-columns:24px 1fr;gap:8px;margin:11px 0;color:var(--muted)}
+    .check i{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:#edf1f6;font-style:normal;font-size:11px}
+    .check.pass{color:var(--ink)}
+    .check.pass i{background:#dff7ed;color:var(--green)}
+    .check.fail i{background:#fde5e8;color:var(--red)}
+    dl{border-top:1px solid var(--line);padding-top:8px}
+    dt{font-size:10px;color:var(--muted);margin-top:8px}
+    dd{margin:1px 0;word-break:break-all;font:11px ui-monospace,Consolas,monospace}
+    .tracebtn{display:block;text-align:center;text-decoration:none;background:#eef2ff;color:var(--blue);padding:9px;border-radius:9px;margin-top:12px}
+    details{margin-top:12px}
+    summary{cursor:pointer;color:var(--blue)}
+    pre{background:var(--dark);color:#d1fae5;padding:10px;border-radius:9px;white-space:pre-wrap;word-break:break-all;font-size:10px;max-height:260px;overflow:auto}
+    @media(max-width:1050px){.shell{height:auto;grid-template-columns:1fr}.chat{min-height:70vh}.side{order:2}.right{order:3}.composer{grid-template-columns:1fr}.attach-btn,.composer button{width:100%}}
+  </style>
+</head>
+<body>
+<main class="shell">
+  <aside class="panel side">
+    <h2>验收场景</h2>
+    <div class="muted">意图决定能力，流程引擎根据 capability_code 动态生成执行计划。</div>
+    <button class="scenario active" data-mode="normal">
+      <b>普通对话流程</b>
+      <small>意图分析 → 能力解析 → 权限 → 实际能力模块</small>
+    </button>
+    <button class="scenario" data-mode="document">
+      <b>带文档对话流程</b>
+      <small>上传 Excel/合同 → 文档引用进入意图和流程 payload</small>
+    </button>
+    <button class="scenario" data-mode="reject">
+      <b>人工驳回流程</b>
+      <small>验证 waiting_human 与拒绝分支</small>
+    </button>
+    <button class="scenario" data-mode="denied">
+      <b>权限拒绝流程</b>
+      <small>验证权限拒绝后不调用目标能力</small>
+    </button>
+    <a class="tracebtn" href="/uploads">单独文件上传页</a>
+    <a class="tracebtn" href="/demo">查看完整案例</a>
+  </aside>
+
+  <section class="panel chat">
+    <header class="head">
+      <div>
+        <h1>AI 平台全流程对话验收台</h1>
+        <div class="muted">上传的文档会作为 uploaded_documents[] 进入本轮对话接口。</div>
+      </div>
+      <span class="health"><i id="dot" class="dot"></i><span id="health">检查服务</span></span>
+    </header>
+
+    <div id="messages">
+      <div class="welcome">
+        <b>怎么用文档对话：</b>
+        先点下方“上传文档”，选择销售对账 Excel、合同登记表等文件；上传成功后，再输入问题，例如“根据我上传的两份文件，执行案例二销售对账，列出疑点并生成待确认事项”。发送后你可以在右侧和 Trace 页看到每个接口收到的 uploaded_documents 字段。
+      </div>
+    </div>
+
+    <div id="attachments" class="attachments">
+      <b>本轮对话已附加文档</b>
+      <div id="attachmentList"></div>
+    </div>
+
+    <form id="form" class="composer">
+      <label class="btn attach-btn secondary">
+        上传文档
+        <input id="fileInput" type="file" multiple accept=".xlsx,.xls,.csv,.docx,.pdf">
+      </label>
+      <textarea id="input" required>计算七月份两笔销售业绩合计，金额分别为10000元和2680.5元</textarea>
+      <button class="btn primary">发送</button>
+    </form>
+  </section>
+
+  <aside class="panel side right">
+    <h2><span>流程验证结果</span><span id="score" class="muted">0/10</span></h2>
+    <div id="checks"></div>
+    <dl>
+      <dt>当前场景</dt><dd id="mode">普通对话流程</dd>
+      <dt>已附加文档数</dt><dd id="docCount">0</dd>
+      <dt>Task ID</dt><dd id="task">—</dd>
+      <dt>Trace ID</dt><dd id="trace">—</dd>
+      <dt>任务状态</dt><dd id="state">idle</dd>
+      <dt>模型提供方</dt><dd id="provider">—</dd>
+    </dl>
+    <a id="monitor" class="tracebtn" href="/monitor" target="_blank">展开全部接口请求/响应</a>
+    <details open>
+      <summary>本轮文档平台字段</summary>
+      <pre id="docPayload">[]</pre>
+    </details>
+    <details>
+      <summary>最近一次接口报文</summary>
+      <pre id="raw">暂无调用</pre>
+    </details>
+  </aside>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const messages = $('#messages');
+const uuid = () => crypto.randomUUID();
+
+let mode = 'normal';
+let taskId;
+let traceId;
+let confirmationId;
+let attachedDocuments = [];
+
+const required = [
+  'application-gateway',
+  'engine-gateway',
+  'capability-registry',
+  'intent-adapter',
+  'intent-analysis-engine-original',
+  'foundation-gateway',
+  'model-dispatcher',
+  'workflow-execution',
+  'permission-adapter',
+  'rule-adapter'
+];
+
+const labels = {
+  'application-gateway':'应用层网关',
+  'engine-gateway':'业务引擎层网关',
+  'capability-registry':'能力注册中心',
+  'intent-adapter':'平台意图适配器',
+  'intent-analysis-engine-original':'你交付的意图分析引擎',
+  'foundation-gateway':'基础层网关',
+  'model-dispatcher':'大模型调度',
+  'workflow-execution':'流程执行引擎',
+  'permission-adapter':'权限模块',
+  'rule-adapter':'规则计算'
+};
+
+const scenarioText = {
+  normal: '计算七月份两笔销售业绩合计，金额分别为10000元和2680.5元',
+  document: '根据我上传的两份文件，执行案例二销售对账，核对回款、合同登记和发票一致性，列出疑点并生成待确认事项',
+  reject: '查询并计算七月份销售业绩，但我需要先确认意图',
+  denied: '计算两笔销售业绩合计，金额分别为5000元和2680.5元'
+};
+
+function esc(s){
+  return String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function bubble(role,text,actions=''){
+  const el=document.createElement('div');
+  el.className='row '+role;
+  el.innerHTML=`<div class="bubble">${esc(text)}${actions}<div class="meta">${new Date().toLocaleTimeString()}</div></div>`;
+  messages.append(el);
+  messages.scrollTop=messages.scrollHeight;
+  return el;
+}
+
+function raw(x){
+  $('#raw').textContent=JSON.stringify(x,null,2);
+  if(x.task_id){taskId=x.task_id;$('#task').textContent=taskId}
+  if(x.trace_id){traceId=x.trace_id;$('#trace').textContent=traceId;$('#monitor').href='/monitor?trace_id='+encodeURIComponent(traceId)}
+  if(x.state)$('#state').textContent=x.state;
+}
+
+async function api(url,opt){
+  const r=await fetch(url,opt);
+  const b=await r.json().catch(()=>({}));
+  raw(b);
+  if(!r.ok) throw Object.assign(new Error(b.error?.message||b.error?.code||`HTTP ${r.status}`),{body:b});
+  return b;
+}
+
+function resetChecks(){
+  const expected=mode==='reject'?required.slice(0,7):mode==='denied'?required.slice(0,9):required;
+  $('#checks').innerHTML=expected.map(x=>`<div class="check" data-module="${x}"><i>·</i><span>${labels[x]}<br><small>${x}</small></span></div>`).join('');
+  $('#score').textContent='0/'+expected.length;
+}
+
+function renderAttachedDocuments(){
+  $('#docCount').textContent = attachedDocuments.length;
+  $('#docPayload').textContent = JSON.stringify(attachedDocuments,null,2);
+  $('#attachments').classList.toggle('show', attachedDocuments.length > 0);
+  $('#attachmentList').innerHTML = attachedDocuments.map(x => `
+    <div class="file">
+      <b>${esc(x.original_name)}</b>
+      <small>角色：${esc(x.document_role)} · file_id：${esc(x.file_id)}</small>
+      <small>${esc(x.storage_uri)}</small>
+    </div>
+  `).join('');
+}
+
+async function uploadFiles(files){
+  const chosen = Array.from(files || []);
+  if(!chosen.length) return;
+  traceId = traceId || uuid();
+  $('#trace').textContent = traceId;
+  $('#monitor').href = '/monitor?trace_id=' + encodeURIComponent(traceId);
+  const fd = new FormData();
+  fd.append('scenario_id', mode === 'document' ? 'architecture-v3.9-case2-sales-reconciliation' : 'chat-validation');
+  fd.append('trace_id', traceId);
+  fd.append('source_module', 'chat-validation');
+  chosen.forEach(f => fd.append('files', f));
+  bubble('user', `上传 ${chosen.length} 个文档：\n` + chosen.map(f => `- ${f.name}`).join('\n'));
+  try{
+    const b = await api('/api/v1/uploads', {method:'POST', body:fd});
+    const docs = b.platform_payload?.uploaded_documents || [];
+    attachedDocuments = attachedDocuments.concat(docs);
+    renderAttachedDocuments();
+    bubble('assistant', `上传成功，已附加到本轮对话。\n文档数：${attachedDocuments.length}\n你现在可以直接提问，例如：根据上传文件执行案例二销售对账。`);
+  }catch(e){
+    bubble('assistant','上传失败：'+e.message);
+  }
+}
+
+async function trace(){
+  if(!traceId) return;
+  const b=await api(`/api/v1/traces/${traceId}/calls`);
+  const mods=new Set((b.items||[]).flatMap(x=>[x.source_module,x.target_module]));
+  let n=0;
+  document.querySelectorAll('.check').forEach(x=>{
+    const ok=mods.has(x.dataset.module);
+    x.classList.toggle('pass',ok);
+    x.querySelector('i').textContent=ok?'✓':'·';
+    if(ok)n++;
+  });
+  $('#score').textContent=n+'/'+document.querySelectorAll('.check').length;
+  const model=(b.items||[]).find(x=>x.target_module==='model-dispatcher')?.response;
+  $('#provider').textContent=model?.provider||model?.data?.provider||'—';
+}
+
+document.querySelectorAll('.scenario').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.scenario').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  mode=b.dataset.mode;
+  $('#mode').textContent=b.querySelector('b').textContent;
+  $('#input').value=scenarioText[mode];
+  resetChecks();
+});
+
+$('#fileInput').addEventListener('change', e => uploadFiles(e.target.files));
+
+$('#form').onsubmit=async e=>{
+  e.preventDefault();
+  const text=$('#input').value.trim();
+  if(!text) return;
+  bubble('user', text + (attachedDocuments.length ? `\n\n已附加文档：${attachedDocuments.map(x=>x.original_name).join('、')}` : ''));
+  e.submitter.disabled=true;
+  traceId = attachedDocuments.length ? (traceId || uuid()) : uuid();
+  const env={
+    protocol_version:'1.0',
+    message_id:uuid(),
+    request_id:uuid(),
+    trace_id:traceId,
+    parent_request_id:null,
+    source:{layer:'business_application',module:'chat-validation'},
+    target:{layer:'business_engine',module:'engine-gateway',capability:'intent.analyze'},
+    actor:{tenant_id:'demo-tenant',user_id:'demo-user',authenticated:true},
+    context:{project_id:mode==='document'?'case2-sales-reconciliation':'chat-validation',conversation_id:uuid(),locale:'zh-CN'},
+    request_type:'execute',
+    action:'intent.analyze',
+    payload:{utterance:text, uploaded_documents:attachedDocuments},
+    expected_response:{mode:'async'},
+    idempotency_key:'chat-'+uuid(),
+    deadline_at:new Date(Date.now()+120000).toISOString()
+  };
+  try{
+    const r=await api('/api/v1/application/instructions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(env)});
+    bubble('assistant', attachedDocuments.length
+      ? '请求已进入应用层，上传文档引用已随 payload 传给意图分析和大模型调度。'
+      : '请求已进入应用层，正在调用意图分析和大模型调度。'
+    );
+    await poll(r.task_id);
+  }catch(err){
+    bubble('assistant','提交失败：'+err.message);
+  }finally{
+    e.submitter.disabled=false;
+  }
+};
+
+async function poll(id){
+  for(let i=0;i<30;i++){
+    const t=await api('/api/v1/tasks/'+id);
+    await trace();
+    if(t.state==='waiting_human'){
+      confirmationId=t.confirmation_ref.id;
+      const data=t.result_ref?.data||{};
+      const intent=data.tasks?.[0];
+      const provider=data.model_call?.provider;
+      const values=intent?.parameters?.values||[];
+      const engine=data.intent_engine;
+      const docs=intent?.parameters?.uploaded_documents||data.uploaded_documents||[];
+      $('#provider').textContent=provider||'—';
+      const actions=mode==='reject'
+        ? `<div class="actions"><button class="btn deny" data-choice="reject">驳回意图</button></div>`
+        : `<div class="actions"><button class="btn allow" data-choice="confirm">确认并执行</button><button class="btn secondary" data-choice="reject">驳回</button></div>`;
+      const row=bubble('assistant',
+`意图识别完成：${intent?.description||'—'}
+原模块任务类型：${intent?.parameters?.original_task_type||'—'}
+平台目标能力：${intent?.capability_code||'—'}
+提取的计算参数：${values.length?values.join(' + '):'未提取到'}
+本轮文档数：${docs.length}
+意图引擎：${engine?.source||'—'} / ${engine?.component||'—'}
+模型提供方：${provider||'—'}
+
+请确认是否继续。`,actions);
+      row.querySelectorAll('[data-choice]').forEach(x=>x.onclick=()=>decide(x.dataset.choice,row));
+      return;
+    }
+    if(['succeeded','failed'].includes(t.state)){final(t);return}
+    await new Promise(r=>setTimeout(r,350));
+  }
+}
+
+async function decide(choice,row){
+  row.querySelectorAll('button').forEach(x=>x.disabled=true);
+  try{
+    await api(`/api/v1/confirmations/${confirmationId}/decisions`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        decision:choice,
+        actor:{tenant_id:'demo-tenant',user_id:'demo-user',authenticated:true},
+        simulate_permission_denied:mode==='denied'
+      })
+    });
+    if(choice==='reject'){
+      bubble('assistant','你已驳回意图。流程在人工确认节点结束，没有继续调用权限和目标业务模块。');
+      $('#state').textContent='failed';
+      await trace();
+      grade();
+      return;
+    }
+    bubble('assistant','确认完成，流程执行引擎将使用意图结果和本轮文档引用继续编排后续模块。');
+    await poll(taskId);
+  }catch(err){
+    bubble('assistant',mode==='denied'?'权限模块返回拒绝，流程执行引擎已停止，目标业务模块没有被调用。':'执行失败：'+err.message);
+    const t=await api('/api/v1/tasks/'+taskId);
+    final(t);
+  }
+}
+
+function readableResult(r,c,t){
+  if(c.content) return c.content;
+  if(c.summary_cn){
+    const doubts = (c.doubts || []).map(x => `- ${x.doubt_id}：${x.title}`).join('\n') || '无';
+    const passed = (c.auto_passed || []).map(x => `- ${x.check_id}：${x.title}`).join('\n') || '无';
+    return `${c.summary_cn}\n\n疑点：\n${doubts}\n\n自动通过：\n${passed}`;
+  }
+  if(c.value!=null) return `计算结果：${c.value} ${c.unit||''}`.trim();
+  if(r.permission?.decision&&r.permission.decision!=='allow') return `权限结论：${r.permission.decision}\n拒绝原因：${r.permission.reason||r.permission.message||'未返回原因'}`;
+  return t.error?.message||t.error?.code||t.state;
+}
+
+async function final(t){
+  await trace();
+  if(t.state==='succeeded'){
+    const r=t.result_ref||{}, c=r.capability_result||{}, text=readableResult(r,c,t);
+    bubble('assistant',
+`意图驱动执行成功。
+选择能力：${r.selected_capability}
+实际提供模块：${r.provider_module}
+权限结论：${r.permission?.decision}
+文档是否进入流程：${attachedDocuments.length ? '是，见 Trace 中 uploaded_documents 字段' : '否，本轮未上传文档'}
+
+处理后的返回内容：
+${text}
+
+原始接口返回请在右侧“最近一次接口报文”或 Trace 页面查看。`);
+  }else if(mode!=='denied'){
+    bubble('assistant','任务结束：'+(t.error?.code||t.state));
+  }
+  grade();
+}
+
+function grade(){
+  const total=document.querySelectorAll('.check').length;
+  const pass=document.querySelectorAll('.check.pass').length;
+  const scenario=document.querySelector(`.scenario[data-mode="${mode}"]`);
+  scenario.classList.toggle('pass',pass===total);
+  scenario.classList.toggle('fail',pass!==total);
+}
+
+resetChecks();
+renderAttachedDocuments();
+(async()=>{
+  try{
+    await api('/health');
+    $('#dot').classList.add('ok');
+    $('#health').textContent='服务可用';
+  }catch{
+    $('#health').textContent='服务未启动';
+  }
+})();
+</script>
+</body>
+</html>
