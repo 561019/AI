@@ -40,7 +40,7 @@ BUSINESS_MODULES: tuple[ModuleSpec, ...] = (
         "联调文件-7.20-解压/2.4-2.12模块和联调--陈宗贤/模块和联调--陈宗贤/数据操作引擎_联调包_v0_2_20260719",
         "adapter_registered",
         "L2 业务数据操作引擎；负责业务数据整合、增删改查、聚合和追踪，物理存取下沉到 L1 数据模块。",
-        ("data.search", "data.persist", "data.trace", "data.read", "data.create", "data.update", "data.delete", "data.aggregate"),
+        ("data.search", "data.persist", "data.trace", "data.catalog", "data.read", "data.create", "data.update", "data.delete", "data.aggregate"),
     ),
     ModuleSpec(
         "analysis-prediction",
@@ -174,7 +174,7 @@ FOUNDATION_MODULES: tuple[ModuleSpec, ...] = (
         "联调文件-7.20-解压/待接入/数据基础模块",
         "adapter_placeholder",
         "L1 数据模块；负责物理数据读写、数据权限范围内取数、数据源登记。",
-        ("foundation_data.read", "foundation_data.write", "foundation_data.query", "foundation_data.source.register"),
+        ("foundation_data.read", "foundation_data.write", "foundation_data.query", "foundation_data.source.register", "foundation_data.catalog.list", "foundation_data.access.trace"),
     ),
     ModuleSpec(
         "account-gateway",
@@ -186,7 +186,7 @@ FOUNDATION_MODULES: tuple[ModuleSpec, ...] = (
         "adapter_registered",
         "账号、真人身份、组织事实、资源目录和账号生命周期入口。",
         (
-            "account.identity.resolve", "account.identity.verify", "account.resource.query",
+            "account.identity.resolve", "account.identity.verify", "account.session.resolve", "account.session.close", "account.resource.query",
             "account.create", "account.list", "account.update", "account.delete",
             "account.freeze", "account.handover_confirm", "account.offboarding_assets.query",
         ),

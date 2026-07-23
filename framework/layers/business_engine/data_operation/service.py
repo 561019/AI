@@ -32,6 +32,7 @@ def post(handler: Any, envelope: dict[str, Any]) -> None:
         return
     payload = envelope.get("payload") if isinstance(envelope.get("payload"), dict) else {}
     foundation_capability, foundation_payload = _translate(capability, payload)
+    foundation_payload["_requesting_module"] = str((envelope.get("source") or {}).get("module") or "unknown")
     inner = make_internal_envelope(
         envelope.get("trace_id"),
         actor,
@@ -61,12 +62,22 @@ def post(handler: Any, envelope: dict[str, Any]) -> None:
         "platform_capability": capability,
         "storage_capability": foundation_capability,
         "storage_result": data,
-        "received_payload": payload,
+        "received_summary": {
+            "dataset": payload.get("dataset") or payload.get("collection"),
+            "operation": payload.get("operation"),
+            "record_count": len(payload.get("records") or []) if isinstance(payload.get("records"), list) else (1 if payload.get("record") else 0),
+            "filters": payload.get("filters") or {},
+            "trace_id": envelope.get("trace_id"),
+        },
     }))
 
 
 def _translate(capability: str, payload: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     dataset = str(payload.get("dataset") or payload.get("collection") or "business_records")
+    if capability == "data.catalog":
+        return "foundation_data.catalog.list", {}
+    if capability == "data.trace":
+        return "foundation_data.access.trace", {"trace_id": payload.get("trace_id")}
     if capability in {"data.persist", "data.create", "data.update", "data.delete"}:
         operation = {
             "data.persist": payload.get("operation") or "upsert",

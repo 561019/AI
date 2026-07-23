@@ -4,6 +4,13 @@ $root = Split-Path -Parent $PSScriptRoot
 $runDir = Join-Path $PSScriptRoot '.run'
 New-Item -ItemType Directory -Path $runDir -Force | Out-Null
 
+# A second fleet would contend for ports and the shared SQLite writer. Always
+# remove every old worker before recording a new process set.
+& (Join-Path $PSScriptRoot 'stop_all.ps1') | Out-Null
+& $python -c "from framework.core import initialize; initialize()"
+if ($LASTEXITCODE -ne 0) { throw 'Shared database initialization failed.' }
+$env:PLATFORM_DB_INITIALIZED = '1'
+
 # 自动加载本地模型配置。已在当前 PowerShell 显式设置的变量优先。
 $envFiles = @()
 $envFiles += Join-Path $PSScriptRoot 'config\model.env'
@@ -40,13 +47,27 @@ $services = @(
     'security_compliance', 'cost_control'
 )
 foreach ($service in $services) {
-    $start = [Diagnostics.ProcessStartInfo]::new()
+    $outLog = Join-Path $runDir "$service.out.log"
+    $errLog = Join-Path $runDir "$service.err.log"
+    $start = [System.Diagnostics.ProcessStartInfo]::new()
     $start.FileName = $python
     $start.Arguments = "-m framework.run_services $service"
     $start.WorkingDirectory = $root
     $start.UseShellExecute = $false
     $start.CreateNoWindow = $true
-    $process = [Diagnostics.Process]::Start($start)
+    $start.RedirectStandardOutput = $true
+    $start.RedirectStandardError = $true
+    $process = [System.Diagnostics.Process]::Start($start)
+    $process.add_OutputDataReceived({
+        param($sender, $event)
+        if ($event.Data) { Add-Content -LiteralPath $outLog -Value $event.Data }
+    })
+    $process.add_ErrorDataReceived({
+        param($sender, $event)
+        if ($event.Data) { Add-Content -LiteralPath $errLog -Value $event.Data }
+    })
     Set-Content -LiteralPath (Join-Path $runDir "$service.pid") -Value $process.Id
+    $process.BeginOutputReadLine()
+    $process.BeginErrorReadLine()
 }
 Write-Output "Started $($services.Count) services. Loaded $loadedModelVars settings from framework/config/model.env and framework/config/module.env."

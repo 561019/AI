@@ -10,8 +10,8 @@ def post(handler: Any, envelope: dict[str, Any]) -> None:
     if handler.path != "/api/v1/engine/instructions": handler.send(404); return
     if validate_envelope(envelope): handler.send(400,{"error":{"code":"INVALID_REQUEST"}}); return
     source=envelope["source"]
-    allowed_modules={"application-gateway","intent-adapter","workflow-execution","rule-adapter","content-adapter","document-table-parsing","analysis-prediction","data-operation","digital-asset","project-management","monitoring-reminder","external-system-integration","knowledge-qa","knowledge-map","multimedia-generation"}
-    if source.get("layer") not in {"business_application","business_engine"} or source.get("module") not in allowed_modules: handler.send(403,{"error":{"code":"SOURCE_LAYER_FORBIDDEN"}}); return
+    allowed_modules={"application-gateway","intent-adapter","workflow-execution","rule-adapter","content-adapter","document-table-parsing","analysis-prediction","data-operation","digital-asset","project-management","monitoring-reminder","external-system-integration","knowledge-qa","knowledge-map","multimedia-generation","account-gateway"}
+    if source.get("layer") not in {"business_application","business_engine","foundation"} or source.get("module") not in allowed_modules: handler.send(403,{"error":{"code":"SOURCE_LAYER_FORBIDDEN"}}); return
     capability=envelope["target"].get("capability") or envelope["action"]
     registry_status,registration=post_json(f"http://127.0.0.1:8400/api/v1/capabilities/{capability}/resolve",{"trace_id":envelope["trace_id"],"action":"capability.resolve"},caller={"layer":"business_engine","module":"engine-gateway"})
     if registry_status!=200: registration=None

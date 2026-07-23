@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import import_module
 from typing import Any
 
-from framework.core import initialize
+from framework.core import initialize, record_interface_call
 
 
 SERVICE_MODULES = {
@@ -49,7 +50,7 @@ SERVICE_MODULES = {
 }
 
 ENDPOINTS = {
-    "application": ["GET /chat", "GET /cases", "GET /uploads", "GET /modules", "GET /demo", "GET /monitor", "GET /health", "POST /api/v1/application/instructions", "GET /api/v1/uploads", "POST /api/v1/uploads", "GET /api/v1/data/records?dataset={dataset}", "GET /api/v1/runtime/session/{trace_id}", "POST /api/application/capability-management/commands", "POST /api/application/knowledge-governance/commands", "POST /api/application/account/commands", "GET /api/v1/module-verification/cases", "POST /api/v1/module-verification/run", "GET /api/v1/tasks/{task_id}", "GET /api/v1/traces/{trace_id}/calls", "POST /api/v1/confirmations/{confirmation_id}/decisions"],
+    "application": ["GET /chat", "GET /cases", "GET /uploads", "GET /modules", "GET /demo", "GET /monitor", "GET /health", "POST /api/v1/application/instructions", "GET /api/v1/uploads", "POST /api/v1/uploads", "GET /api/v1/data/catalog", "GET /api/v1/data/records?dataset={dataset}", "GET /api/v1/runtime/session/{trace_id}", "GET /api/v1/traces/{trace_id}/data-access", "POST /api/application/capability-management/commands", "POST /api/application/knowledge-governance/commands", "POST /api/application/account/commands", "GET /api/v1/module-verification/cases", "POST /api/v1/module-verification/run", "GET /api/v1/tasks/{task_id}", "GET /api/v1/traces/{trace_id}/calls", "POST /api/v1/confirmations/{confirmation_id}/decisions"],
     "engine": ["GET /health", "POST /api/v1/engine/instructions", "POST /api/v1/callbacks"],
     "foundation": ["GET /health", "POST /api/v1/foundation/instructions"],
     "intent": ["GET /health", "POST /api/v1/intent/analyze"],
@@ -100,6 +101,8 @@ class Handler(BaseHTTPRequestHandler):
         return json.loads(self.rfile.read(length).decode("utf-8")) if length else {}
 
     def send(self, status: int, body: Any = None) -> None:
+        self.last_response_status = status
+        self.last_response_body = body
         raw = b"" if body is None else json.dumps(body, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         if raw:
@@ -139,10 +142,27 @@ class Handler(BaseHTTPRequestHandler):
                 return
             self.send(415, {"error": {"code": "UNSUPPORTED_MEDIA_TYPE"}})
             return
-        self.module.post(self, self.body())
+        body = self.body()
+        try:
+            self.module.post(self, body)
+        except Exception as exc:
+            self.send(500, {"error": {"code": "MODULE_REQUEST_FAILED", "message": str(exc)}})
+        finally:
+            source = body.get("source") if isinstance(body.get("source"), dict) else {"layer": "external", "module": "frontend-client"}
+            target = {"layer": "runtime", "module": self.service}
+            capability = str((body.get("target") or {}).get("capability") or body.get("action") or self.path)
+            record_interface_call(
+                trace_id=str(body.get("trace_id") or "untraced"), source=source, target=target,
+                capability=capability, method="POST", url=f"http://127.0.0.1:{self.server.server_port}{self.path}",
+                request=body, response=getattr(self, "last_response_body", None),
+                status_code=int(getattr(self, "last_response_status", 500)), duration_ms=0,
+            )
 
 
 def serve(service: str, port: int) -> None:
-    initialize()
+    # start_all.ps1 initializes the shared database once before it starts the
+    # service fleet. Keep standalone `run_services` usable as well.
+    if os.getenv("PLATFORM_DB_INITIALIZED") != "1":
+        initialize()
     handler = type(f"{service.title()}Handler", (Handler,), {"service": service})
     ThreadingHTTPServer(("127.0.0.1", port), handler).serve_forever()

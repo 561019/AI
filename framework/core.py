@@ -10,6 +10,7 @@ from typing import Any
 from uuid import uuid4
 
 from framework.module_catalog import additional_capabilities
+from framework.data_catalog import DATASETS
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,14 +23,21 @@ def now() -> str:
 
 def connect() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    db = sqlite3.connect(DB_PATH, timeout=10)
+    # SQLite permits one writer. Wait for an active transaction rather than
+    # failing a request while another framework service commits.
+    db = sqlite3.connect(DB_PATH, timeout=30)
     db.row_factory = sqlite3.Row
-    db.execute("PRAGMA journal_mode=WAL")
+    db.execute("PRAGMA busy_timeout=30000")
+    db.execute("PRAGMA foreign_keys=ON")
     return db
 
 
 def initialize() -> None:
     with connect() as db:
+        # WAL is a database-wide setting. It must not be negotiated again for
+        # every HTTP request connection in every service process.
+        db.execute("PRAGMA journal_mode=WAL")
+        db.execute("PRAGMA synchronous=NORMAL")
         db.executescript(
             """
             CREATE TABLE IF NOT EXISTS tasks (
@@ -86,6 +94,10 @@ def initialize() -> None:
               project_id TEXT,
               conversation_id TEXT,
               trace_id TEXT,
+              classification TEXT NOT NULL DEFAULT 'internal',
+              retention_policy_id TEXT NOT NULL DEFAULT 'business-default',
+              schema_version INTEGER NOT NULL DEFAULT 1,
+              record_version INTEGER NOT NULL DEFAULT 1,
               payload_json TEXT NOT NULL,
               created_at TEXT NOT NULL,
               updated_at TEXT NOT NULL,
@@ -116,9 +128,77 @@ def initialize() -> None:
               created_at TEXT NOT NULL,
               updated_at TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS dataset_catalog (
+              dataset TEXT PRIMARY KEY,
+              owner_module TEXT NOT NULL,
+              classification TEXT NOT NULL,
+              retention_policy_id TEXT NOT NULL,
+              sensitive INTEGER NOT NULL DEFAULT 0,
+              allowed_readers_json TEXT NOT NULL,
+              allowed_writers_json TEXT NOT NULL,
+              required_fields_json TEXT NOT NULL,
+              schema_version INTEGER NOT NULL DEFAULT 1,
+              enabled INTEGER NOT NULL DEFAULT 1,
+              updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS data_access_decisions (
+              decision_id TEXT PRIMARY KEY,
+              trace_id TEXT NOT NULL,
+              tenant_id TEXT NOT NULL,
+              actor_id TEXT NOT NULL,
+              source_module TEXT NOT NULL,
+              dataset TEXT NOT NULL,
+              action TEXT NOT NULL,
+              effect TEXT NOT NULL,
+              reason_code TEXT NOT NULL,
+              scope_json TEXT NOT NULL,
+              created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_data_access_trace
+              ON data_access_decisions(trace_id, created_at);
             """
         )
+        _ensure_column(db, "data_records", "classification", "TEXT NOT NULL DEFAULT 'internal'")
+        _ensure_column(db, "data_records", "retention_policy_id", "TEXT NOT NULL DEFAULT 'business-default'")
+        _ensure_column(db, "data_records", "schema_version", "INTEGER NOT NULL DEFAULT 1")
+        _ensure_column(db, "data_records", "record_version", "INTEGER NOT NULL DEFAULT 1")
+        seed_dataset_catalog(db)
         seed_capabilities(db)
+
+
+def _ensure_column(db: sqlite3.Connection, table: str, column: str, declaration: str) -> None:
+    existing = {str(row["name"]) for row in db.execute(f"PRAGMA table_info({table})").fetchall()}
+    if column not in existing:
+        db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
+
+
+def seed_dataset_catalog(db: sqlite3.Connection) -> None:
+    timestamp = now()
+    db.executemany(
+        """
+        INSERT INTO dataset_catalog(
+          dataset,owner_module,classification,retention_policy_id,sensitive,
+          allowed_readers_json,allowed_writers_json,required_fields_json,schema_version,enabled,updated_at
+        ) VALUES(?,?,?,?,?,?,?,?,1,1,?)
+        ON CONFLICT(dataset) DO UPDATE SET
+          owner_module=excluded.owner_module,
+          classification=excluded.classification,
+          retention_policy_id=excluded.retention_policy_id,
+          sensitive=excluded.sensitive,
+          allowed_readers_json=excluded.allowed_readers_json,
+          allowed_writers_json=excluded.allowed_writers_json,
+          required_fields_json=excluded.required_fields_json,
+          updated_at=excluded.updated_at
+        """,
+        [
+            (
+                item.code, item.owner_module, item.classification, item.retention_policy,
+                int(item.sensitive), json.dumps(item.allowed_readers), json.dumps(item.allowed_writers),
+                json.dumps(item.required_fields), timestamp,
+            )
+            for item in DATASETS
+        ],
+    )
 
 
 def seed_capabilities(db: sqlite3.Connection) -> None:
@@ -220,7 +300,7 @@ def record_interface_call(*, trace_id: str, source: dict[str, Any], target: dict
     with connect() as db:
         db.execute(
             "INSERT INTO interface_calls VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            (call_id, trace_id, source.get("layer"), source.get("module"), target.get("layer"), target.get("module"), capability, method, url, _json(request), _json(response), status_code, round(duration_ms, 2), now()),
+            (call_id, trace_id, source.get("layer"), source.get("module"), target.get("layer"), target.get("module"), capability, method, url, _json(_redact_sensitive(request)), _json(_redact_sensitive(response)), status_code, round(duration_ms, 2), now()),
         )
     return call_id
 
@@ -265,3 +345,18 @@ def _json(value: Any) -> str | None:
 
 def _load(value: str | None) -> Any:
     return None if value is None else json.loads(value)
+
+
+def _redact_sensitive(value: Any) -> Any:
+    sensitive_keys = {
+        "password", "password_hash", "salt", "token", "access_token", "refresh_token",
+        "api_key", "apikey", "secret", "authorization", "cookie", "set-cookie",
+    }
+    if isinstance(value, dict):
+        return {
+            key: ("***REDACTED***" if str(key).lower() in sensitive_keys else _redact_sensitive(item))
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_redact_sensitive(item) for item in value]
+    return value

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import base64
 from pathlib import Path
 import re
 from datetime import datetime, timezone
@@ -17,6 +18,7 @@ from framework.module_verification import list_cases, run_case
 FRAMEWORK_ROOT = Path(__file__).resolve().parents[3]
 UPLOAD_ROOT = FRAMEWORK_ROOT / "data" / "foundation_data" / "objects" / "uploads"
 UPLOAD_INDEX = UPLOAD_ROOT / "upload_index.json"
+GENERATED_ROOT = FRAMEWORK_ROOT / "data" / "foundation_data" / "objects" / "generated"
 
 
 def get(handler: Any) -> bool:
@@ -32,6 +34,13 @@ def get(handler: Any) -> bool:
         handler.send_html(200, page.read_text(encoding="utf-8")); return True
     if clean_path == "/api/v1/uploads":
         handler.send(200, {"items": _load_upload_index()}); return True
+    if clean_path.startswith("/api/v1/generated-files/"):
+        _download_generated_file(handler, clean_path.rsplit("/", 1)[-1])
+        return True
+    if clean_path == "/api/v1/data/catalog":
+        tenant_id = (parse_qs(urlparse(handler.path).query).get("tenant_id") or ["web-workbench"])[0]
+        status, result = _call_data_engine("data.catalog", {}, tenant_id=tenant_id)
+        handler.send(status, result); return True
     if clean_path == "/api/v1/data/records":
         query = parse_qs(urlparse(handler.path).query)
         dataset = (query.get("dataset") or [""])[0]
@@ -51,13 +60,19 @@ def get(handler: Any) -> bool:
             "http://127.0.0.1:8200/api/v1/engine/instructions", envelope,
             caller={"layer": "business_application", "module": "application-gateway"},
         )
-        if status != 200 or response.get("status") != "success":
+        if status not in {200, 202} or response.get("status") != "success":
             handler.send(502, {"error": {"code": "DATA_QUERY_FAILED", "details": response}}); return True
         operation = response.get("data") or {}
         storage = operation.get("storage_result") or {}
         handler.send(200, {"trace_id": trace_id, "dataset": dataset, "count": storage.get("count", 0), "items": storage.get("items", [])}); return True
     if clean_path.startswith("/api/v1/runtime/session/"):
         trace_id = clean_path.rsplit("/", 1)[-1]
+        tenant_id = (parse_qs(urlparse(handler.path).query).get("tenant_id") or ["web-workbench"])[0]
+        _, access = _call_data_engine("data.trace", {"trace_id": trace_id}, tenant_id=tenant_id, trace_id=trace_id)
+        workflow_data = {}
+        for dataset in ("workflow_instances", "workflow_node_instances", "workflow_events"):
+            _, queried = _call_data_engine("data.search", {"dataset": dataset, "filters": {"trace_id": trace_id}, "limit": 500}, tenant_id=tenant_id, trace_id=trace_id)
+            workflow_data[dataset] = queried.get("items", []) if isinstance(queried, dict) else []
         task = get_latest_task_by_trace(trace_id)
         handler.send(200, {
             "trace_id": trace_id,
@@ -68,6 +83,8 @@ def get(handler: Any) -> bool:
                 if item.get("trace_id") == trace_id
             ],
             "interface_calls": get_trace_calls(trace_id),
+            "data_access_decisions": access.get("items", []) if isinstance(access, dict) else [],
+            "workflow_data": workflow_data,
         }); return True
     if handler.path == "/api/v1/module-verification/cases":
         handler.send(200, {"items": list_cases()}); return True
@@ -75,7 +92,67 @@ def get(handler: Any) -> bool:
         item = get_task(handler.path.rsplit("/", 1)[-1]); handler.send(200, item) if item else handler.send(404, {"error": {"code": "RESOURCE_NOT_FOUND"}}); return True
     if handler.path.startswith("/api/v1/traces/") and handler.path.endswith("/calls"):
         trace_id = handler.path.split("/")[-2]; handler.send(200, {"trace_id": trace_id, "items": get_trace_calls(trace_id)}); return True
+    if clean_path.startswith("/api/v1/traces/") and clean_path.endswith("/data-access"):
+        trace_id = clean_path.split("/")[-2]
+        tenant_id = (parse_qs(urlparse(handler.path).query).get("tenant_id") or ["web-workbench"])[0]
+        status, result = _call_data_engine("data.trace", {"trace_id": trace_id}, tenant_id=tenant_id, trace_id=trace_id)
+        handler.send(status, result); return True
     return False
+
+
+def _call_data_engine(capability: str, payload: dict[str, Any], *, tenant_id: str, trace_id: str | None = None) -> tuple[int, dict[str, Any]]:
+    actual_trace = trace_id or str(uuid4())
+    actor = {"tenant_id": tenant_id, "user_id": "data-verifier", "authenticated": True, "roles": ["platform_data_auditor"]}
+    envelope = make_internal_envelope(
+        actual_trace, actor, str(uuid4()), capability, "business_engine", "engine-gateway", payload,
+        source_layer="business_application", source_module="application-gateway",
+    )
+    status, response = post_json(
+        "http://127.0.0.1:8200/api/v1/engine/instructions", envelope,
+        caller={"layer": "business_application", "module": "application-gateway"},
+    )
+    if status not in {200, 202} or not isinstance(response, dict) or response.get("status") != "success":
+        return 502, {"error": {"code": "DATA_OPERATION_FAILED", "details": response}}
+    operation = response.get("data") or {}
+    storage = operation.get("storage_result") or {}
+    return 200, storage
+
+
+def _read_data_record(trace_id: str, actor: dict[str, Any], dataset: str, record_id: str) -> dict[str, Any] | None:
+    envelope = make_internal_envelope(
+        trace_id, actor, str(uuid4()), "data.read", "business_engine", "engine-gateway",
+        {"dataset": dataset, "record_id": record_id},
+        source_layer="business_application", source_module="application-gateway",
+    )
+    status, response = post_json(
+        "http://127.0.0.1:8200/api/v1/engine/instructions", envelope,
+        caller={"layer": "business_application", "module": "application-gateway"},
+    )
+    if status not in {200, 202} or not isinstance(response, dict) or response.get("status") != "success":
+        return None
+    return ((response.get("data") or {}).get("storage_result") or {}).get("item")
+
+
+def _validate_owned_context(trace_id: str, actor: dict[str, Any], project_id: Any, conversation_id: Any = None) -> dict[str, str] | None:
+    account_id = str(actor.get("user_id") or actor.get("actor_id") or "")
+    project_id = str(project_id or "")
+    if not account_id or not project_id:
+        return {"code": "PROJECT_CONTEXT_REQUIRED", "message": "account_id and project_id are required"}
+    project = _read_data_record(trace_id, actor, "projects", project_id)
+    if not project:
+        return {"code": "PROJECT_NOT_FOUND", "message": "project does not exist"}
+    if str(project.get("owner_account_id") or "") != account_id:
+        return {"code": "PROJECT_OWNER_MISMATCH", "message": "project is not owned by the current account"}
+    if conversation_id is None:
+        return None
+    conversation = _read_data_record(trace_id, actor, "conversations", str(conversation_id))
+    if not conversation:
+        return {"code": "CONVERSATION_NOT_FOUND", "message": "conversation does not exist"}
+    if str(conversation.get("owner_account_id") or "") != account_id:
+        return {"code": "CONVERSATION_OWNER_MISMATCH", "message": "conversation is not owned by the current account"}
+    if str(conversation.get("project_id") or "") != project_id:
+        return {"code": "CONVERSATION_PROJECT_MISMATCH", "message": "conversation does not belong to the project"}
+    return None
 
 
 def post_multipart(handler: Any) -> None:
@@ -91,26 +168,51 @@ def post_multipart(handler: Any) -> None:
         handler.send(400, {"error": {"code": "NO_FILE_UPLOADED"}})
         return
     scenario_id = fields.get("scenario_id") or "manual-upload"
-    trace_id = fields.get("trace_id")
-    saved_items = [_save_uploaded_file(file, scenario_id, trace_id) for file in files]
+    trace_id = fields.get("trace_id") or str(uuid4())
     actor = {
         "tenant_id": fields.get("tenant_id") or "web-workbench",
         "user_id": fields.get("account_id") or "anonymous",
         "authenticated": fields.get("authenticated", "true").lower() != "false",
     }
+    binding_error = _validate_owned_context(trace_id, actor, fields.get("project_id"), fields.get("conversation_id"))
+    if binding_error:
+        handler.send(403, {"trace_id": trace_id, "error": binding_error})
+        return
+    saved_items = [_save_uploaded_file(file, scenario_id, trace_id) for file in files]
     persistence = _persist_records(
-        trace_id or str(uuid4()), actor, fields.get("conversation_id") or scenario_id,
-        [{
-            "dataset": "uploaded_files",
-            "operation": "upsert",
-            "records": [{
-                **item,
-                "tenant_id": actor["tenant_id"],
-                "owner_account_id": actor["user_id"],
-                "project_id": fields.get("project_id"),
-                "conversation_id": fields.get("conversation_id"),
-            } for item in saved_items],
-        }],
+        trace_id, actor, fields.get("conversation_id") or scenario_id,
+        [
+            {
+                "dataset": "storage_objects",
+                "operation": "upsert",
+                "records": [{
+                    "object_id": item["object_id"],
+                    "tenant_id": actor["tenant_id"],
+                    "owner_account_id": actor["user_id"],
+                    "project_id": fields.get("project_id"),
+                    "conversation_id": fields.get("conversation_id"),
+                    "original_filename": item["original_name"],
+                    "object_key": item["stored_name"],
+                    "storage_backend": "local-development",
+                    "content_type": item["content_type"],
+                    "size_bytes": item["size_bytes"],
+                    "sha256": item["sha256"],
+                    "virus_scan_status": "not_configured",
+                    "state": "available",
+                } for item in saved_items],
+            },
+            {
+                "dataset": "uploaded_files",
+                "operation": "upsert",
+                "records": [{
+                    **item,
+                    "tenant_id": actor["tenant_id"],
+                    "owner_account_id": actor["user_id"],
+                    "project_id": fields.get("project_id"),
+                    "conversation_id": fields.get("conversation_id"),
+                } for item in saved_items],
+            },
+        ],
     )
     if persistence.get("status") != "success":
         handler.send(503, {"error": {"code": "UPLOAD_METADATA_PERSISTENCE_FAILED", "details": persistence}})
@@ -164,6 +266,9 @@ def post_multipart(handler: Any) -> None:
 
 
 def post(handler: Any, body: dict[str, Any]) -> None:
+    if handler.path == "/api/v1/generated-files":
+        _create_generated_file(handler, body)
+        return
     if handler.path == "/api/v1/module-verification/run":
         case_id = str(body.get("case_id") or "")
         try:
@@ -177,6 +282,8 @@ def post(handler: Any, body: dict[str, Any]) -> None:
         "/api/application/capability-management/commands",
         "/api/application/knowledge-governance/commands",
         "/api/application/account/commands",
+        "/api/application/project/commands",
+        "/api/application/conversation/commands",
     }:
         _execute_application_command(handler, body); return
     if handler.path != "/api/v1/application/instructions": handler.send(404); return
@@ -186,6 +293,11 @@ def post(handler: Any, body: dict[str, Any]) -> None:
     state, cached = idempotent_get("application", body["idempotency_key"], body)
     if state == "conflict": handler.send(409, {"error": {"code": "IDEMPOTENCY_CONFLICT"}}); return
     if state == "replay": handler.send(202 if cached.get("status") == "accepted" else 200, cached); return
+    context = body.get("context") if isinstance(body.get("context"), dict) else {}
+    binding_error = _validate_owned_context(body["trace_id"], body.get("actor") or {}, context.get("project_id"), context.get("conversation_id"))
+    if binding_error:
+        handler.send(403, standard_response(body, "failed", error=binding_error))
+        return
     persistence = _persist_incoming_instruction(body)
     if persistence.get("status") != "success":
         handler.send(503, standard_response(body, "failed", error={"code": "DATA_PERSISTENCE_FAILED", "message": "用户请求未能写入数据模块", "details": persistence})); return
@@ -334,6 +446,7 @@ def _parse_disposition(value: str) -> dict[str, str]:
 def _save_uploaded_file(file: dict[str, Any], scenario_id: str, trace_id: str | None = None) -> dict[str, Any]:
     UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
     file_id = f"upl_{uuid4().hex[:16]}"
+    object_id = f"obj_{uuid4().hex[:16]}"
     original_name = _safe_filename(str(file.get("filename") or "uploaded.bin"))
     suffix = Path(original_name).suffix
     stored_name = f"{file_id}{suffix}"
@@ -346,6 +459,7 @@ def _save_uploaded_file(file: dict[str, Any], scenario_id: str, trace_id: str | 
     platform_ref = {
         "type": "uploaded_document",
         "file_id": file_id,
+        "object_id": object_id,
         "document_role": document_role,
         "original_name": original_name,
         "content_type": file.get("content_type") or "application/octet-stream",
@@ -356,6 +470,7 @@ def _save_uploaded_file(file: dict[str, Any], scenario_id: str, trace_id: str | 
     }
     return {
         "file_id": file_id,
+        "object_id": object_id,
         "trace_id": trace_id,
         "scenario_id": scenario_id,
         "document_role": document_role,
@@ -370,9 +485,149 @@ def _save_uploaded_file(file: dict[str, Any], scenario_id: str, trace_id: str | 
     }
 
 
+def _create_generated_file(handler: Any, body: dict[str, Any]) -> None:
+    actor = body.get("actor") if isinstance(body.get("actor"), dict) else {}
+    actor = {
+        "tenant_id": actor.get("tenant_id") or body.get("tenant_id") or "web-workbench",
+        "user_id": actor.get("user_id") or body.get("account_id") or "anonymous",
+        "authenticated": bool(actor.get("authenticated", True)),
+        "roles": actor.get("roles") or [],
+    }
+    trace_id = str(body.get("trace_id") or uuid4())
+    binding_error = _validate_owned_context(trace_id, actor, body.get("project_id"), body.get("conversation_id"))
+    if binding_error:
+        handler.send(403, {"trace_id": trace_id, "error": binding_error})
+        return
+    encoded = body.get("content_base64")
+    if not isinstance(encoded, str) or not encoded:
+        handler.send(422, {"error": {"code": "GENERATED_FILE_CONTENT_REQUIRED"}})
+        return
+    try:
+        content = base64.b64decode(encoded, validate=True)
+    except (ValueError, TypeError) as exc:
+        handler.send(422, {"error": {"code": "GENERATED_FILE_CONTENT_INVALID", "message": str(exc)}})
+        return
+    if len(content) > 20 * 1024 * 1024:
+        handler.send(413, {"error": {"code": "GENERATED_FILE_TOO_LARGE"}})
+        return
+    file_id = f"gen_{uuid4().hex[:16]}"
+    object_id = f"obj_{uuid4().hex[:16]}"
+    original_name = _safe_filename(str(body.get("original_name") or "generated.txt"))
+    suffix = Path(original_name).suffix or ".txt"
+    stored_name = f"{file_id}{suffix}"
+    GENERATED_ROOT.mkdir(parents=True, exist_ok=True)
+    saved_path = GENERATED_ROOT / stored_name
+    saved_path.write_bytes(content)
+    timestamp = datetime.now(timezone.utc).isoformat()
+    digest = hashlib.sha256(content).hexdigest()
+    file_record = {
+        "file_id": file_id,
+        "record_id": file_id,
+        "object_id": object_id,
+        "tenant_id": actor["tenant_id"],
+        "owner_account_id": actor["user_id"],
+        "project_id": body.get("project_id"),
+        "conversation_id": body.get("conversation_id"),
+        "task_id": body.get("task_id"),
+        "trace_id": trace_id,
+        "original_name": original_name,
+        "content_type": body.get("content_type") or "text/plain;charset=utf-8",
+        "size_bytes": len(content),
+        "sha256": digest,
+        "storage_uri": f"local://framework/data/foundation_data/objects/generated/{stored_name}",
+        "saved_path": str(saved_path),
+        "status": "available",
+        "created_at": timestamp,
+        "updated_at": timestamp,
+    }
+    object_record = {
+        "object_id": object_id,
+        "record_id": object_id,
+        "tenant_id": actor["tenant_id"],
+        "owner_account_id": actor["user_id"],
+        "project_id": body.get("project_id"),
+        "conversation_id": body.get("conversation_id"),
+        "trace_id": trace_id,
+        "object_type": "generated_file",
+        "original_name": original_name,
+        "content_type": file_record["content_type"],
+        "size_bytes": len(content),
+        "sha256": digest,
+        "storage_uri": file_record["storage_uri"],
+        "saved_path": str(saved_path),
+        "created_at": timestamp,
+        "updated_at": timestamp,
+    }
+    persisted = _persist_records(trace_id, actor, str(uuid4()), [
+        {"dataset": "generated_files", "operation": "upsert", "records": [file_record]},
+        {"dataset": "storage_objects", "operation": "upsert", "records": [object_record]},
+    ])
+    if persisted.get("status") != "success":
+        saved_path.unlink(missing_ok=True)
+        handler.send(502, {"status": "failed", "error": {"code": "GENERATED_FILE_PERSISTENCE_FAILED", "details": persisted}})
+        return
+    handler.send(200, {"status": "succeeded", "trace_id": trace_id, "data": {
+        "file_id": file_id,
+        "object_id": object_id,
+        "original_name": original_name,
+        "download_url": f"/api/v1/generated-files/{file_id}",
+        "storage_uri": file_record["storage_uri"],
+        "size_bytes": len(content),
+    }})
+
+
+def _download_generated_file(handler: Any, file_id: str) -> None:
+    tenant_id = (parse_qs(urlparse(handler.path).query).get("tenant_id") or ["web-workbench"])[0]
+    status, result = _call_data_engine("data.read", {"dataset": "generated_files", "record_id": file_id}, tenant_id=tenant_id)
+    if status != 200 or not result.get("item"):
+        handler.send(404, {"error": {"code": "GENERATED_FILE_NOT_FOUND"}})
+        return
+    item = result["item"]
+    path = Path(str(item.get("saved_path") or ""))
+    try:
+        path.resolve().relative_to(GENERATED_ROOT.resolve())
+    except ValueError:
+        handler.send(403, {"error": {"code": "GENERATED_FILE_PATH_FORBIDDEN"}})
+        return
+    if not path.is_file():
+        handler.send(404, {"error": {"code": "GENERATED_FILE_OBJECT_MISSING"}})
+        return
+    raw = path.read_bytes()
+    handler.send_response(200)
+    handler.send_header("Content-Type", item.get("content_type") or "application/octet-stream")
+    handler.send_header("Content-Length", str(len(raw)))
+    handler.send_header("Content-Disposition", f'attachment; filename="{_safe_filename(item.get("original_name") or file_id)}"')
+    handler.end_headers()
+    handler.wfile.write(raw)
+
+
 def _execute_application_command(handler: Any, command: dict[str, Any]) -> None:
     route = handler.path
     operation = str(command.get("operation") or "")
+    if route == "/api/application/conversation/commands":
+        _execute_conversation_command(handler, command)
+        return
+    if route == "/api/application/project/commands":
+        _execute_project_command(handler, command)
+        return
+    if route == "/api/application/knowledge-governance/commands":
+        payload = command.get("payload") if isinstance(command.get("payload"), dict) else {}
+        actor = command.get("actor") or {
+            "tenant_id": "web-workbench",
+            "user_id": command.get("accountId") or "anonymous",
+            "authenticated": True,
+        }
+        binding_error = _validate_owned_context(
+            str(command.get("trace_id") or command.get("traceId") or uuid4()), actor,
+            command.get("projectId") or payload.get("project_id"),
+            command.get("conversationId") or payload.get("conversation_id"),
+        )
+        if binding_error:
+            handler.send(403, {"status": "failed", "error": binding_error})
+            return
+    if route == "/api/application/account/commands" and operation in {"register", "login", "resume", "logout"}:
+        _execute_public_account_entry(handler, command, operation)
+        return
     capability_map = {
         "/api/application/capability-management/commands": {
             "create": "asset.create",
@@ -389,10 +644,10 @@ def _execute_application_command(handler: Any, command: dict[str, Any]) -> None:
             "maintain": "asset.update",
             "assign_steward": "asset.update",
         },
-        "/api/application/account/commands": {
-            "login": "account.identity.verify",
-            "register": "account.create",
-            "logout": "account.identity.resolve",
+        "/api/application/account/commands": {},
+        "/api/application/project/commands": {
+            "create": "project.register.simple",
+            "update": "project.register.simple",
         },
     }
     capability = capability_map[route].get(operation)
@@ -443,6 +698,145 @@ def _execute_application_command(handler: Any, command: dict[str, Any]) -> None:
     handler.send(200, {"status": "succeeded", "trace_id": trace_id, "task_id": task_id, "data": result})
 
 
+def _execute_public_account_entry(handler: Any, command: dict[str, Any], operation: str) -> None:
+    """Run public account registration and login before an authenticated workflow exists."""
+    trace_id = str(command.get("trace_id") or command.get("traceId") or uuid4())
+    request_id = str(command.get("request_id") or uuid4())
+    actor = command.get("actor") or {
+        "tenant_id": "web-workbench",
+        "user_id": command.get("accountId") or "anonymous",
+        "authenticated": False,
+    }
+    payload = command.get("payload") if isinstance(command.get("payload"), dict) else {}
+    envelope = make_internal_envelope(
+        trace_id,
+        actor,
+        request_id,
+        {
+            "register": "account.create",
+            "login": "account.identity.verify",
+            "resume": "account.session.resolve",
+            "logout": "account.session.close",
+        }[operation],
+        "foundation",
+        "foundation-gateway",
+        {**payload, "application_command": command},
+        source_layer="business_engine",
+        source_module="engine-gateway",
+    )
+    status, response = post_json(
+        "http://127.0.0.1:8300/api/v1/foundation/instructions",
+        envelope,
+        timeout=70,
+        caller={"layer": "business_application", "module": "application-gateway"},
+    )
+    result = response.get("data") if isinstance(response, dict) else None
+    if status != 200 or not result:
+        handler.send(502, {
+            "status": "failed",
+            "trace_id": trace_id,
+            "error": {"code": {
+                "register": "ACCOUNT_REGISTRATION_FAILED",
+                "login": "ACCOUNT_LOGIN_FAILED",
+                "resume": "ACCOUNT_SESSION_RESTORE_FAILED",
+                "logout": "ACCOUNT_LOGOUT_FAILED",
+            }[operation], "details": response},
+        })
+        return
+    handler.send(200, {
+        "status": "succeeded",
+        "trace_id": trace_id,
+        "data": {"capability_result": result},
+    })
+
+
+def _execute_conversation_command(handler: Any, command: dict[str, Any]) -> None:
+    operation = str(command.get("operation") or "create")
+    if operation not in {"create", "update", "archive"}:
+        handler.send(422, {"error": {"code": "CONVERSATION_COMMAND_UNSUPPORTED", "operation": operation}})
+        return
+    trace_id = str(command.get("trace_id") or command.get("traceId") or uuid4())
+    actor = command.get("actor") or {
+        "tenant_id": "web-workbench",
+        "user_id": command.get("accountId") or "anonymous",
+        "authenticated": True,
+    }
+    payload = command.get("payload") if isinstance(command.get("payload"), dict) else {}
+    project_id = command.get("projectId") or payload.get("project_id")
+    binding_error = _validate_owned_context(trace_id, actor, project_id)
+    if binding_error:
+        handler.send(403, {"status": "failed", "trace_id": trace_id, "error": binding_error})
+        return
+    conversation_id = str(command.get("conversationId") or payload.get("conversation_id") or f"conversation-{uuid4().hex[:12]}")
+    timestamp = datetime.now(timezone.utc).isoformat()
+    record = {
+        "conversation_id": conversation_id,
+        "record_id": conversation_id,
+        "tenant_id": actor.get("tenant_id") or "web-workbench",
+        "project_id": project_id,
+        "project_name": payload.get("project_name"),
+        "title": payload.get("title") or "未命名对话",
+        "owner_account_id": actor.get("user_id") or command.get("accountId") or "anonymous",
+        "status": "archived" if operation == "archive" else "active",
+        "has_history": False,
+        "context_usage": 0,
+        "created_at": payload.get("created_at") or timestamp,
+        "updated_at": timestamp,
+    }
+    persisted = _persist_records(trace_id, actor, str(uuid4()), [{
+        "dataset": "conversations",
+        "operation": "upsert",
+        "records": [record],
+    }])
+    if persisted.get("status") != "success":
+        handler.send(502, {"status": "failed", "trace_id": trace_id, "error": {"code": "CONVERSATION_PERSISTENCE_FAILED", "details": persisted}})
+        return
+    handler.send(200, {"status": "succeeded", "trace_id": trace_id, "data": {"conversation": record, "storage": persisted.get("data")}})
+
+
+def _execute_project_command(handler: Any, command: dict[str, Any]) -> None:
+    operation = str(command.get("operation") or "create")
+    if operation not in {"create", "update", "archive"}:
+        handler.send(422, {"error": {"code": "PROJECT_COMMAND_UNSUPPORTED", "operation": operation}})
+        return
+    trace_id = str(command.get("trace_id") or command.get("traceId") or uuid4())
+    actor = command.get("actor") or {
+        "tenant_id": "web-workbench",
+        "user_id": command.get("accountId") or "anonymous",
+        "authenticated": True,
+    }
+    payload = command.get("payload") if isinstance(command.get("payload"), dict) else {}
+    project = payload.get("project") if isinstance(payload.get("project"), dict) else payload
+    project_id = str(project.get("project_id") or project.get("id") or f"project-{uuid4().hex[:12]}")
+    name = str(project.get("name") or "未命名 Project").strip()
+    timestamp = datetime.now(timezone.utc).isoformat()
+    record = {
+        "project_id": project_id,
+        "record_id": project_id,
+        "tenant_id": actor.get("tenant_id") or "web-workbench",
+        "owner_account_id": actor.get("user_id") or command.get("accountId") or "anonymous",
+        "name": name,
+        "short": project.get("short") or name[:6],
+        "type": project.get("type") or "custom",
+        "fixed": False,
+        "description": project.get("description") or "由工作台创建的 Project",
+        "status": "archived" if operation == "archive" else project.get("status") or "已创建",
+        "metrics": project.get("metrics") or [],
+        "knowledge": project.get("knowledge") or [],
+        "created_at": project.get("created_at") or timestamp,
+        "updated_at": timestamp,
+    }
+    persisted = _persist_records(trace_id, actor, str(uuid4()), [{
+        "dataset": "projects",
+        "operation": "upsert",
+        "records": [record],
+    }])
+    if persisted.get("status") != "success":
+        handler.send(502, {"status": "failed", "trace_id": trace_id, "error": {"code": "PROJECT_PERSISTENCE_FAILED", "details": persisted}})
+        return
+    handler.send(200, {"status": "succeeded", "trace_id": trace_id, "data": {"project": record, "storage": persisted.get("data")}})
+
+
 def _persist_incoming_instruction(envelope: dict[str, Any]) -> dict[str, Any]:
     actor = envelope.get("actor") or {}
     context = envelope.get("context") or {}
@@ -486,13 +880,17 @@ def _persist_task_and_assistant_message(envelope: dict[str, Any], task_id: str, 
     actor = envelope.get("actor") or {}
     context = envelope.get("context") or {}
     conversation_id = str(context.get("conversation_id") or envelope.get("trace_id"))
+    account_id = str(actor.get("user_id") or actor.get("actor_id") or "anonymous")
+    tenant_id = str(actor.get("tenant_id") or "default")
     timestamp = datetime.now(timezone.utc).isoformat()
     _persist_records(envelope.get("trace_id"), actor, task_id, [
-        {"dataset": "task_snapshots", "operation": "upsert", "records": [{**task, "record_id": task_id, "conversation_id": conversation_id, "project_id": context.get("project_id")}]},
+        {"dataset": "task_snapshots", "operation": "upsert", "records": [{**task, "record_id": task_id, "tenant_id": tenant_id, "owner_account_id": account_id, "conversation_id": conversation_id, "project_id": context.get("project_id")}]},
         {"dataset": "conversation_messages", "operation": "upsert", "records": [{
             "message_id": f"intent-{task_id}",
             "conversation_id": conversation_id,
+            "tenant_id": tenant_id,
             "project_id": context.get("project_id"),
+            "owner_account_id": account_id,
             "role": "assistant",
             "content_type": content_type,
             "content": task.get("result_ref"),
@@ -544,7 +942,7 @@ def _persist_records(trace_id: str, actor: dict[str, Any], task_id: str, writes:
         timeout=20,
         caller={"layer": "business_application", "module": "application-gateway"},
     )
-    if status != 200 or response.get("status") != "success":
+    if status not in {200, 202} or response.get("status") != "success":
         return {"status": "failed", "details": response}
     return {"status": "success", "data": response.get("data")}
 

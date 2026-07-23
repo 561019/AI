@@ -36,6 +36,10 @@ def post(handler: Any, envelope: dict[str, Any]) -> None:
             data = _create_account(envelope)
         elif capability == "account.identity.verify":
             data = _verify_identity(envelope)
+        elif capability == "account.session.resolve":
+            data = _resolve_session(envelope)
+        elif capability == "account.session.close":
+            data = _close_session(envelope)
         elif capability == "account.identity.resolve":
             data = _resolve_identity(envelope)
         elif capability in {"account.list", "account.resource.query", "account.offboarding_assets.query"}:
@@ -68,6 +72,9 @@ def _create_account(envelope: dict[str, Any]) -> dict[str, Any]:
     existing = _data_call(envelope, "foundation_data.query", {"dataset": "accounts", "filters": {"login_name": login_name}, "limit": 1})
     if existing.get("items"):
         raise ValueError("account login_name already exists")
+    existing_display_name = _data_call(envelope, "foundation_data.query", {"dataset": "accounts", "filters": {"display_name": display_name}, "limit": 1})
+    if existing_display_name.get("items"):
+        raise ValueError("account display_name already exists")
     account_id = str(command.get("accountId") or account.get("account_id") or f"acc_{uuid4().hex[:16]}")
     salt = secrets.token_hex(16)
     password_hash = _hash_password(password, salt)
@@ -101,8 +108,18 @@ def _create_account(envelope: dict[str, Any]) -> dict[str, Any]:
             "created_at": timestamp,
         }]},
     ]
+    session_id = _new_session_id()
+    writes.append({"dataset": "account_sessions", "operation": "insert", "records": [{
+        "session_id": session_id,
+        "account_id": account_id,
+        "status": "active",
+        "created_at": timestamp,
+    }]})
     stored = _data_call(envelope, "foundation_data.write", {"writes": writes})
-    return {"state": "created", "account_id": account_id, "login_name": login_name, "display_name": display_name, "role": role, "storage": stored}
+    return {
+        "state": "created", "account_id": account_id, "login_name": login_name,
+        "display_name": display_name, "role": role, "session_id": session_id, "storage": stored,
+    }
 
 
 def _verify_identity(envelope: dict[str, Any]) -> dict[str, Any]:
@@ -111,18 +128,25 @@ def _verify_identity(envelope: dict[str, Any]) -> dict[str, Any]:
     password = str(payload.get("password") or "")
     if not identifier or not password:
         raise ValueError("identifier and password are required")
+    # Login names are the primary credential.  Account IDs support the seeded
+    # demo accounts, while display names preserve the login behaviour promised
+    # by the workbench UI for existing accounts.
     accounts = _data_call(envelope, "foundation_data.query", {"dataset": "accounts", "filters": {"login_name": identifier}, "limit": 1}).get("items") or []
     if not accounts:
         direct = _data_call(envelope, "foundation_data.read", {"dataset": "accounts", "record_id": identifier})
         if direct.get("item"):
             accounts = [direct["item"]]
     if not accounts:
+        accounts = _data_call(envelope, "foundation_data.query", {"dataset": "accounts", "filters": {"display_name": identifier}, "limit": 2}).get("items") or []
+        if len(accounts) > 1:
+            raise ValueError("multiple accounts have this display name; use the login name or account ID")
+    if not accounts:
         raise ValueError("account not found")
     account = accounts[0]
     credential = _data_call(envelope, "foundation_data.read", {"dataset": "account_credentials", "record_id": account["account_id"]}).get("item")
     if not credential or not hmac.compare_digest(_hash_password(password, credential["salt"], int(credential.get("iterations", PBKDF2_ITERATIONS))), credential["password_hash"]):
         raise ValueError("invalid account credentials")
-    session_id = f"sess_{uuid4().hex[:16]}"
+    session_id = _new_session_id()
     _data_call(envelope, "foundation_data.write", {"dataset": "account_sessions", "operation": "insert", "records": [{
         "session_id": session_id,
         "account_id": account["account_id"],
@@ -130,6 +154,37 @@ def _verify_identity(envelope: dict[str, Any]) -> dict[str, Any]:
         "created_at": now(),
     }]})
     return {"state": "verified", "account": _public_account(account), "session_id": session_id}
+
+
+def _resolve_session(envelope: dict[str, Any]) -> dict[str, Any]:
+    payload, _ = _payload_and_command(envelope)
+    session_id = str(payload.get("session_id") or "").strip()
+    if not session_id:
+        raise ValueError("session_id is required")
+    session = _data_call(envelope, "foundation_data.read", {"dataset": "account_sessions", "record_id": session_id}).get("item")
+    if not session or session.get("status") != "active":
+        raise ValueError("session is not active")
+    account_id = str(session.get("account_id") or "")
+    account = _data_call(envelope, "foundation_data.read", {"dataset": "accounts", "record_id": account_id}).get("item")
+    if not account or account.get("status") != "active":
+        raise ValueError("account is not active")
+    return {"state": "active", "session_id": session_id, "account": _public_account(account)}
+
+
+def _close_session(envelope: dict[str, Any]) -> dict[str, Any]:
+    payload, _ = _payload_and_command(envelope)
+    session_id = str(payload.get("session_id") or "").strip()
+    if not session_id:
+        raise ValueError("session_id is required")
+    session = _data_call(envelope, "foundation_data.read", {"dataset": "account_sessions", "record_id": session_id}).get("item")
+    if not session:
+        return {"state": "not_found", "session_id": session_id}
+    _data_call(envelope, "foundation_data.write", {"dataset": "account_sessions", "operation": "update", "records": [{
+        "session_id": session_id,
+        "status": "closed",
+        "closed_at": now(),
+    }]})
+    return {"state": "closed", "session_id": session_id}
 
 
 def _resolve_identity(envelope: dict[str, Any]) -> dict[str, Any]:
@@ -168,25 +223,32 @@ def _delete_account(envelope: dict[str, Any]) -> dict[str, Any]:
 
 
 def _data_call(envelope: dict[str, Any], capability: str, payload: dict[str, Any]) -> dict[str, Any]:
+    data_capability = {
+        "foundation_data.write": "data.persist",
+        "foundation_data.read": "data.read",
+        "foundation_data.query": "data.search",
+    }[capability]
     inner = make_internal_envelope(
         envelope.get("trace_id"),
         envelope.get("actor") or {"tenant_id": "default", "user_id": "system", "authenticated": True},
         str((envelope.get("payload") or {}).get("platform_task_id") or envelope.get("request_id")),
-        capability,
-        "foundation",
-        "foundation-gateway",
+        data_capability,
+        "business_engine",
+        "engine-gateway",
         payload,
         source_layer="foundation",
         source_module="account-gateway",
     )
     status, response = post_json(
-        "http://127.0.0.1:8300/api/v1/foundation/instructions",
+        "http://127.0.0.1:8200/api/v1/engine/instructions",
         inner,
         caller={"layer": "foundation", "module": "account-gateway"},
     )
-    if status != 200 or response.get("status") != "success":
+    # The L2 engine acknowledges data operations with HTTP 202 even when its
+    # synchronous storage result is already present in the response body.
+    if status not in {200, 202} or response.get("status") != "success":
         raise RuntimeError(str(response))
-    return response.get("data") or {}
+    return ((response.get("data") or {}).get("storage_result") or {})
 
 
 def _payload_and_command(envelope: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -198,6 +260,10 @@ def _payload_and_command(envelope: dict[str, Any]) -> tuple[dict[str, Any], dict
 
 def _hash_password(password: str, salt: str, iterations: int = PBKDF2_ITERATIONS) -> str:
     return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), bytes.fromhex(salt), iterations).hex()
+
+
+def _new_session_id() -> str:
+    return f"sess_{uuid4().hex[:16]}"
 
 
 def _public_account(account: dict[str, Any]) -> dict[str, Any]:

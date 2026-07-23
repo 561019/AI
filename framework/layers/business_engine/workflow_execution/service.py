@@ -47,6 +47,15 @@ def _execute_intent(handler: Any, envelope: dict[str, Any]) -> None:
     if not capability or capability == "workflow.execute":
         handler.send(422, standard_response(envelope, "failed", error={"code": "INVALID_INTENT_CAPABILITY", "message": "intent task has no executable capability"}))
         return
+    workflow_instance_id = f"wf-{platform_task_id}"
+    persisted = _persist_workflow_state(
+        envelope, platform_task_id, workflow_instance_id, "running",
+        [{"node_instance_id": f"{workflow_instance_id}:intent", "capability": capability, "state": "ready", "step": 0}],
+        "workflow_started",
+    )
+    if not persisted:
+        handler.send(502, standard_response(envelope, "failed", error={"code": "WORKFLOW_STATE_PERSISTENCE_FAILED"}))
+        return
 
     registry_status, registration = post_json(
         f"http://127.0.0.1:8400/api/v1/capabilities/{capability}/resolve",
@@ -94,6 +103,12 @@ def _execute_with_delivered_workflow(handler: Any, envelope: dict[str, Any], pla
         handler.send(502, standard_response(envelope, "failed", error={"code": "FULL_WORKFLOW_EXECUTION_FAILED", "details": delivered_execution}))
         return
     full = delivered_execution["data"]
+    workflow_instance_id = f"wf-{platform_task_id}"
+    _persist_workflow_state(
+        envelope, platform_task_id, workflow_instance_id, "completed",
+        [{"node_instance_id": f"{workflow_instance_id}:capability", "capability": capability, "state": "completed", "step": 1}],
+        "workflow_completed",
+    )
     handler.send(200, standard_response(envelope, "success", data={
         "intent_task": intent_task,
         "selected_capability": capability,
@@ -148,6 +163,15 @@ def _execute_with_standard_route(handler: Any, envelope: dict[str, Any], platfor
         {"step": 2, "module": "permission-adapter", "action": "permissions.check", "status": "succeeded"},
         {"step": 3, "module": registration["provider_module"], "action": capability, "status": "succeeded"},
     ]
+    workflow_instance_id = f"wf-{platform_task_id}"
+    _persist_workflow_state(
+        envelope, platform_task_id, workflow_instance_id, "completed",
+        [
+            {"node_instance_id": f"{workflow_instance_id}:permission", "capability": "permissions.check", "state": "completed", "step": 1, "permission_decision_id": permission.get("decision_id")},
+            {"node_instance_id": f"{workflow_instance_id}:capability", "capability": capability, "state": "completed", "step": 2},
+        ],
+        "workflow_completed",
+    )
     handler.send(200, standard_response(envelope, "success", data={
         "intent_task": intent_task,
         "selected_capability": capability,
@@ -262,6 +286,21 @@ def _execute_uploaded_document_reconciliation(handler: Any, envelope: dict[str, 
         }, step=7),
     ]
 
+    workflow_instance_id = f"wf-{platform_task_id}"
+    _persist_workflow_state(
+        envelope, platform_task_id, workflow_instance_id, "completed",
+        [
+            {
+                "node_instance_id": f"{workflow_instance_id}:step-{index}",
+                "capability": item["capability"],
+                "state": item["plan_item"]["status"],
+                "step": index,
+            }
+            for index, item in enumerate(steps, start=1)
+        ],
+        "workflow_completed",
+    )
+
     handler.send(200, standard_response(envelope, "success", data={
         "intent_task": intent_task,
         "selected_capability": capability,
@@ -290,6 +329,58 @@ def _execute_uploaded_document_reconciliation(handler: Any, envelope: dict[str, 
 
 def _invoke_business_capability(envelope: dict[str, Any], platform_task_id: str, capability: str, payload: dict[str, Any], *, step: int) -> dict[str, Any]:
     return _invoke_capability(envelope, platform_task_id, capability, "business_engine", "engine-gateway", "http://127.0.0.1:8200/api/v1/engine/instructions", payload, step=step)
+
+
+def _persist_workflow_state(
+    envelope: dict[str, Any],
+    platform_task_id: str,
+    workflow_instance_id: str,
+    state: str,
+    nodes: list[dict[str, Any]],
+    event_type: str,
+) -> bool:
+    event_id = str(uuid4())
+    result = _invoke_business_capability(
+        envelope,
+        platform_task_id,
+        "data.persist",
+        {
+            "writes": [
+                {
+                    "dataset": "workflow_instances",
+                    "operation": "upsert",
+                    "records": [{
+                        "workflow_instance_id": workflow_instance_id,
+                        "record_id": workflow_instance_id,
+                        "platform_task_id": platform_task_id,
+                        "state": state,
+                        "project_id": (((envelope.get("payload") or {}).get("intent_task") or {}).get("parameters") or {}).get("project_id"),
+                        "conversation_id": (envelope.get("payload") or {}).get("conversation_id") or (envelope.get("context") or {}).get("conversation_id"),
+                        "intent_capability": ((envelope.get("payload") or {}).get("intent_task") or {}).get("capability_code"),
+                    }],
+                },
+                {
+                    "dataset": "workflow_node_instances",
+                    "operation": "upsert",
+                    "records": [{**node, "record_id": node["node_instance_id"], "workflow_instance_id": workflow_instance_id} for node in nodes],
+                },
+                {
+                    "dataset": "workflow_events",
+                    "operation": "insert",
+                    "records": [{
+                        "event_id": event_id,
+                        "record_id": event_id,
+                        "workflow_instance_id": workflow_instance_id,
+                        "event_type": event_type,
+                        "state": state,
+                    }],
+                },
+            ]
+        },
+        step=0,
+    )
+    response = result.get("response") if isinstance(result, dict) else {}
+    return result.get("status_code") == 200 and isinstance(response, dict) and response.get("status") == "success"
 
 
 def _invoke_foundation_capability(envelope: dict[str, Any], platform_task_id: str, capability: str, payload: dict[str, Any], *, step: int) -> dict[str, Any]:

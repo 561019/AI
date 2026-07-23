@@ -27,6 +27,14 @@ $ports = @(
 
 $candidatePids = New-Object System.Collections.Generic.HashSet[int]
 
+# PID files and listening-port scans miss stale processes which failed to bind.
+# The command line is the authoritative identity for framework service workers.
+Get-CimInstance Win32_Process | ForEach-Object {
+    if ($_.CommandLine -match '(^|\s)-m\s+framework\.run_services(\s|$)') {
+        [void]$candidatePids.Add([int]$_.ProcessId)
+    }
+}
+
 if (Test-Path -LiteralPath $runDir) {
     Get-ChildItem -LiteralPath $runDir -Filter '*.pid' | ForEach-Object {
         $raw = Get-Content -LiteralPath $_.FullName -ErrorAction SilentlyContinue
@@ -47,12 +55,16 @@ foreach ($pidValue in $candidatePids) {
     $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$pidValue"
     if (-not $proc) { continue }
     if ($proc.CommandLine -notmatch 'framework\.run_services') { continue }
-    Stop-Process -Id $pidValue -Force
-    $stopped++
+    try {
+        Stop-Process -Id $pidValue -Force -ErrorAction Stop
+        $stopped++
+    } catch {
+        Write-Warning "Could not stop framework service PID ${pidValue}: $($_.Exception.Message)"
+    }
 }
 
 if (Test-Path -LiteralPath $runDir) {
-    Remove-Item -LiteralPath (Join-Path $runDir '*.pid') -Force
+    Remove-Item -Path (Join-Path $runDir '*.pid') -Force
 }
 
 Write-Output "Stopped $stopped framework services."

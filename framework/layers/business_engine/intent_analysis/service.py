@@ -37,6 +37,12 @@ TASK_CAPABILITY_MAP = {
     "EXECUTION_SANDBOX": "sandbox.run_task",
 }
 
+CAPABILITY_ALIASES = {
+    "knowledge.answer": "knowledge.qa.answer",
+    "knowledge_qa.answer": "knowledge.qa.answer",
+    "knowledge.answer.contextual": "knowledge.qa.contextual_answer",
+}
+
 
 def post(handler: Any, envelope: dict[str, Any]) -> None:
     if handler.path != "/api/v1/intent/analyze":
@@ -104,7 +110,7 @@ def post(handler: Any, envelope: dict[str, Any]) -> None:
         })
     if not platform_tasks:
         model_output = meta.get("model_output") or {}
-        capability = str(model_output.get("capability_code") or "").strip()
+        capability = CAPABILITY_ALIASES.get(str(model_output.get("capability_code") or "").strip(), str(model_output.get("capability_code") or "").strip())
         if capability:
             model_parameters = model_output.get("parameters") if isinstance(model_output.get("parameters"), dict) else {}
             platform_tasks.append({
