@@ -31,7 +31,7 @@ def post(handler:Any,envelope:dict[str,Any])->None:
         status,response=post_json(registration["endpoint"],envelope,caller={"layer":"foundation","module":"foundation-gateway"})
         if status!=200 or response.get("status")!="success": handler.send(502,standard_response(envelope,"failed",error={"code":"FOUNDATION_UPSTREAM_FAILED","details":response,"retryable":False})); return
         handler.send(200,response); return
-    request={"actor":envelope["actor"],"action":envelope["action"],"resource":envelope["payload"].get("resource",{}),"scope":envelope["payload"].get("scope",{}),"trace_id":envelope["trace_id"]}
+    request={"actor":envelope["actor"],"action":envelope["action"],"resource":envelope["payload"].get("resource",{}),"scope":envelope["payload"].get("scope",{}),"trace_id":envelope["trace_id"],"context":envelope.get("context") if isinstance(envelope.get("context"),dict) else {},"platform_task_id":(envelope.get("payload") or {}).get("platform_task_id")}
     status,response=post_json(registration["endpoint"],request,caller={"layer":"foundation","module":"foundation-gateway"})
     if status!=200: handler.send(503,standard_response(envelope,"failed",error={"code":"DEPENDENCY_UNAVAILABLE","message":"permission unavailable","retryable":True})); return
     handler.send(200,standard_response(envelope,"success",data=response))

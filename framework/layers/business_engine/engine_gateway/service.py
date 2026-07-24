@@ -18,7 +18,9 @@ def post(handler: Any, envelope: dict[str, Any]) -> None:
     if not registration or registration["layer"]!="business_engine": handler.send(404,{"error":{"code":"CAPABILITY_NOT_FOUND"}}); return
     status,result=post_json(registration["endpoint"],envelope,timeout=65,caller={"layer":"business_engine","module":"engine-gateway"}); task_id=envelope["payload"].get("platform_task_id")
     if status not in {200,202}:
-        if task_id: update_task(task_id,state="failed",error={"code":"DEPENDENCY_UNAVAILABLE"})
+        # Workflow execution records individual step failures and determines the
+        # final task state after all requested modules have returned.
+        if task_id and source.get("module") != "workflow-execution": update_task(task_id,state="failed",error={"code":"DEPENDENCY_UNAVAILABLE"})
         handler.send(502,result); return
     if task_id and capability=="intent.analyze":
         confirmation={"type":"confirmation","id":f"intent-{task_id}","version":"1","tenant_id":envelope["actor"]["tenant_id"]}; update_task(task_id,state="waiting_human",progress=25,confirmation=confirmation,result=result)

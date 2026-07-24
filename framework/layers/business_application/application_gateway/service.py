@@ -14,6 +14,7 @@ from framework.core import create_task, get_latest_task_by_trace, get_task, get_
 from framework.envelope import make_internal_envelope
 from framework.http import post_json
 from framework.module_verification import list_cases, run_case
+from framework.platform_overview import build_overview
 
 FRAMEWORK_ROOT = Path(__file__).resolve().parents[3]
 UPLOAD_ROOT = FRAMEWORK_ROOT / "data" / "foundation_data" / "objects" / "uploads"
@@ -34,6 +35,8 @@ def get(handler: Any) -> bool:
         handler.send_html(200, page.read_text(encoding="utf-8")); return True
     if clean_path == "/api/v1/uploads":
         handler.send(200, {"items": _load_upload_index()}); return True
+    if clean_path == "/api/v1/platform/overview":
+        handler.send(200, build_overview()); return True
     if clean_path.startswith("/api/v1/generated-files/"):
         _download_generated_file(handler, clean_path.rsplit("/", 1)[-1])
         return True
@@ -317,6 +320,10 @@ def post(handler: Any, body: dict[str, Any]) -> None:
 def _confirm(handler: Any, confirmation_id: str, decision: dict[str, Any]) -> None:
     task_id = confirmation_id.removeprefix("intent-"); task = get_task(task_id)
     if not task or task.get("confirmation_ref", {}).get("id") != confirmation_id: handler.send(404, {"error": {"code": "RESOURCE_NOT_FOUND"}}); return
+    # The endpoint URL identifies the task, so make its audit entry joinable to
+    # the original request trace even when the browser did not supply one.
+    decision["trace_id"] = task["trace_id"]
+    decision["task_id"] = task_id
     choice = decision.get("decision")
     if choice not in {"confirm", "reject"}: handler.send(400, {"error": {"code": "INVALID_DECISION"}}); return
     if task["state"] != "waiting_human": handler.send(409, {"error": {"code": "INVALID_TASK_STATE", "message": task["state"]}}); return
@@ -343,7 +350,8 @@ def _confirm(handler: Any, confirmation_id: str, decision: dict[str, Any]) -> No
             "uploaded_documents": uploaded_documents,
         },
     }
-    envelope = make_internal_envelope(task["trace_id"], actor, task_id, "workflow.execute", "business_engine", "engine-gateway", {"execution_kind": "intent_driven", "confirmation_id": confirmation_id, "intent_task": intent_task, "uploaded_documents": uploaded_documents, "simulate_permission_denied": bool(decision.get("simulate_permission_denied", False))}, source_layer="business_application", source_module="application-gateway")
+    workflow_context = {"project_id": decision.get("project_id"), "conversation_id": decision.get("conversation_id"), "locale": "zh-CN"}
+    envelope = make_internal_envelope(task["trace_id"], actor, task_id, "workflow.execute", "business_engine", "engine-gateway", {"execution_kind": "intent_driven", "confirmation_id": confirmation_id, "intent_task": intent_task, "uploaded_documents": uploaded_documents, "simulate_permission_denied": bool(decision.get("simulate_permission_denied", False))}, source_layer="business_application", source_module="application-gateway", context=workflow_context)
     update_task(task_id, state="running", progress=50)
     status, response = post_json("http://127.0.0.1:8200/api/v1/engine/instructions", envelope, timeout=70, caller={"layer": "business_application", "module": "application-gateway"})
     result = response.get("data") if isinstance(response, dict) else None
@@ -352,7 +360,14 @@ def _confirm(handler: Any, confirmation_id: str, decision: dict[str, Any]) -> No
         update_task(task_id, state="failed", progress=100, error=failure)
         _persist_confirmation_result(task, get_task(task_id), decision, {"state": "failed", "error": failure})
         handler.send(502, {"status": "failed", "task_id": task_id, "trace_id": task["trace_id"], "error": {"code": "WORKFLOW_EXECUTION_FAILED"}}); return
-    update_task(task_id, state="succeeded", progress=100, result=result)
+    workflow_state = ((result.get("workflow_instance") or {}).get("status"))
+    if workflow_state == "completed_with_errors":
+        failure = {"code": "WORKFLOW_COMPLETED_WITH_ERRORS", "failed_steps": ((result.get("capability_result") or {}).get("failed_steps") or [])}
+        update_task(task_id, state="completed_with_errors", progress=100, result=result, error=failure)
+        completed_task = get_task(task_id)
+        _persist_confirmation_result(task, completed_task, decision, result)
+        handler.send(200, {"status": "completed_with_errors", "task_id": task_id, "trace_id": task["trace_id"], "data": result, "error": failure}); return
+    update_task(task_id, state="succeeded", progress=100, result=result, clear_error=True)
     completed_task = get_task(task_id)
     _persist_confirmation_result(task, completed_task, decision, result)
     handler.send(200, {"status": "succeeded", "task_id": task_id, "trace_id": task["trace_id"], "data": result})
@@ -907,19 +922,36 @@ def _persist_confirmation_result(original_task: dict[str, Any], completed_task: 
     actor = decision.get("actor") or {"tenant_id": "demo-tenant", "user_id": "demo-user", "authenticated": True}
     conversation_id = str(decision.get("conversation_id") or original_task.get("trace_id"))
     project_id = decision.get("project_id")
+    account_id = str(actor.get("user_id") or actor.get("actor_id") or "anonymous")
+    tenant_id = str(actor.get("tenant_id") or "default")
     timestamp = datetime.now(timezone.utc).isoformat()
     _persist_records(original_task.get("trace_id"), actor, completed_task.get("task_id"), [
-        {"dataset": "task_snapshots", "operation": "upsert", "records": [{**completed_task, "record_id": completed_task.get("task_id"), "conversation_id": conversation_id, "project_id": project_id}]},
+        {"dataset": "task_snapshots", "operation": "upsert", "records": [{**completed_task, "record_id": completed_task.get("task_id"), "tenant_id": tenant_id, "owner_account_id": account_id, "conversation_id": conversation_id, "project_id": project_id}]},
         {"dataset": "conversation_messages", "operation": "upsert", "records": [{
             "message_id": f"result-{completed_task.get('task_id')}",
             "conversation_id": conversation_id,
+            "tenant_id": tenant_id,
             "project_id": project_id,
+            "owner_account_id": account_id,
             "role": "assistant",
             "content_type": "execution_result",
             "content": result,
             "task_id": completed_task.get("task_id"),
             "trace_id": original_task.get("trace_id"),
             "created_at": timestamp,
+        }]},
+        {"dataset": "confirmations", "operation": "upsert", "records": [{
+            "confirmation_id": original_task.get("confirmation_ref", {}).get("id"),
+            "record_id": original_task.get("confirmation_ref", {}).get("id"),
+            "task_id": completed_task.get("task_id"),
+            "decision": decision.get("decision"),
+            "state": "rejected" if decision.get("decision") == "reject" else completed_task.get("state"),
+            "tenant_id": tenant_id,
+            "owner_account_id": account_id,
+            "project_id": project_id,
+            "conversation_id": conversation_id,
+            "trace_id": original_task.get("trace_id"),
+            "decided_at": timestamp,
         }]},
     ])
 

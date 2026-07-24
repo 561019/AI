@@ -1975,6 +1975,67 @@ textarea:focus-visible {
   font-size: 8.5px;
 }
 
+.execution-result {
+  display: grid;
+  gap: 6px;
+  margin: 9px 0 0;
+  padding: 9px 10px;
+  list-style: none;
+  border: 1px solid rgba(12, 68, 124, 0.12);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.execution-result li {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--text-2);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.execution-result article {
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(12, 68, 124, 0.1);
+}
+
+.execution-result article:last-of-type {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.execution-result article strong {
+  display: block;
+  color: var(--text-1);
+  font-size: 11px;
+}
+
+.execution-result article p,
+.execution-next-action {
+  margin: 4px 0 0;
+  color: var(--text-2);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.execution-result article p span {
+  color: var(--text-3);
+}
+
+.execution-next-action {
+  padding-top: 8px;
+  border-top: 1px solid rgba(12, 68, 124, 0.1);
+  color: var(--text-1);
+  font-weight: 650;
+}
+
+.execution-result svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--green-text);
+}
+
 .intent-card {
   width: min(500px, 100%);
   margin-top: 10px;
@@ -2033,6 +2094,37 @@ textarea:focus-visible {
   color: var(--green-text);
 }
 
+.intent-adjustment {
+  display: grid;
+  gap: 7px;
+  padding: 0 10px 10px;
+}
+
+.intent-adjustment textarea {
+  width: 100%;
+  min-height: 68px;
+  resize: vertical;
+  padding: 8px 9px;
+  border: 1px solid rgba(133, 79, 11, 0.18);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text-1);
+  font-size: var(--type-body);
+  line-height: 1.5;
+  outline: none;
+}
+
+.intent-adjustment textarea:focus {
+  border-color: #b5701c;
+  box-shadow: 0 0 0 2px rgba(181, 112, 28, 0.12);
+}
+
+.intent-adjustment > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
 .intent-actions {
   display: flex;
   justify-content: flex-end;
@@ -2040,7 +2132,8 @@ textarea:focus-visible {
   padding: 0 10px 10px;
 }
 
-.intent-actions button {
+.intent-actions button,
+.intent-adjustment button {
   padding: 6px 10px;
   border: 1px solid var(--line-strong);
   border-radius: 6px;
@@ -2049,10 +2142,17 @@ textarea:focus-visible {
   font-size: var(--type-label);
 }
 
-.intent-actions button.primary {
+.intent-actions button.primary,
+.intent-adjustment button.primary {
   border-color: #b5701c;
   background: #b5701c;
   color: #fff;
+}
+
+.intent-actions button:disabled,
+.intent-adjustment button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .composer {

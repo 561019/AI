@@ -31,6 +31,13 @@ def post(handler: Any, envelope: dict[str, Any]) -> None:
         handler.send(422, standard_response(envelope, "failed", error={"code": "TENANT_CONTEXT_REQUIRED"}))
         return
     payload = envelope.get("payload") if isinstance(envelope.get("payload"), dict) else {}
+    context = envelope.get("context") if isinstance(envelope.get("context"), dict) else {}
+    payload = {
+        **payload,
+        "owner_account_id": payload.get("owner_account_id") or actor.get("user_id") or actor.get("actor_id"),
+        "project_id": payload.get("project_id") or context.get("project_id"),
+        "conversation_id": payload.get("conversation_id") or context.get("conversation_id"),
+    }
     foundation_capability, foundation_payload = _translate(capability, payload)
     foundation_payload["_requesting_module"] = str((envelope.get("source") or {}).get("module") or "unknown")
     inner = make_internal_envelope(
@@ -43,6 +50,7 @@ def post(handler: Any, envelope: dict[str, Any]) -> None:
         foundation_payload,
         source_layer="business_engine",
         source_module="data-operation",
+        context=context,
     )
     status, response = post_json(
         "http://127.0.0.1:8300/api/v1/foundation/instructions",
@@ -92,6 +100,12 @@ def _translate(capability: str, payload: dict[str, Any]) -> tuple[str, dict[str,
                 if key not in {"platform_task_id", "operation", "records", "record"}
             }
             records = [record]
+        scope = {
+            "owner_account_id": payload.get("owner_account_id"),
+            "project_id": payload.get("project_id"),
+            "conversation_id": payload.get("conversation_id"),
+        }
+        records = [{**scope, **record} if isinstance(record, dict) else record for record in records]
         return "foundation_data.write", {
             "dataset": dataset,
             "operation": operation,

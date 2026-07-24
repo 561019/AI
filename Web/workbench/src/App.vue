@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import {
   Activity,
   ArrowUpCircle,
@@ -91,6 +91,7 @@ const accountCenterActive = ref(false)
 const accountMenuOpen = ref(false)
 const rightTab = ref('session')
 const inputText = ref('')
+const chatStreamRef = ref(null)
 const fileInput = ref(null)
 const imageInput = ref(null)
 const cameraInput = ref(null)
@@ -580,30 +581,224 @@ async function waitForTaskResult(taskId) {
   let latest = null
   for (let index = 0; index < 8; index += 1) {
     latest = await platformApi.getTask(taskId)
-    if (['waiting_human', 'succeeded', 'failed'].includes(latest.state)) return latest
+    if (['waiting_human', 'succeeded', 'completed_with_errors', 'failed'].includes(latest.state)) return latest
     await sleep(650)
   }
   return latest
 }
 
+const capabilityLabels = {
+  'document.package.build': '文档包构建',
+  'document.table.extract': '表格字段抽取',
+  'data.persist': '数据入库',
+  'data.search': '数据查询',
+  'data.aggregate': '数据汇总',
+  'external.api.call': '外部系统核对',
+  'rule.calculate': '规则计算',
+  'human.task.create': '人工确认待办',
+}
+
+function capabilityLabel(capability) {
+  return capabilityLabels[capability] || capability || '处理模块'
+}
+
+function workflowModuleData(step) {
+  return step?.response?.data || step?.response || {}
+}
+
+function parsePersistedContent(content) {
+  if (typeof content !== 'string') return content
+  const trimmed = content.trim()
+  if (!trimmed || !['{', '['].includes(trimmed[0])) return content
+  try {
+    return JSON.parse(trimmed)
+  } catch {
+    return content
+  }
+}
+
+function workflowPayload(result) {
+  const parsed = parsePersistedContent(result)
+  if (!parsed || typeof parsed !== 'object') return {}
+  return parsed.data && typeof parsed.data === 'object' ? parsed.data : parsed
+}
+
+function workflowUserResult(result) {
+  const data = workflowPayload(result)
+  const capabilityResult = data.capability_result || {}
+  const userResult = capabilityResult.user_result || data.user_result
+  return userResult && typeof userResult === 'object' ? userResult : null
+}
+
+function formatNumber(value) {
+  const number = Number(value)
+  if (!Number.isFinite(number)) return String(value ?? '')
+  return number.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+}
+
+function workflowResultLines(result) {
+  const userResult = workflowUserResult(result)
+  if (Array.isArray(userResult?.findings)) return userResult.findings.map((finding) => finding.title).filter(Boolean)
+  const data = workflowPayload(result)
+  const capabilityResult = data.capability_result || {}
+  const moduleResults = Array.isArray(capabilityResult.module_results) ? capabilityResult.module_results : []
+  const findResult = (capability) => workflowModuleData(moduleResults.find((item) => item.capability === capability))
+  const lines = []
+
+  const humanTask = findResult('human.task.create')
+  const pendingItems = Array.isArray(humanTask.pending_items) ? humanTask.pending_items : []
+  if (pendingItems.length) {
+    lines.push(...pendingItems)
+    return lines
+  }
+
+  const rule = findResult('rule.calculate')
+  if (rule.value !== undefined && rule.value !== null) {
+    const value = Number(rule.value)
+    if (Number.isFinite(value) && value === 0) {
+      lines.push('本次核对未发现数值差异。')
+    } else if (Number.isFinite(value)) {
+      lines.push(`本次核对发现 ${formatNumber(Math.abs(value))} ${rule.unit || 'CNY'} 的数值差异。`)
+    }
+  }
+  return lines
+}
+
+function workflowUserResponse(result) {
+  const userResult = workflowUserResult(result)
+  if (userResult?.summary) return userResult.summary
+  const lines = workflowResultLines(result)
+  if (lines.length > 1) return `我已完成本次核对，发现 ${lines.length} 项需要你确认：`
+  if (lines.length === 1 && lines[0].includes('未发现')) return '我已完成本次核对，未发现需要你确认的数值差异。'
+  if (lines.length === 1) return `我已完成本次核对，${lines[0]}`
+  return formatWorkflowConversationResponse(result)
+}
+
+function formatWorkflowConversationResponse(result) {
+  const data = workflowPayload(result)
+  const capabilityResult = data.capability_result || {}
+  const workflow = data.workflow_instance || {}
+  const state = workflow.status || capabilityResult.state || result?.state
+  const summary = capabilityResult.summary_cn || capabilityResult.summary || data.summary_cn
+  const failedSteps = capabilityResult.failed_steps || []
+  const resultLines = workflowResultLines(result)
+  if (resultLines.length) return resultLines.join(' ')
+  if (summary) return summary
+  if (state === 'completed') return '流程已完成，处理结果已保存到当前对话和项目数据中。'
+  if (state === 'completed_with_errors') {
+    const names = failedSteps.map((item) => capabilityLabel(item.capability)).filter(Boolean)
+    return `流程已完成部分可执行环节${names.length ? `，${names.join('、')}暂未完成` : '，部分模块暂未完成'}。已完成的数据和处理留痕已保存。`
+  }
+  return '流程已受理，正在继续处理。'
+}
+
+function formatPersistedConversationContent(message) {
+  const content = parsePersistedContent(message?.content)
+  if (typeof content === 'string') return content
+  const data = workflowPayload(content)
+  const intent = Array.isArray(data.tasks) ? data.tasks[0] : null
+  if (message?.content_type === 'intent_analysis' && intent) {
+    return `我已识别为“${intent.description || '待确认任务'}”，建议调用“${capabilityLabel(intent.capability_code)}”。请确认后执行。`
+  }
+  if (message?.content_type === 'execution_result' || data.workflow_instance || data.capability_result) {
+    return formatWorkflowConversationResponse(data)
+  }
+  if (data.error?.message) return `处理未完成：${data.error.message}`
+  return '平台已记录本次处理结果。'
+}
+
+function normalizePersistedMessage(message, conversationId, { pendingIntentMessageIds = new Set() } = {}) {
+  const content = parsePersistedContent(message?.content)
+  const data = workflowPayload(content)
+  const isExecutionResult = message?.content_type === 'execution_result' || Boolean(data.workflow_instance || data.capability_result)
+  const userResult = isExecutionResult ? workflowUserResult(data) : null
+  const resultLines = isExecutionResult ? workflowResultLines(data) : []
+  const intent = Array.isArray(data.tasks) ? data.tasks[0] : null
+  const uploadedDocuments = Array.isArray(data.uploaded_documents)
+    ? data.uploaded_documents
+    : Array.isArray(intent?.parameters?.uploaded_documents)
+      ? intent.parameters.uploaded_documents
+      : []
+  const isPendingIntent = message?.content_type === 'intent_analysis' && pendingIntentMessageIds.has(String(message.message_id || message.record_id || ''))
+  const intentTask = isPendingIntent ? buildIntentCard({
+    task_id: message.task_id,
+    trace_id: message.trace_id,
+    state: 'waiting_human',
+    result_ref: content,
+    confirmation_ref: { id: `intent-${message.task_id}` },
+  }, uploadedDocuments) : null
+  return {
+    id: message.message_id || message.record_id || `${conversationId}-${Math.random()}`,
+    role: message.role || 'assistant',
+    text: formatPersistedConversationContent({ ...message, content }),
+    source: message.task_id ? `任务 ${message.task_id}` : message.trace_id ? `链路 ${message.trace_id}` : undefined,
+    resultLines,
+    userResult,
+    receipt: isExecutionResult || isPendingIntent,
+    task: intentTask,
+  }
+}
+
 function formatTaskResponse(task, uploadedDocumentCount = 0) {
   if (!task) return '请求已提交，正在等待平台返回任务状态。'
-  if (task.error) return `处理失败：${task.error.message || task.error.code || '平台任务执行失败'}`
   const result = task.result_ref || {}
   const data = result.data || result
   const tasks = Array.isArray(data.tasks) ? data.tasks : []
   const firstTask = tasks[0]
   if (task.state === 'waiting_human' && firstTask) {
-    const confidence = firstTask.confidence ? `，置信度 ${Math.round(Number(firstTask.confidence) * 100)}%` : ''
-    const fileText = uploadedDocumentCount ? `，已携带 ${uploadedDocumentCount} 个上传文件引用` : '，当前未携带上传文件引用'
-    return `已完成意图识别，等待确认执行。识别任务：${firstTask.description || '未命名任务'}；能力：${firstTask.capability_code || '未指定'}${confidence}${fileText}。`
+    const fileText = uploadedDocumentCount ? `，已关联 ${uploadedDocumentCount} 个上传文件` : ''
+    return `我已完成意图识别${fileText}。请确认下方理解是否正确；如果不对，可以先调整意图。`
   }
   if (firstTask) {
-    return `已完成任务识别：${firstTask.description || '未命名任务'}；能力：${firstTask.capability_code || '未指定'}。`
+    return `已完成任务识别：${firstTask.description || '未命名任务'}。`
   }
-  if (task.state === 'succeeded') return '平台任务已执行完成，结果已写入当前对话链路。'
+  if (task.state === 'succeeded' || task.state === 'completed_with_errors') return formatWorkflowConversationResponse(data)
+  if (task.error) return `处理未完成：${task.error.message || '部分模块未完成，处理留痕已保存。'}`
   if (task.state === 'failed') return '平台任务执行失败，请查看接口调用与任务记录。'
   return `平台任务状态：${task.state || '处理中'}。`
+}
+
+function uploadedDocumentLabel(document) {
+  return document?.original_name || document?.name || document?.original_filename || document?.file_name || document?.file_id || '上传文件'
+}
+
+function intentOutputLabel(parameters) {
+  const output = parameters.expected_output || parameters.output || parameters.output_type || parameters.result_type
+  if (Array.isArray(output)) return output.join('、')
+  if (output) return String(output)
+  return '给出可直接阅读的处理结果和需要你确认的问题'
+}
+
+function includesAny(text, words) {
+  return words.some((word) => text.includes(word))
+}
+
+function fallbackIntentSummary(parameters, uploadedDocuments = []) {
+  const utterance = String(parameters.utterance || '')
+  const checks = []
+  if (includesAny(utterance, ['采购', '验收'])) checks.push('采购金额', '合同编号', '发票信息', '验收状态')
+  if (includesAny(utterance, ['金额差异', '差异', '尾款', '付款', '回款'])) checks.push('金额差异')
+  if (includesAny(utterance, ['发票缺失', '附件', '未上传', '齐全'])) checks.push('附件齐全性')
+  if (utterance.includes('抬头')) checks.push('发票抬头一致性')
+  if (includesAny(utterance, ['风险', '风险点'])) checks.push('风险点')
+  if (includesAny(utterance, ['核对', '验收', '对账'])) checks.push('需要人工核对的事项')
+  const checkItems = [...new Set(checks.length ? checks : ['文件关键信息', '需要人工核对的事项', '风险点'])]
+  const expectedOutputs = []
+  if (includesAny(utterance, ['摘要', '总结'])) expectedOutputs.push(includesAny(utterance, ['采购', '验收']) ? '采购验收摘要' : '处理结果摘要')
+  if (checkItems.includes('采购金额')) expectedOutputs.push('采购金额清单')
+  if (checkItems.includes('需要人工核对的事项')) expectedOutputs.push('待核对事项清单')
+  if (checkItems.includes('风险点')) expectedOutputs.push('风险点清单')
+  return {
+    business_goal: includesAny(utterance, ['采购', '验收'])
+      ? '生成采购验收核对摘要'
+      : includesAny(utterance, ['核对', '对账'])
+        ? '核对上传文件中的业务数据并标出疑点'
+        : '处理当前对话里的业务需求',
+    data_scope: uploadedDocuments.length ? `当前对话上传的 ${uploadedDocuments.length} 个文件` : '当前对话和项目资料',
+    planned_steps: ['读取并解析上传文件', '提取关键字段', '按核对项检查异常', '生成用户可读结论'],
+    check_items: checkItems,
+    expected_outputs: [...new Set(expectedOutputs.length ? expectedOutputs : ['处理结果摘要', '核对事项', '风险提示'])],
+  }
 }
 
 function buildIntentCard(task, uploadedDocuments = []) {
@@ -613,21 +808,98 @@ function buildIntentCard(task, uploadedDocuments = []) {
   const intent = items[0]
   const confirmationId = task?.confirmation_ref?.id
   if (!intent || !confirmationId) return null
-  const confidence = intent.confidence ? `${Math.round(Number(intent.confidence) * 100)}%` : '未返回'
   const parameters = intent.parameters || {}
+  const summary = parameters.intent_summary && typeof parameters.intent_summary === 'object'
+    ? parameters.intent_summary
+    : fallbackIntentSummary(parameters, uploadedDocuments)
+  const fileNames = uploadedDocuments.map(uploadedDocumentLabel).filter(Boolean).slice(0, 3)
+  const plannedSteps = Array.isArray(summary?.planned_steps) ? summary.planned_steps : []
+  const checkItems = Array.isArray(summary?.check_items) ? summary.check_items : []
+  const expectedOutputs = Array.isArray(summary?.expected_outputs) ? summary.expected_outputs : []
   return {
-    title: intent.description || '未命名任务',
-    label: '意图确认',
+    title: '请确认我的理解是否正确',
+    label: '等待确认',
     confirmationId,
     taskId: task.task_id,
+    traceId: task.trace_id,
     uploadedDocuments,
     status: 'pending',
+    adjustmentOpen: false,
+    adjustmentText: '',
     items: [
-      `执行能力：${intent.capability_code || '未指定'}`,
-      `识别置信度：${confidence}`,
-      `关联文件：${uploadedDocuments.length ? `${uploadedDocuments.length} 个上传文件` : '未关联上传文件'}`,
+      `任务目标：${summary?.business_goal || intent.description || '处理当前对话里的业务需求'}`,
+      `使用资料：${summary?.data_scope || (uploadedDocuments.length ? `${uploadedDocuments.length} 个上传文件${fileNames.length ? `（${fileNames.join('、')}${uploadedDocuments.length > fileNames.length ? '等' : ''}）` : ''}` : '当前对话和项目资料')}`,
+      `处理步骤：${plannedSteps.length ? plannedSteps.join('、') : '读取资料、提取信息、检查问题、输出结论'}`,
+      `重点核对：${checkItems.length ? checkItems.join('、') : '文件关键信息、需要人工核对的事项、风险点'}`,
+      `完成后输出：${expectedOutputs.length ? expectedOutputs.join('、') : intentOutputLabel(parameters)}`,
       ...(parameters.missing_inputs?.length ? [`待补充信息：${parameters.missing_inputs.join('、')}`] : []),
     ],
+  }
+}
+
+async function submitIntentAnalysis(text, { conversationId, project, uploadedDocuments = null, pendingLabel = '处理中' } = {}) {
+  const conversation = project?.conversations?.find((item) => String(item.id) === String(conversationId))
+  const documents = uploadedDocuments ?? extractUploadedDocuments(conversation)
+  const pendingMessage = {
+    id: `${Date.now()}-assistant`,
+    role: 'assistant',
+    text: '意图分析中，稍后会在这里出现确认卡。',
+    source: 'L4 应用网关',
+    receipt: true,
+    task: {
+      title: '正在分析意图',
+      label: pendingLabel,
+      status: 'running',
+      items: [
+        '平台正在识别任务能力与参数',
+        documents.length ? `已携带 ${documents.length} 个上传文件引用` : '当前没有上传文件引用',
+      ],
+    },
+  }
+  appendMessage(conversationId, pendingMessage)
+  try {
+    const backendProjectId = await ensureProjectRegistered(project)
+    const envelope = createInstructionEnvelope({
+      utterance: text,
+      actor: { user_id: currentAccount.value.id, userId: currentAccount.value.id, authenticated: true },
+      projectId: backendProjectId,
+      projectName: project.name,
+      conversationId,
+      conversationTitle: conversation?.title || '当前对话',
+      uploadedDocuments: documents,
+    })
+    const result = await platformApi.submitInstruction(envelope)
+    updateSessionMessage(conversationId, pendingMessage.id, {
+      source: `L4/L2 链路 · ${result.trace_id || envelope.trace_id}${result.task_id ? ` · ${result.task_id}` : ''}`,
+    })
+    if (result.task_id) {
+      void waitForTaskResult(result.task_id).then((task) => {
+        const currentMessage = updateSessionMessage(conversationId, pendingMessage.id, {
+          text: formatTaskResponse(task, documents.length),
+          source: `L4/L2 链路 · ${result.trace_id || envelope.trace_id} · ${result.task_id}`,
+        })
+        if (currentMessage) {
+          currentMessage.task = buildIntentCard(task, documents) || currentMessage.task
+        }
+      }).catch((error) => {
+        updateSessionMessage(conversationId, pendingMessage.id, {
+          text: accountError(error),
+          task: {
+            title: '意图分析失败',
+            label: '失败',
+            status: 'failed',
+            items: ['请查看后端任务与接口调用记录'],
+          },
+        })
+      })
+    }
+  } catch (error) {
+    appendMessage(conversationId, {
+      id: `${Date.now()}-assistant-error`,
+      role: 'assistant',
+      text: accountError(error),
+      source: '平台提交失败',
+    })
   }
 }
 
@@ -660,6 +932,16 @@ async function ensureProjectRegistered(project = currentProject.value) {
 
 function normalizeConversation(record, messageItems = [], fileItems = []) {
   const id = record.conversation_id || record.id || record.record_id
+  const conversationMessages = messageItems
+    .filter((message) => String(message.conversation_id) === String(id))
+    .sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')))
+  const executedTaskIds = new Set(conversationMessages
+    .filter((message) => message.content_type === 'execution_result' && message.task_id)
+    .map((message) => String(message.task_id)))
+  const unresolvedIntentMessages = conversationMessages
+    .filter((message) => message.content_type === 'intent_analysis' && message.task_id && !executedTaskIds.has(String(message.task_id)))
+  const latestUnresolvedIntent = unresolvedIntentMessages.at(-1)
+  const pendingIntentMessageIds = new Set(latestUnresolvedIntent ? [String(latestUnresolvedIntent.message_id || latestUnresolvedIntent.record_id || '')] : [])
   return {
     ...record,
     id,
@@ -670,15 +952,7 @@ function normalizeConversation(record, messageItems = [], fileItems = []) {
     unread: false,
     hasHistory: record.has_history ?? messageItems.length > 0,
     contextUsage: record.context_usage ?? record.contextUsage ?? 0,
-    messages: messageItems
-      .filter((message) => String(message.conversation_id) === String(id))
-      .sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')))
-      .map((message) => ({
-        id: message.message_id || message.record_id || `${id}-${Math.random()}`,
-        role: message.role || 'assistant',
-        text: typeof message.content === 'string' ? message.content : JSON.stringify(message.content ?? ''),
-        source: message.task_id ? `任务 ${message.task_id}` : message.trace_id ? `链路 ${message.trace_id}` : undefined,
-      })),
+    messages: conversationMessages.map((message) => normalizePersistedMessage(message, id, { pendingIntentMessageIds })),
     files: fileItems
       .filter((file) => String(file.conversation_id) === String(id))
       .map((file) => ({
@@ -995,6 +1269,15 @@ function selectConversation(projectId, conversationId) {
   agentManagement.active = false
   knowledgeManagement.active = false
   rightTab.value = 'session'
+  void scrollCurrentConversationToLatest()
+}
+
+async function scrollCurrentConversationToLatest() {
+  await nextTick()
+  window.requestAnimationFrame(() => {
+    const stream = chatStreamRef.value
+    if (stream) stream.scrollTop = stream.scrollHeight
+  })
 }
 
 function selectAccountCenter() {
@@ -1014,11 +1297,19 @@ function openNotification(item) {
 function appendMessage(conversationId, message) {
   if (!sessionMessages[conversationId]) sessionMessages[conversationId] = []
   sessionMessages[conversationId].push(message)
+  if (conversationId === currentConversationId.value) void scrollCurrentConversationToLatest()
 }
 
 function updateSessionMessage(conversationId, messageId, patch) {
-  const message = sessionMessages[conversationId]?.find((item) => item.id === messageId)
+  let message = sessionMessages[conversationId]?.find((item) => item.id === messageId)
+  if (!message) {
+    const conversation = workspaceProjects.value
+      .flatMap((project) => project.conversations || [])
+      .find((item) => String(item.id) === String(conversationId))
+    message = conversation?.messages?.find((item) => item.id === messageId)
+  }
   if (message) Object.assign(message, patch)
+  if (message && conversationId === currentConversationId.value) void scrollCurrentConversationToLatest()
   return message
 }
 
@@ -1053,68 +1344,11 @@ async function sendMessage() {
   currentConversation.value.contextUsage = Math.min(100, getContextUsage(currentConversation.value) + 4)
   currentConversation.value.hasHistory = true
   inputText.value = ''
-  try {
-    const backendProjectId = await ensureProjectRegistered(currentProject.value)
-    const uploadedDocuments = extractUploadedDocuments(currentConversation.value)
-    const pendingMessage = {
-      id: `${Date.now()}-assistant`,
-      role: 'assistant',
-      text: '意图分析中，稍后会在这里出现确认卡。',
-      source: 'L4 应用网关',
-      receipt: true,
-      task: {
-        title: '正在分析意图',
-        label: '处理中',
-        status: 'running',
-        items: [
-          '平台正在识别任务能力与参数',
-          uploadedDocuments.length ? `已携带 ${uploadedDocuments.length} 个上传文件引用` : '当前没有上传文件引用',
-        ],
-      },
-    }
-    appendMessage(conversationId, pendingMessage)
-    const envelope = createInstructionEnvelope({
-      utterance: text,
-      actor: { user_id: currentAccount.value.id, userId: currentAccount.value.id, authenticated: true },
-      projectId: backendProjectId,
-      projectName: currentProject.value.name,
-      conversationId,
-      conversationTitle: currentConversation.value.title,
-      uploadedDocuments,
-    })
-    const result = await platformApi.submitInstruction(envelope)
-    updateSessionMessage(conversationId, pendingMessage.id, {
-      source: `L4/L2 链路 · ${result.trace_id || envelope.trace_id}${result.task_id ? ` · ${result.task_id}` : ''}`,
-    })
-    if (result.task_id) {
-      void waitForTaskResult(result.task_id).then((task) => {
-        const currentMessage = updateSessionMessage(conversationId, pendingMessage.id, {
-          text: formatTaskResponse(task, uploadedDocuments.length),
-          source: `L4/L2 链路 · ${result.trace_id || envelope.trace_id} · ${result.task_id}`,
-        })
-        if (currentMessage) {
-          currentMessage.task = buildIntentCard(task, uploadedDocuments) || currentMessage.task
-        }
-      }).catch((error) => {
-        updateSessionMessage(conversationId, pendingMessage.id, {
-          text: accountError(error),
-          task: {
-            title: '意图分析失败',
-            label: '失败',
-            status: 'failed',
-            items: ['请查看后端任务与接口调用记录'],
-          },
-        })
-      })
-    }
-  } catch (error) {
-    appendMessage(conversationId, {
-      id: `${Date.now()}-assistant-error`,
-      role: 'assistant',
-      text: accountError(error),
-      source: '平台提交失败',
-    })
-  }
+  await submitIntentAnalysis(text, {
+    conversationId,
+    project: currentProject.value,
+    uploadedDocuments: extractUploadedDocuments(currentConversation.value),
+  })
 }
 
 function openAttachmentPicker(kind) {
@@ -1414,28 +1648,79 @@ function confirmIntentLegacy() {
   showToast('任务已确认并开始执行')
 }
 
+function openIntentAdjustment(message) {
+  if (!message?.task || message.task.status !== 'pending') return
+  message.task.adjustmentOpen = true
+  message.task.adjustmentText = message.task.adjustmentText || ''
+}
+
+function cancelIntentAdjustment(message) {
+  if (!message?.task || message.task.status !== 'pending') return
+  message.task.adjustmentOpen = false
+  message.task.adjustmentText = ''
+}
+
+async function submitIntentAdjustment(message) {
+  if (!currentConversation.value || !currentProject.value || !message?.task || message.task.status !== 'pending') return
+  const text = String(message.task.adjustmentText || '').trim()
+  if (!text) {
+    showToast('请先写下你希望平台重新理解的意图')
+    return
+  }
+  const conversationId = currentConversation.value.id
+  const project = currentProject.value
+  const uploadedDocuments = message.task.uploadedDocuments || extractUploadedDocuments(currentConversation.value)
+  message.task.status = 'adjusting'
+  appendMessage(conversationId, {
+    id: `${Date.now()}-adjust-user`,
+    role: 'user',
+    text,
+  })
+  updateSessionMessage(conversationId, message.id, {
+    task: null,
+    receipt: false,
+  })
+  await submitIntentAnalysis(text, {
+    conversationId,
+    project,
+    uploadedDocuments,
+    pendingLabel: '重新识别',
+  })
+}
+
 async function confirmIntent(message) {
-  if (!currentConversation.value || !currentProject.value || !message?.task || message.task.status === 'running') return
+  if (!currentConversation.value || !currentProject.value || !message?.task || message.task.status !== 'pending') return
   const task = message.task
   task.status = 'running'
+  const conversationId = currentConversation.value.id
   try {
     const backendProjectId = await ensureProjectRegistered(currentProject.value)
     const result = await platformApi.confirmIntent(task.confirmationId, {
       decision: 'confirm',
       actor: { tenant_id: platformApi.tenantId, user_id: currentAccount.value.id, authenticated: true },
       project_id: backendProjectId,
-      conversation_id: currentConversation.value.id,
+      conversation_id: conversationId,
+      trace_id: task.traceId,
       uploaded_documents: task.uploadedDocuments || [],
     })
-    task.status = 'confirmed'
-    appendMessage(currentConversation.value.id, {
+    const completedWithErrors = result.status === 'completed_with_errors'
+    task.status = completedWithErrors ? 'completed_with_errors' : 'confirmed'
+    const resultLines = workflowResultLines(result)
+    const userResult = workflowUserResult(result)
+    updateSessionMessage(conversationId, message.id, {
+      task: null,
+      receipt: false,
+    })
+    appendMessage(conversationId, {
       id: `${Date.now()}-confirm`,
       role: 'assistant',
-      text: result.status === 'succeeded' ? '已确认执行，工作流处理结果已写入当前对话链路。' : '已确认执行，平台正在继续处理。',
-      source: `确认执行 · ${result.task_id || task.taskId}`,
+      text: workflowUserResponse(result),
+      resultLines,
+      userResult,
+      source: result.task_id ? `任务 ${result.task_id}` : task.traceId ? `链路 ${task.traceId}` : undefined,
       receipt: true,
     })
-    showToast('任务已确认并开始执行')
+    showToast(completedWithErrors ? '处理链路已留痕，部分模块待接入' : '任务已确认并开始执行')
   } catch (error) {
     task.status = 'pending'
     appendMessage(currentConversation.value.id, {
@@ -1935,8 +2220,9 @@ function projectIcon(type) {
   return FolderKanban
 }
 
-onMounted(() => {
-  restoreSession()
+onMounted(async () => {
+  await restoreSession()
+  await scrollCurrentConversationToLatest()
 })
 </script>
 
@@ -2274,15 +2560,32 @@ onMounted(() => {
           </template>
 
           <template v-else>
-            <div class="center-scroll chat-stream">
+            <div ref="chatStreamRef" class="center-scroll chat-stream">
               <div v-for="message in currentMessages" :key="message.id" class="message" :class="message.role">
                 <span v-if="message.role === 'assistant'" class="message-avatar"><Bot :size="17" /></span>
                 <div class="bubble" :class="{ receipt: message.receipt }">
                   <p>{{ message.text }}</p>
+                  <div v-if="message.userResult?.findings?.length" class="execution-result">
+                    <article v-for="finding in message.userResult.findings" :key="finding.finding_id || finding.title">
+                      <strong>{{ finding.title }}</strong>
+                      <p v-if="finding.detail">{{ finding.detail }}</p>
+                      <p v-if="finding.evidence?.length"><span>依据：</span>{{ finding.evidence.join('；') }}</p>
+                      <p v-if="finding.impact"><span>影响：</span>{{ finding.impact }}</p>
+                      <p v-if="finding.recommendation"><span>建议：</span>{{ finding.recommendation }}</p>
+                    </article>
+                    <p v-if="message.userResult.next_action?.prompt" class="execution-next-action">{{ message.userResult.next_action.prompt }}</p>
+                  </div>
+                  <ul v-else-if="message.resultLines?.length" class="execution-result">
+                    <li v-for="line in message.resultLines" :key="line"><CheckCircle2 :size="13" />{{ line }}</li>
+                  </ul>
                   <div v-if="message.task" class="intent-card">
                     <div><span><Sparkles :size="14" />{{ message.task.title }}</span><em>{{ message.task.label || '意图确认' }}</em></div>
                     <ul><li v-for="item in message.task.items" :key="item"><CheckCircle2 :size="13" />{{ item }}</li></ul>
-                    <div class="intent-actions"><button :disabled="message.task.status !== 'pending'" @click="showToast('调整范围入口已预留')">调整范围</button><button class="primary" :disabled="message.task.status !== 'pending'" @click="confirmIntent(message)">{{ message.task.status === 'running' ? '执行中...' : message.task.status === 'confirmed' ? '已确认' : '确认并执行' }}</button></div>
+                    <div v-if="message.task.adjustmentOpen" class="intent-adjustment">
+                      <textarea v-model="message.task.adjustmentText" rows="3" placeholder="例如：不是生成摘要，而是核对合同尾款与回款金额，并列出需要人工确认的问题。"></textarea>
+                      <div><button :disabled="message.task.status !== 'pending'" @click="cancelIntentAdjustment(message)">取消</button><button class="primary" :disabled="message.task.status !== 'pending' || !message.task.adjustmentText.trim()" @click="submitIntentAdjustment(message)">重新识别</button></div>
+                    </div>
+                    <div class="intent-actions"><button :disabled="message.task.status !== 'pending'" @click="openIntentAdjustment(message)">调整意图</button><button class="primary" :disabled="message.task.status !== 'pending'" @click="confirmIntent(message)">{{ message.task.status === 'running' ? '执行中...' : message.task.status === 'adjusting' ? '重新识别中...' : message.task.status === 'confirmed' ? '已确认' : message.task.status === 'completed_with_errors' ? '部分完成' : '确认并执行' }}</button></div>
                   </div>
                   <small v-if="message.source"><Activity :size="11" />{{ message.source }}</small>
                 </div>

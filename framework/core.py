@@ -253,7 +253,7 @@ def create_task(trace_id: str, request_id: str) -> str:
     return task_id
 
 
-def update_task(task_id: str, *, state: str, progress: int | None = None, result: Any = None, confirmation: Any = None, error: Any = None, sequence: int | None = None) -> bool:
+def update_task(task_id: str, *, state: str, progress: int | None = None, result: Any = None, confirmation: Any = None, error: Any = None, clear_error: bool = False, sequence: int | None = None) -> bool:
     with connect() as db:
         row = db.execute("SELECT sequence FROM tasks WHERE task_id=?", (task_id,)).fetchone()
         if not row:
@@ -261,8 +261,8 @@ def update_task(task_id: str, *, state: str, progress: int | None = None, result
         if sequence is not None and sequence <= int(row["sequence"]):
             return True
         db.execute(
-            "UPDATE tasks SET state=?,progress=COALESCE(?,progress),result_json=COALESCE(?,result_json),confirmation_json=COALESCE(?,confirmation_json),error_json=COALESCE(?,error_json),sequence=COALESCE(?,sequence),updated_at=? WHERE task_id=?",
-            (state, progress, _json(result), _json(confirmation), _json(error), sequence, now(), task_id),
+            "UPDATE tasks SET state=?,progress=COALESCE(?,progress),result_json=COALESCE(?,result_json),confirmation_json=COALESCE(?,confirmation_json),error_json=CASE WHEN ? THEN NULL ELSE COALESCE(?,error_json) END,sequence=COALESCE(?,sequence),updated_at=? WHERE task_id=?",
+            (state, progress, _json(result), _json(confirmation), clear_error, _json(error), sequence, now(), task_id),
         )
     return True
 

@@ -83,6 +83,7 @@ def post(handler: Any, envelope: dict[str, Any]) -> None:
             "original_task_type": task_type,
             "uploaded_documents": uploaded_documents,
         }
+        parameters["intent_summary"] = _build_intent_summary(utterance, capability, parameters, uploaded_documents)
         platform_tasks.append({
             "task_id": task.get("task_id"), "description": task.get("task_description", utterance),
             "capability_code": capability, "dependencies": task.get("dependencies", []),
@@ -108,6 +109,9 @@ def post(handler: Any, envelope: dict[str, Any]) -> None:
             },
             "confidence": original.get("overall_confidence", .78),
         })
+        platform_tasks[-1]["parameters"]["intent_summary"] = _build_intent_summary(
+            utterance, platform_tasks[-1]["capability_code"], platform_tasks[-1]["parameters"], uploaded_documents
+        )
     if not platform_tasks:
         model_output = meta.get("model_output") or {}
         capability = CAPABILITY_ALIASES.get(str(model_output.get("capability_code") or "").strip(), str(model_output.get("capability_code") or "").strip())
@@ -127,6 +131,9 @@ def post(handler: Any, envelope: dict[str, Any]) -> None:
                 },
                 "confidence": model_output.get("confidence", original.get("overall_confidence", .75)),
             })
+            platform_tasks[-1]["parameters"]["intent_summary"] = _build_intent_summary(
+                utterance, capability, platform_tasks[-1]["parameters"], uploaded_documents
+            )
     data = {
         "tasks": platform_tasks,
         "clarification_required": bool(original.get("clarification_required", False)),
@@ -140,4 +147,46 @@ def post(handler: Any, envelope: dict[str, Any]) -> None:
 
 
 def _looks_like_uploaded_reconciliation(text: str) -> bool:
-    return any(word in text for word in ("对账", "核对", "销售对账", "案例二", "合同登记", "发票一致"))
+    return any(word in text for word in ("对账", "核对", "销售对账", "案例二", "合同登记", "发票一致", "采购", "验收", "发票", "风险点"))
+
+
+def _build_intent_summary(utterance: str, capability: str, parameters: dict[str, Any], uploaded_documents: list[dict[str, Any]]) -> dict[str, Any]:
+    checks: list[str] = []
+    if any(word in utterance for word in ("采购", "验收")):
+        checks.extend(["采购金额", "合同编号", "发票信息", "验收状态"])
+    if any(word in utterance for word in ("金额差异", "差异", "尾款", "付款", "回款")):
+        checks.append("金额差异")
+    if any(word in utterance for word in ("发票缺失", "附件", "未上传", "齐全")):
+        checks.append("附件齐全性")
+    if "抬头" in utterance:
+        checks.append("发票抬头一致性")
+    if any(word in utterance for word in ("风险", "风险点")):
+        checks.append("风险点")
+    if any(word in utterance for word in ("核对", "验收", "对账")):
+        checks.append("需要人工核对的事项")
+    deduped_checks = list(dict.fromkeys(checks)) or ["文件关键信息", "需要人工核对的事项", "风险点"]
+    output_items: list[str] = []
+    if any(word in utterance for word in ("摘要", "总结")):
+        output_items.append("采购验收摘要")
+    output_items.extend([f"{item}清单" for item in deduped_checks if item in {"采购金额", "需要人工核对的事项", "风险点"}])
+    output_items = list(dict.fromkeys(output_items)) or ["处理结果摘要", "核对事项", "风险提示"]
+    return {
+        "business_goal": _infer_business_goal(utterance, capability),
+        "data_scope": f"当前对话上传的 {len(uploaded_documents)} 个文件" if uploaded_documents else "当前对话和项目资料",
+        "planned_steps": ["读取并解析上传文件", "提取关键字段", "按核对项检查异常", "生成用户可读结论"],
+        "check_items": deduped_checks,
+        "expected_outputs": output_items,
+        "confirmation_question": "请确认是否按以上任务理解继续执行。",
+    }
+
+
+def _infer_business_goal(utterance: str, capability: str) -> str:
+    if any(word in utterance for word in ("采购", "验收")):
+        return "生成采购验收核对摘要"
+    if any(word in utterance for word in ("对账", "核对")):
+        return "核对上传文件中的业务数据并标出疑点"
+    if capability == "content.generate":
+        return "根据现有资料生成内容"
+    if capability == "data.aggregate":
+        return "汇总当前资料并输出结论"
+    return "处理当前对话中的业务请求"

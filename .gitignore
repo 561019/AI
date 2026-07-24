@@ -5,6 +5,13 @@ dist/
 
 # Large delivered-module source packages are managed separately.
 联调文件-7.20-解压/
+*.zip
+_incoming_*/
+_current_*.txt
+_incoming_*.txt
+架构/_storage_design_render/
+架构/*.pdf
+架构/*.docx
 
 # Python caches and test caches
 **/__pycache__/

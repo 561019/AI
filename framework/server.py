@@ -50,7 +50,7 @@ SERVICE_MODULES = {
 }
 
 ENDPOINTS = {
-    "application": ["GET /chat", "GET /cases", "GET /uploads", "GET /modules", "GET /demo", "GET /monitor", "GET /health", "POST /api/v1/application/instructions", "GET /api/v1/uploads", "POST /api/v1/uploads", "GET /api/v1/data/catalog", "GET /api/v1/data/records?dataset={dataset}", "GET /api/v1/runtime/session/{trace_id}", "GET /api/v1/traces/{trace_id}/data-access", "POST /api/application/capability-management/commands", "POST /api/application/knowledge-governance/commands", "POST /api/application/account/commands", "GET /api/v1/module-verification/cases", "POST /api/v1/module-verification/run", "GET /api/v1/tasks/{task_id}", "GET /api/v1/traces/{trace_id}/calls", "POST /api/v1/confirmations/{confirmation_id}/decisions"],
+    "application": ["GET /chat", "GET /cases", "GET /uploads", "GET /modules", "GET /demo", "GET /monitor", "GET /health", "POST /api/v1/application/instructions", "GET /api/v1/uploads", "POST /api/v1/uploads", "GET /api/v1/platform/overview", "GET /api/v1/data/catalog", "GET /api/v1/data/records?dataset={dataset}", "GET /api/v1/runtime/session/{trace_id}", "GET /api/v1/traces/{trace_id}/data-access", "POST /api/application/capability-management/commands", "POST /api/application/knowledge-governance/commands", "POST /api/application/account/commands", "GET /api/v1/module-verification/cases", "POST /api/v1/module-verification/run", "GET /api/v1/tasks/{task_id}", "GET /api/v1/traces/{trace_id}/calls", "POST /api/v1/confirmations/{confirmation_id}/decisions"],
     "engine": ["GET /health", "POST /api/v1/engine/instructions", "POST /api/v1/callbacks"],
     "foundation": ["GET /health", "POST /api/v1/foundation/instructions"],
     "intent": ["GET /health", "POST /api/v1/intent/analyze"],
