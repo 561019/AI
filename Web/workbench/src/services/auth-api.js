@@ -1,3 +1,5 @@
+import { uniqueId } from './id'
+
 export const AuthOperations = Object.freeze({
   login: 'login',
   register: 'register',
@@ -31,7 +33,7 @@ async function postCommand(command) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       trace_id: command.trace_id ?? traceId(),
-      request_id: command.request_id ?? crypto.randomUUID(),
+      request_id: command.request_id ?? uniqueId('request'),
       ...command,
     }),
   })

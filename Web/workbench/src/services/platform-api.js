@@ -1,3 +1,5 @@
+import { uniqueId } from './id'
+
 const platformBaseUrl = (import.meta.env.VITE_PLATFORM_API_BASE_URL ?? '').replace(/\/$/, '')
 const tenantId = import.meta.env.VITE_PLATFORM_TENANT_ID ?? 'web-workbench'
 
@@ -34,8 +36,8 @@ export function createInstructionEnvelope({
   uploadedDocuments = [],
 }) {
   const trace = newId('trace')
-  const request = crypto.randomUUID()
-  const message = crypto.randomUUID()
+  const request = uniqueId('request')
+  const message = uniqueId('message')
   return {
     protocol_version: '1.0',
     message_id: message,
@@ -70,6 +72,8 @@ export const platformApi = {
 
   async queryRecords(dataset, { filters = {}, limit = 500 } = {}) {
     const params = new URLSearchParams({ dataset, tenant_id: tenantId, limit: String(limit) })
+    if (Object.keys(filters).length) params.set('filters', JSON.stringify(filters))
+    if (dataset === 'conversation_messages') params.set('compact', 'true')
     const result = await request(`/api/v1/data/records?${params.toString()}`)
     const items = result.items ?? []
     const filtered = Object.keys(filters).length

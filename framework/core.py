@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from framework.module_catalog import additional_capabilities
+from framework.module_catalog import ALL_MODULES, additional_capabilities
 from framework.data_catalog import DATASETS
 
 
@@ -218,6 +218,22 @@ def seed_capabilities(db: sqlite3.Connection) -> None:
         ("template.disable", "foundation", "template-management", "http://127.0.0.1:8004/api/v1/templates/instructions", "sync", "capability.invoke", "1.0", 1),
     ]
     rows.extend(additional_capabilities())
+    existing_codes = {row[0] for row in rows}
+    for module in ALL_MODULES:
+        for capability in module.capabilities:
+            if capability in existing_codes:
+                continue
+            rows.append((
+                capability,
+                module.layer,
+                module.code,
+                f"http://127.0.0.1:{module.port}{module.interface}",
+                "sync",
+                "capability.invoke",
+                "0.1",
+                1,
+            ))
+            existing_codes.add(capability)
     codes = [row[0] for row in rows]
     placeholders = ",".join("?" for _ in codes)
     db.execute(f"DELETE FROM capabilities WHERE capability_code NOT IN ({placeholders})", codes)

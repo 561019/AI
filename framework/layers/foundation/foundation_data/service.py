@@ -32,7 +32,7 @@ def get(handler: Any) -> bool:
             handler.send(403, {"error": {"code": "SENSITIVE_DATASET_FORBIDDEN"}})
             return True
         tenant_id = (query.get("tenant_id") or ["web-workbench"])[0]
-        limit = min(max(int((query.get("limit") or ["100"])[0]), 1), 500)
+        limit = min(max(int((query.get("limit") or ["100"])[0]), 1), 20000)
         handler.send(200, {"dataset": dataset, "items": _query_records(dataset, tenant_id, {}, limit)})
         return True
     return False
@@ -214,12 +214,14 @@ def _query(envelope: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
     _authorize(envelope, dataset, "read")
     tenant_id = _tenant_for_request(envelope, payload)
     filters = payload.get("filters") if isinstance(payload.get("filters"), dict) else {}
-    limit = min(max(int(payload.get("limit", 100)), 1), 500)
+    limit = min(max(int(payload.get("limit", 100)), 1), 20000)
     items = _query_records(dataset, tenant_id, filters, limit)
     allowed_projects = _allowed_projects(envelope.get("actor") or {})
     if allowed_projects is not None:
         items = [item for item in items if not item.get("project_id") or str(item.get("project_id")) in allowed_projects]
     items = [_sanitize_item(dataset, item) for item in items]
+    if payload.get("compact") or dataset == "conversation_messages":
+        items = [_compact_item(dataset, item) for item in items]
     decision_id = _allow(envelope, dataset, "read", {"count": len(items), "filters": filters})
     return {"state": "completed", "dataset": dataset, "count": len(items), "items": items, "permission_decision_id": decision_id}
 
@@ -234,8 +236,20 @@ def _query_records(dataset: str, tenant_id: str, filters: dict[str, Any], limit:
         ).fetchall()
     items = [json.loads(row["payload_json"]) for row in rows]
     if filters:
-        items = [item for item in items if all(item.get(key) == value for key, value in filters.items())]
+        items = [item for item in items if all(_filter_matches(item, key, value) for key, value in filters.items())]
     return items[:limit]
+
+
+def _filter_matches(item: dict[str, Any], key: str, expected: Any) -> bool:
+    actual: Any = item
+    for part in str(key).split("."):
+        if not isinstance(actual, dict):
+            actual = None
+            break
+        actual = actual.get(part)
+    if isinstance(expected, list):
+        return actual in expected
+    return actual == expected
 
 
 def _register_source(envelope: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
@@ -291,7 +305,7 @@ def _authorize(envelope: dict[str, Any], dataset: str, action: str):
     spec = _catalog_spec(dataset)
     if not spec:
         _deny(envelope, dataset, action, "DATASET_NOT_REGISTERED", {})
-    source_module = _effective_source_module(envelope)
+    source_module = _authorization_source_module(envelope, action, dataset)
     allowed = json.loads(spec["allowed_readers_json"] if action == "read" else spec["allowed_writers_json"])
     if source_module not in allowed and source_module not in {"foundation-gateway", "foundation-data"}:
         _deny(envelope, dataset, action, "SOURCE_MODULE_NOT_ALLOWED", {"source_module": source_module})
@@ -334,7 +348,10 @@ def _is_platform_admin(actor: dict[str, Any]) -> bool:
 def _decision(envelope: dict[str, Any], dataset: str, action: str, effect: str, reason: str, scope: dict[str, Any]) -> str:
     decision_id = str(uuid4())
     actor = envelope.get("actor") or {}
-    source_module = _effective_source_module(envelope)
+    source_module = _authorization_source_module(envelope, action, dataset)
+    delegated = _delegated_requesting_module(envelope)
+    if delegated:
+        scope = {**scope, "requesting_module": delegated}
     with connect() as db:
         db.execute(
             "INSERT INTO data_access_decisions VALUES(?,?,?,?,?,?,?,?,?,?,?)",
@@ -384,6 +401,26 @@ def _effective_source_module(envelope: dict[str, Any]) -> str:
     return delegated if source_module == "data-operation" and delegated else source_module
 
 
+def _authorization_source_module(envelope: dict[str, Any], action: str, dataset: str = "") -> str:
+    source_module = str((envelope.get("source") or {}).get("module") or "unknown")
+    if source_module == "data-operation" and action == "read":
+        delegated = _delegated_requesting_module(envelope)
+        if delegated == "account-gateway" and dataset in {
+            "accounts",
+            "account_credentials",
+            "account_role_bindings",
+            "account_sessions",
+        }:
+            return delegated
+        return "data-operation"
+    return _effective_source_module(envelope)
+
+
+def _delegated_requesting_module(envelope: dict[str, Any]) -> str:
+    payload = envelope.get("payload") if isinstance(envelope.get("payload"), dict) else {}
+    return str(payload.get("_requesting_module") or "")
+
+
 def _infer_record_id(record: dict[str, Any]) -> Any:
     for key in (
         "message_id", "file_id", "task_id", "call_id", "session_id", "workflow_instance_id",
@@ -393,3 +430,44 @@ def _infer_record_id(record: dict[str, Any]) -> Any:
         if record.get(key):
             return record[key]
     return None
+
+
+def _compact_item(dataset: str, item: dict[str, Any]) -> dict[str, Any]:
+    if dataset != "conversation_messages":
+        return item
+    compact = {
+        key: item.get(key)
+        for key in (
+            "message_id", "record_id", "conversation_id", "project_id", "owner_account_id",
+            "tenant_id", "role", "content_type", "task_id", "trace_id", "created_at", "updated_at",
+        )
+        if item.get(key) not in (None, "")
+    }
+    compact["content"] = _compact_message_content(item.get("content"))
+    return compact
+
+
+def _compact_message_content(content: Any) -> Any:
+    if not isinstance(content, dict):
+        return content
+    data = content.get("data") if isinstance(content.get("data"), dict) else content
+    slim_data = {}
+    for key in ("selected_capability", "provider_module", "intent_tasks", "tasks", "uploaded_documents"):
+        if data.get(key) not in (None, "", []):
+            slim_data[key] = data.get(key)
+    if isinstance(data.get("workflow_instance"), dict):
+        workflow = data["workflow_instance"]
+        slim_data["workflow_instance"] = {
+            key: workflow.get(key)
+            for key in ("instance_id", "route_type", "status")
+            if workflow.get(key) not in (None, "")
+        }
+    capability_result = data.get("capability_result") if isinstance(data.get("capability_result"), dict) else {}
+    slim_capability = {
+        key: capability_result.get(key)
+        for key in ("state", "summary_cn", "summary", "answer", "user_answer")
+        if capability_result.get(key) not in (None, "")
+    }
+    if slim_capability:
+        slim_data["capability_result"] = slim_capability
+    return slim_data if slim_data else content

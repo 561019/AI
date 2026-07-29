@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 from uuid import uuid4
 
@@ -47,6 +48,10 @@ def _execute_intent(handler: Any, envelope: dict[str, Any]) -> None:
     if not capability or capability == "workflow.execute":
         handler.send(422, standard_response(envelope, "failed", error={"code": "INVALID_INTENT_CAPABILITY", "message": "intent task has no executable capability"}))
         return
+    task_plan = _normalize_task_plan(intent_task)
+    if task_plan:
+        _execute_task_plan(handler, envelope, platform_task_id, intent_task, task_plan)
+        return
     workflow_instance_id = f"wf-{platform_task_id}"
     persisted = _persist_workflow_state(
         envelope, platform_task_id, workflow_instance_id, "running",
@@ -75,6 +80,704 @@ def _execute_intent(handler: Any, envelope: dict[str, Any]) -> None:
         return
 
     _execute_with_standard_route(handler, envelope, platform_task_id, intent_task, capability, registration)
+
+
+def _normalize_task_plan(intent_task: dict[str, Any]) -> list[dict[str, Any]]:
+    parameters = intent_task.get("parameters") if isinstance(intent_task.get("parameters"), dict) else {}
+    if parameters.get("execution_kind") == "uploaded_document_sales_reconciliation":
+        return []
+    contract = parameters.get("intent_contract") if isinstance(parameters.get("intent_contract"), dict) else {}
+    contract_tasks = contract.get("tasks") if isinstance(contract.get("tasks"), list) else []
+    if contract_tasks:
+        plan = _plan_from_intent_contract(contract_tasks, parameters)
+        if plan:
+            return plan
+    raw_plan = parameters.get("task_plan_draft") if isinstance(parameters.get("task_plan_draft"), list) else []
+    plan: list[dict[str, Any]] = []
+    if parameters.get("planning_owner") != "workflow_execution":
+        for index, item in enumerate(raw_plan, start=1):
+            if not isinstance(item, dict):
+                continue
+            capability = str(item.get("capability_code") or item.get("capability") or "").strip()
+            if not capability or capability == "workflow.execute":
+                continue
+            plan.append({
+                "step": int(item.get("step") or index),
+                "name": item.get("name") or item.get("purpose") or capability,
+                "capability": capability,
+                "depends_on": item.get("depends_on") if isinstance(item.get("depends_on"), list) else [],
+                "payload_hint": item.get("payload_hint") if isinstance(item.get("payload_hint"), dict) else {},
+                "purpose": item.get("purpose") or "",
+            })
+    if len(plan) > 1:
+        return sorted(plan, key=lambda item: item["step"])
+    return _build_plan_from_intent_task(intent_task)
+
+
+def _plan_from_intent_contract(contract_tasks: list[dict[str, Any]], parameters: dict[str, Any]) -> list[dict[str, Any]]:
+    """Build an execution DAG from the model-produced task contract."""
+    plan: list[dict[str, Any]] = []
+    uploaded_documents = parameters.get("uploaded_documents") if isinstance(parameters.get("uploaded_documents"), list) else []
+    for index, item in enumerate(contract_tasks, start=1):
+        if not isinstance(item, dict):
+            continue
+        capability = _normalize_executable_capability(str(item.get("capability_code") or "").strip())
+        if not capability or capability == "workflow.execute":
+            continue
+        depends_on = item.get("dependencies") if isinstance(item.get("dependencies"), list) else []
+        plan.append({
+            "step": index,
+            "task_id": str(item.get("task_id") or f"intent-task-{index}"),
+            "name": item.get("task_name") or item.get("user_goal") or capability,
+            "capability": capability,
+            "depends_on": depends_on,
+            "payload_hint": {
+                "user_goal": item.get("user_goal") or parameters.get("utterance"),
+                "operation": item.get("operation") or "process",
+                "data_object": item.get("data_object") or "",
+                "data_scope": item.get("data_scope") or "",
+                "fields": item.get("fields") if isinstance(item.get("fields"), list) else [],
+                "filters": item.get("filters") if isinstance(item.get("filters"), dict) else {},
+                "data_access_contract": item.get("data_access_contract") if isinstance(item.get("data_access_contract"), dict) else {},
+                "required_data": item.get("required_data") or [],
+                "output_schema": item.get("output_schema") or {"type": "user_readable_result"},
+                "expected_outputs": item.get("expected_outputs") if isinstance(item.get("expected_outputs"), list) else [],
+            },
+            "purpose": item.get("task_name") or "执行意图分析拆解后的最小任务",
+        })
+    if uploaded_documents and not any(item["capability"] in {"document.table.extract", "document.parse"} for item in plan):
+        plan.insert(0, {
+            "step": 1,
+            "name": "读取并解析当前对话上传文件",
+            "capability": "document.table.extract",
+            "depends_on": [],
+            "payload_hint": {"uploaded_documents": uploaded_documents},
+            "purpose": "为后续任务提供带来源位置的结构化字段。",
+        })
+        for item in plan[1:]:
+            item["step"] += 1
+            if not item["depends_on"]:
+                item["depends_on"] = [1]
+    _ensure_data_evidence_step(plan, parameters, uploaded_documents)
+    if not any(item["capability"] == "content.generate" for item in plan):
+        plan.append({
+            "step": len(plan) + 1,
+            "name": "生成用户可读回答",
+            "capability": "content.generate",
+            "depends_on": [plan[-1]["step"]] if plan else [],
+            "payload_hint": {
+                "content_type": "workflow_user_answer",
+                "utterance": parameters.get("utterance"),
+                "user_goal": parameters.get("utterance"),
+            },
+            "purpose": "把模块回执整理为用户可以直接理解的结果。",
+        })
+    return _topologically_order_plan(plan)
+
+
+def _ensure_data_evidence_step(
+    plan: list[dict[str, Any]],
+    parameters: dict[str, Any],
+    uploaded_documents: list[dict[str, Any]],
+) -> None:
+    if not uploaded_documents:
+        return
+    if any(item.get("capability") in {"data.search", "data.aggregate"} for item in plan):
+        return
+    content_indexes = [index for index, item in enumerate(plan) if item.get("capability") == "content.generate"]
+    if not content_indexes:
+        return
+    contract = parameters.get("data_access_contract") if isinstance(parameters.get("data_access_contract"), dict) else {}
+    intent_contract = parameters.get("intent_contract") if isinstance(parameters.get("intent_contract"), dict) else {}
+    contract_tasks = intent_contract.get("tasks") if isinstance(intent_contract.get("tasks"), list) else []
+    for task in contract_tasks:
+        if isinstance(task, dict) and isinstance(task.get("data_access_contract"), dict):
+            contract = {**contract, **task["data_access_contract"]}
+            break
+    if not contract and not parameters.get("data_object") and not parameters.get("object"):
+        return
+    first_content = content_indexes[0]
+    parse_step = next((item["step"] for item in plan if item.get("capability") in {"document.table.extract", "document.parse"}), None)
+    evidence_step = {
+        "step": first_content + 1,
+        "name": "从授权数据中提取与问题相关的证据",
+        "capability": "data.aggregate",
+        "depends_on": [parse_step] if parse_step else [],
+        "payload_hint": {
+            "user_goal": parameters.get("utterance"),
+            "analysis_goal": parameters.get("utterance"),
+            "operation": parameters.get("operation") or contract.get("operation") or "retrieve",
+            "data_object": parameters.get("data_object") or parameters.get("object") or contract.get("business_object_label") or "",
+            "fields": parameters.get("fields") if isinstance(parameters.get("fields"), list) else [],
+            "filters": parameters.get("filters") if isinstance(parameters.get("filters"), dict) else {},
+            "data_access_contract": contract,
+        },
+        "purpose": "在生成回答前，先通过数据操作引擎读取授权范围内的结构化证据。",
+    }
+    plan.insert(first_content, evidence_step)
+    for index, item in enumerate(plan, start=1):
+        item["step"] = index
+    content_step = plan[first_content + 1]
+    content_step["depends_on"] = [evidence_step["step"]]
+
+
+def _topologically_order_plan(plan: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Order the intent DAG without changing the task meanings."""
+    if len(plan) < 2:
+        return plan
+    by_id = {str(item.get("task_id") or item["step"]): item for item in plan}
+    by_step = {str(item["step"]): item for item in plan}
+    remaining = list(plan)
+    ordered: list[dict[str, Any]] = []
+    completed: set[str] = set()
+    while remaining:
+        ready = []
+        for item in remaining:
+            dependencies = item.get("depends_on") if isinstance(item.get("depends_on"), list) else []
+            dependency_ids = {
+                str(by_step.get(str(dep), {}).get("task_id") or dep)
+                for dep in dependencies
+            }
+            if dependency_ids.issubset(completed):
+                ready.append(item)
+        if not ready:
+            # Preserve the original order for a malformed/cyclic graph. The
+            # contract validator has already removed unknown dependencies.
+            ready = [remaining[0]]
+        for item in ready:
+            remaining.remove(item)
+            task_id = str(item.get("task_id") or item["step"])
+            completed.add(task_id)
+            ordered.append(item)
+    for index, item in enumerate(ordered, start=1):
+        item["step"] = index
+    return ordered
+
+
+def _build_plan_from_intent_task(intent_task: dict[str, Any]) -> list[dict[str, Any]]:
+    """Let workflow execution derive the graph from a simple intent task."""
+    parameters = intent_task.get("parameters") if isinstance(intent_task.get("parameters"), dict) else {}
+    capability = _normalize_executable_capability(str(intent_task.get("capability_code") or "").strip())
+    if not capability or capability == "workflow.execute":
+        return []
+    utterance = str(parameters.get("utterance") or intent_task.get("description") or "").strip()
+    uploaded_documents = parameters.get("uploaded_documents") if isinstance(parameters.get("uploaded_documents"), list) else []
+    plan: list[dict[str, Any]] = []
+
+    if uploaded_documents and capability not in {"document.table.extract", "document.parse"}:
+        plan.append({
+            "step": 1,
+            "name": "读取并解析当前对话上传文件",
+            "capability": "document.table.extract",
+            "depends_on": [],
+            "payload_hint": {"uploaded_documents": uploaded_documents},
+            "purpose": "提取文件中的表格、字段、行号和值，形成后续模块可读取的结构化结果。",
+        })
+
+    if capability not in {"document.parse", "document.table.extract", "content.generate"}:
+        step = len(plan) + 1
+        plan.append({
+            "step": step,
+            "name": "执行用户请求对应的业务能力",
+            "capability": capability,
+            "depends_on": [step - 1] if plan else [],
+            "payload_hint": {
+                "analysis_goal": utterance,
+                "user_goal": utterance,
+            },
+            "purpose": "根据意图分析输出的业务目标调用已登记能力，不在意图分析阶段预设具体模块链路。",
+        })
+    elif capability in {"document.parse", "document.table.extract"} and not plan:
+        plan.append({
+            "step": 1,
+            "name": "读取并解析当前对话上传文件",
+            "capability": "document.table.extract",
+            "depends_on": [],
+            "payload_hint": {"uploaded_documents": uploaded_documents},
+            "purpose": "提取文件中的表格、字段、行号和值。",
+        })
+
+    if capability != "content.generate":
+        step = len(plan) + 1
+        plan.append({
+            "step": step,
+            "name": "生成用户可读回答",
+            "capability": "content.generate",
+            "depends_on": [step - 1] if plan else [],
+            "payload_hint": {
+                "content_type": "workflow_user_answer",
+                "utterance": utterance,
+                "user_goal": utterance,
+            },
+            "purpose": "整合上游模块回执，向前端输出用户可直接理解的结果。",
+        })
+    return plan
+
+
+def _normalize_executable_capability(capability: str) -> str:
+    """Map semantic capability names to registered executable platform abilities."""
+    value = str(capability or "").strip()
+    lowered = value.lower()
+    normalized = lowered.replace("-", "_")
+    dotted = normalized.replace("_", ".")
+    if (
+        lowered in {"data.query", "data.retrieve", "data.fetch"}
+        or lowered.startswith("data.query.")
+        or normalized in {"data_query", "data_retrieve", "data_fetch"}
+        or normalized.startswith("data_query_")
+        or dotted.startswith("data.query.")
+    ):
+        return "data.search"
+    if (
+        lowered in {"data.aggregate", "data.summary", "data.summarize"}
+        or lowered.startswith("data.aggregate.")
+        or lowered.startswith("data.summary.")
+        or lowered.startswith("data.summarize.")
+        or lowered == "data.analysis"
+        or lowered.startswith("data.analysis.")
+        or lowered == "data.analyze"
+        or lowered.startswith("data.analyze.")
+        or lowered == "analysis"
+        or lowered.startswith("analysis.")
+        or normalized in {"data_aggregate", "data_summary", "data_summarize"}
+        or normalized.startswith("data_aggregate_")
+        or normalized.startswith("data_summary_")
+        or normalized.startswith("data_summarize_")
+        or normalized == "data_analysis"
+        or normalized.startswith("data_analysis_")
+        or normalized == "data_analyze"
+        or normalized.startswith("data_analyze_")
+        or normalized == "analysis"
+        or normalized.startswith("analysis_")
+        or dotted in {"data.aggregate", "data.summary", "data.summarize"}
+        or dotted.startswith("data.aggregate.")
+        or dotted.startswith("data.summary.")
+        or dotted.startswith("data.summarize.")
+        or dotted == "data.analysis"
+        or dotted.startswith("data.analysis.")
+        or dotted == "data.analyze"
+        or dotted.startswith("data.analyze.")
+        or dotted == "analysis"
+        or dotted.startswith("analysis.")
+    ):
+        return "data.aggregate"
+    return value
+
+
+def _execute_task_plan(handler: Any, envelope: dict[str, Any], platform_task_id: str, intent_task: dict[str, Any], task_plan: list[dict[str, Any]]) -> None:
+    workflow_instance_id = f"wf-{platform_task_id}"
+    if not _persist_workflow_state(
+        envelope, platform_task_id, workflow_instance_id, "running",
+        [{"node_instance_id": f"{workflow_instance_id}:step-{item['step']}", "capability": item["capability"], "state": "ready", "step": item["step"]} for item in task_plan],
+        "workflow_started",
+    ):
+        handler.send(502, standard_response(envelope, "failed", error={"code": "WORKFLOW_STATE_PERSISTENCE_FAILED"}))
+        return
+
+    steps: list[dict[str, Any]] = []
+    prior_outputs: dict[str, Any] = {}
+    for item in task_plan:
+        capability = item["capability"]
+        registry_status, registration = post_json(
+            f"http://127.0.0.1:8400/api/v1/capabilities/{capability}/resolve",
+            {"trace_id": envelope["trace_id"], "action": "capability.resolve"},
+            caller={"layer": "business_engine", "module": "workflow-execution"},
+        )
+        if registry_status != 200 or not registration:
+            steps.append(_failed_plan_step(item, "CAPABILITY_NOT_REGISTERED", {"capability": capability}))
+            continue
+        permission = _check_capability_permission(envelope, platform_task_id, capability)
+        if permission.get("decision") != "allow":
+            steps.append(_failed_plan_step(item, "PERMISSION_DENIED", {"capability": capability, "permission": permission}))
+            continue
+        payload = _build_plan_step_payload(item, intent_task, prior_outputs)
+        target_layer = "foundation" if registration.get("layer") == "foundation" else "business_engine"
+        target_module = "foundation-gateway" if target_layer == "foundation" else "engine-gateway"
+        target_url = "http://127.0.0.1:8300/api/v1/foundation/instructions" if target_layer == "foundation" else "http://127.0.0.1:8200/api/v1/engine/instructions"
+        step_result = _invoke_capability(envelope, platform_task_id, capability, target_layer, target_module, target_url, payload, step=item["step"])
+        step_result["plan_item"]["name"] = item["name"]
+        step_result["plan_item"]["purpose"] = item["purpose"]
+        step_result["permission"] = permission
+        steps.append(step_result)
+        step_output = (step_result.get("response") or {}).get("data") or {}
+        prior_outputs[str(item.get("task_id") or item["step"])] = step_output
+        prior_outputs[capability] = step_output
+
+    failed_steps = [item for item in steps if item.get("status_code") not in {200, 202}]
+    workflow_state = "completed" if not failed_steps else "completed_with_errors"
+    user_result = _build_generic_user_result(intent_task, steps, workflow_state)
+    _persist_workflow_state(
+        envelope, platform_task_id, workflow_instance_id, workflow_state,
+        [
+            {
+                "node_instance_id": f"{workflow_instance_id}:step-{index}",
+                "capability": item["capability"],
+                "state": item["plan_item"]["status"],
+                "step": index,
+            }
+            for index, item in enumerate(steps, start=1)
+        ],
+        "workflow_completed" if workflow_state == "completed" else "workflow_completed_with_errors",
+    )
+    handler.send(200, standard_response(envelope, "success", data={
+        "intent_task": intent_task,
+        "selected_capability": intent_task.get("capability_code"),
+        "provider_module": "workflow-execution",
+        "workflow_engine": {"source": "platform-standard-router", "component": "workflow_execution.intent_task_planner"},
+        "workflow_instance": {
+            "instance_id": workflow_instance_id,
+            "route_type": "intent_task_plan",
+            "status": workflow_state,
+            "artifacts": {"execution_plan": [step["plan_item"] for step in steps]},
+        },
+        "capability_result": {
+            "state": workflow_state,
+            "summary_cn": user_result["summary"],
+            "user_result": user_result,
+            "failed_steps": [
+                {"step": item["plan_item"]["step"], "capability": item["capability"], "error": (item.get("response") or {}).get("error")}
+                for item in failed_steps
+            ],
+            "module_results": steps,
+        },
+    }))
+
+
+def _check_capability_permission(envelope: dict[str, Any], platform_task_id: str, capability: str) -> dict[str, Any]:
+    permission_envelope = make_internal_envelope(
+        envelope["trace_id"], envelope["actor"], platform_task_id,
+        "permissions.check", "foundation", "foundation-gateway",
+        {"resource": {"type": "capability", "id": capability}, "scope": {"purpose": "workflow-plan-execution", "capability": capability}},
+        context=envelope.get("context") if isinstance(envelope.get("context"), dict) else None,
+    )
+    permission_status, permission_response = post_json(
+        "http://127.0.0.1:8300/api/v1/foundation/instructions",
+        permission_envelope,
+        caller={"layer": "business_engine", "module": "workflow-execution"},
+    )
+    if permission_status != 200:
+        return {"decision": "deny", "reason": "permission_check_failed", "details": permission_response}
+    return permission_response.get("data", {}) if isinstance(permission_response, dict) else {}
+
+
+def _build_plan_step_payload(item: dict[str, Any], intent_task: dict[str, Any], prior_outputs: dict[str, Any]) -> dict[str, Any]:
+    parameters = intent_task.get("parameters") if isinstance(intent_task.get("parameters"), dict) else {}
+    payload = {
+        **parameters,
+        **item.get("payload_hint", {}),
+        "description": intent_task.get("description"),
+        "platform_task": intent_task,
+        "workflow_prior_outputs": prior_outputs,
+        "intent_task_id": item.get("task_id"),
+        "intent_dependencies": item.get("depends_on") or [],
+    }
+    capability = item["capability"]
+    _apply_data_access_contract(payload, capability)
+    if capability == "data.aggregate":
+        uploaded_documents = parameters.get("uploaded_documents") if isinstance(parameters.get("uploaded_documents"), list) else []
+        payload.setdefault("dataset", "extracted_fields" if uploaded_documents else "business_records")
+        payload.setdefault("limit", 20000 if uploaded_documents else 500)
+        if uploaded_documents and payload.get("dataset") == "extracted_fields":
+            payload["filters"] = _merge_parsed_document_filters(payload.get("filters"), uploaded_documents, prior_outputs)
+        payload.setdefault("analysis_goal", parameters.get("utterance") or intent_task.get("description"))
+    if capability == "data.search":
+        uploaded_documents = parameters.get("uploaded_documents") if isinstance(parameters.get("uploaded_documents"), list) else []
+        if uploaded_documents:
+            payload.setdefault("dataset", "extracted_fields")
+            payload.setdefault("limit", 20000)
+            if payload.get("dataset") == "extracted_fields":
+                payload["filters"] = _merge_parsed_document_filters(payload.get("filters"), uploaded_documents, prior_outputs)
+    if capability in {"document.parse", "document.table.extract", "document.package.build"}:
+        payload.setdefault("uploaded_documents", parameters.get("uploaded_documents") or [])
+    if capability == "content.generate":
+        payload.setdefault("content_type", "workflow_user_answer")
+        payload["workflow_evidence"] = _compact_prior_outputs_for_model(prior_outputs, parameters.get("utterance") or intent_task.get("description") or "")
+        payload["utterance"] = _build_model_answer_requirement(
+            parameters.get("utterance") or intent_task.get("description") or "",
+            payload["workflow_evidence"],
+        )
+    return payload
+
+
+def _merge_parsed_document_filters(existing: Any, uploaded_documents: list[dict[str, Any]], prior_outputs: dict[str, Any]) -> dict[str, Any]:
+    filters = dict(existing) if isinstance(existing, dict) else {}
+    parsed_filters = _parsed_document_filters(uploaded_documents, prior_outputs)
+    if parsed_filters.get("parse_job_id") and not filters.get("parse_job_id"):
+        filters.pop("file_id", None)
+        filters.pop("sha256", None)
+        return {**filters, "parse_job_id": parsed_filters["parse_job_id"]}
+    if any(key in filters for key in ("parse_job_id", "sha256", "file_id")):
+        return filters
+    return {**parsed_filters, **filters}
+
+
+def _parsed_document_filters(uploaded_documents: list[dict[str, Any]], prior_outputs: dict[str, Any]) -> dict[str, Any]:
+    parse_job_ids = _parse_job_ids_from_prior_outputs(prior_outputs)
+    if parse_job_ids:
+        return {"parse_job_id": parse_job_ids[0]} if len(parse_job_ids) == 1 else {"parse_job_id": parse_job_ids}
+    sha_values = [
+        str(doc.get("sha256"))
+        for doc in uploaded_documents
+        if isinstance(doc, dict) and doc.get("sha256")
+    ]
+    if sha_values:
+        return {"sha256": sha_values[0]} if len(sha_values) == 1 else {"sha256": sha_values}
+    file_ids = [
+        str(doc.get("file_id"))
+        for doc in uploaded_documents
+        if isinstance(doc, dict) and doc.get("file_id")
+    ]
+    if len(file_ids) == 1:
+        return {"file_id": file_ids[0]}
+    if file_ids:
+        return {"file_id": file_ids}
+    return {}
+
+
+def _parse_job_ids_from_prior_outputs(prior_outputs: dict[str, Any]) -> list[str]:
+    result: list[str] = []
+    for key in ("document.table.extract", "document.parse"):
+        data = prior_outputs.get(key)
+        if not isinstance(data, dict):
+            continue
+        documents = data.get("documents") if isinstance(data.get("documents"), list) else []
+        for document in documents:
+            if not isinstance(document, dict):
+                continue
+            parse_job_id = document.get("parse_job_id") or document.get("reused_from_parse_job_id")
+            if parse_job_id and str(parse_job_id) not in result:
+                result.append(str(parse_job_id))
+    return result
+
+
+def _apply_data_access_contract(payload: dict[str, Any], capability: str) -> None:
+    contract = payload.get("data_access_contract") if isinstance(payload.get("data_access_contract"), dict) else {}
+    if not contract or capability not in {"data.search", "data.aggregate", "content.generate"}:
+        return
+    if capability in {"data.search", "data.aggregate"}:
+        dataset = contract.get("dataset")
+        if dataset:
+            payload.setdefault("dataset", dataset)
+        payload.setdefault("limit", 20000 if payload.get("dataset") == "extracted_fields" else 500)
+        filters = payload.get("filters") if isinstance(payload.get("filters"), dict) else {}
+        contract_filters = contract.get("filters") if isinstance(contract.get("filters"), dict) else {}
+        payload["filters"] = {**contract_filters, **filters}
+        if contract.get("business_object_label") and not payload.get("data_object"):
+            payload["data_object"] = contract["business_object_label"]
+        if contract.get("field_aliases") and not payload.get("fields"):
+            payload["fields"] = contract["field_aliases"]
+        if contract.get("operation") and not payload.get("operation"):
+            payload["operation"] = contract["operation"]
+        if contract.get("operation") and not payload.get("aggregate_operation"):
+            payload["aggregate_operation"] = contract["operation"]
+    if capability == "content.generate":
+        payload["data_access_contract"] = contract
+
+
+def _build_model_answer_requirement(user_goal: str, evidence: dict[str, Any]) -> str:
+    return (
+        "你是面向业务用户的对话助手。请基于以下已授权的平台数据处理结果，直接回答用户真正想知道的业务结果。\n"
+        "不要输出调用审计口吻，不要只说“已找到数据”，不要把 source_ref、data_source、Trace ID、模块名当作正文。\n"
+        "如果证据中有可计算的数字，请给出关键数字、趋势判断和可执行建议；如果证据不足，再说明缺什么。\n"
+        "只能依据证据作答，不要编造。\n"
+        f"用户问题：{user_goal}\n"
+        f"证据：{evidence}"
+    )
+
+
+def _compact_prior_outputs_for_model(prior_outputs: dict[str, Any], user_goal: str) -> dict[str, Any]:
+    compact: dict[str, Any] = {"user_goal": user_goal, "steps": {}}
+    for capability, data in prior_outputs.items():
+        if not isinstance(data, dict):
+            continue
+        step: dict[str, Any] = {"state": data.get("state"), "module": data.get("module")}
+        storage = data.get("storage_result") if isinstance(data.get("storage_result"), dict) else {}
+        aggregate = storage.get("aggregate") if isinstance(storage.get("aggregate"), dict) else data.get("aggregate")
+        if isinstance(aggregate, dict):
+            step["aggregate"] = aggregate
+        items = storage.get("items") if isinstance(storage.get("items"), list) else data.get("items")
+        if isinstance(items, list):
+            step["items_count"] = len(items)
+            step["sample_rows"] = _compact_extracted_field_rows(items, user_goal, limit=120)
+        compact["steps"][capability] = step
+    return compact
+
+
+def _compact_extracted_field_rows(items: list[Any], user_goal: str, *, limit: int) -> list[dict[str, Any]]:
+    tokens = _evidence_relevance_tokens(user_goal)
+    rows: dict[str, dict[str, Any]] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        source = item.get("source") if isinstance(item.get("source"), dict) else {}
+        sheet = str(source.get("sheet") or "")
+        key = "|".join(str(source.get(part) or "") for part in ("sheet", "row", "record_key"))
+        if not key.strip("|"):
+            key = str(item.get("record_id") or len(rows))
+        row = rows.setdefault(key, {"sheet": sheet, "row": source.get("row"), "fields": {}})
+        field_name = str(item.get("field_name") or "")
+        row["fields"][field_name] = item.get("value")
+    ranked = sorted(
+        rows.values(),
+        key=lambda row: _row_relevance(row, tokens),
+        reverse=True,
+    )
+    return [row for row in ranked[:limit] if _row_relevance(row, tokens) > 0] or ranked[: min(limit, 30)]
+
+
+def _row_relevance(row: dict[str, Any], tokens: list[str]) -> int:
+    text = f"{row.get('sheet')} {row.get('fields')}"
+    if not tokens:
+        return 1
+    return sum(1 for token in tokens if token and token in text)
+
+
+def _evidence_relevance_tokens(user_goal: str) -> list[str]:
+    text = str(user_goal or "")
+    tokens: list[str] = []
+    for chunk in re.split(r"[\s,，。；;:：?？!！/、]+", text):
+        chunk = chunk.strip()
+        if len(chunk) < 2:
+            continue
+        if chunk not in tokens:
+            tokens.append(chunk)
+        if re.search(r"[\u4e00-\u9fff]", chunk):
+            max_size = min(8, len(chunk))
+            for size in range(max_size, 1, -1):
+                for start in range(0, len(chunk) - size + 1):
+                    token = chunk[start:start + size]
+                    if token not in tokens:
+                        tokens.append(token)
+    return tokens
+
+
+def _failed_plan_step(item: dict[str, Any], code: str, details: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "plan_item": {
+            "step": item["step"], "capability": item["capability"], "name": item.get("name"),
+            "target_layer": "unknown", "target_module": "unknown", "status": "interface_returned_error",
+        },
+        "status_code": 422,
+        "capability": item["capability"],
+        "request_payload": item.get("payload_hint", {}),
+        "response": {"error": {"code": code, "details": details}},
+    }
+
+
+def _build_generic_user_result(intent_task: dict[str, Any], steps: list[dict[str, Any]], workflow_state: str) -> dict[str, Any]:
+    content_data = next(
+        (((step.get("response") or {}).get("data") or {})
+        for step in steps
+        if step.get("capability") == "content.generate"),
+        {},
+    )
+    aggregate_data = next((((step.get("response") or {}).get("data") or {}) for step in steps if step.get("capability") == "data.aggregate"), {})
+    aggregate = aggregate_data.get("storage_result", {}).get("aggregate") if isinstance(aggregate_data.get("storage_result"), dict) else aggregate_data.get("aggregate")
+    findings: list[dict[str, Any]] = []
+
+    content = content_data.get("content") if isinstance(content_data, dict) else None
+    content_result = content_data.get("user_result") if isinstance(content_data, dict) else None
+    if isinstance(content_result, dict) and content_result.get("summary") and not _is_unusable_model_content(str(content_result.get("summary"))):
+        findings.append({
+            "finding_id": "content-result",
+            "title": str(content_result["summary"]),
+            "detail": str(content_result.get("detail") or ""),
+            "evidence": content_result.get("evidence") or [],
+            "impact": "",
+            "recommendation": str(content_result.get("recommendation") or ""),
+        })
+    elif isinstance(content, str) and content.strip() and not _is_unusable_model_content(content):
+        findings.append({
+            "finding_id": "content-result",
+            "title": content.strip(),
+            "detail": "",
+            "evidence": [],
+            "impact": "",
+            "recommendation": "",
+        })
+
+    if not findings and isinstance(aggregate, dict) and aggregate.get("answer"):
+        deterministic_answer = _build_deterministic_business_answer(intent_task, aggregate)
+        findings.append({
+            "finding_id": "business-summary",
+            "title": deterministic_answer or aggregate["answer"],
+            "detail": aggregate.get("detail") or "",
+            "evidence": aggregate.get("evidence") or [],
+            "impact": "该结果来自流程执行引擎按已登记模块处理后的汇总。",
+            "recommendation": aggregate.get("recommendation") or "请结合业务口径确认后使用。",
+        })
+    failed = [step for step in steps if step.get("status_code") not in {200, 202}]
+    summary = findings[0]["title"] if findings else ("流程已完成，但当前模块没有返回可直接展示的业务结论。" if workflow_state == "completed" else f"流程部分完成，{len(failed)} 个节点未通过。")
+    return {
+        "schema_version": "1.0",
+        "result_type": "workflow_task_plan_result",
+        "summary": summary,
+        "findings": findings,
+        "next_action": {"type": "completed" if workflow_state == "completed" else "review_failed_steps", "prompt": "请在调用审计中查看未完成节点。" if failed else "本次处理已完成。"},
+        "grounding": {"verified": workflow_state == "completed", "module_count": len(steps)},
+    }
+
+
+def _is_unusable_model_content(content: str) -> bool:
+    text = str(content or "")
+    markers = ("未配置可用大模型", "配置模型 Key", "配置模型Key", "MODEL_UPSTREAM_FAILED", "model key")
+    lower = text.lower()
+    return any(marker in text for marker in markers) or ("模型" in text and "key" in lower)
+
+
+def _build_deterministic_business_answer(intent_task: dict[str, Any], aggregate: dict[str, Any]) -> str:
+    metrics = aggregate.get("numeric_metrics") if isinstance(aggregate.get("numeric_metrics"), dict) else {}
+    row_count = aggregate.get("row_count") or aggregate.get("items_count")
+    data_object = aggregate.get("data_object") or ((intent_task.get("parameters") or {}).get("data_object") if isinstance(intent_task.get("parameters"), dict) else "") or "相关数据"
+
+    demand = metrics.get("demand_qty") if isinstance(metrics.get("demand_qty"), dict) else {}
+    order = metrics.get("order_qty") if isinstance(metrics.get("order_qty"), dict) else {}
+    returned = metrics.get("returned_qty") if isinstance(metrics.get("returned_qty"), dict) else {}
+    revenue = metrics.get("revenue") if isinstance(metrics.get("revenue"), dict) else {}
+    month = metrics.get("month") if isinstance(metrics.get("month"), dict) else {}
+
+    if not metrics:
+        return ""
+
+    lines: list[str] = []
+    lines.append(f"我已统计{data_object}，共 {int(row_count)} 行业务记录。" if isinstance(row_count, (int, float)) else f"我已统计{data_object}。")
+    if demand:
+        total = _fmt_metric(demand.get("sum"))
+        average = _fmt_metric((demand.get("sum") or 0) / demand.get("count")) if demand.get("count") else ""
+        low = _fmt_metric(demand.get("min"))
+        high = _fmt_metric(demand.get("max"))
+        parts = []
+        if total:
+            parts.append(f"需求量合计 {total}")
+        if average:
+            parts.append(f"月均约 {average}")
+        if low and high:
+            parts.append(f"单月范围 {low} 到 {high}")
+        if parts:
+            lines.append("需求情况：" + "，".join(parts) + "。")
+    commercial_parts = []
+    if order.get("sum") is not None:
+        commercial_parts.append(f"订单量合计 {_fmt_metric(order.get('sum'))}")
+    if returned.get("sum") is not None:
+        commercial_parts.append(f"退货量合计 {_fmt_metric(returned.get('sum'))}")
+    if revenue.get("sum") is not None:
+        commercial_parts.append(f"收入合计 {_fmt_metric(revenue.get('sum'))}")
+    if commercial_parts:
+        lines.append("关联经营数据：" + "，".join(commercial_parts) + "。")
+    if month.get("min") is not None and month.get("max") is not None:
+        lines.append(f"数据覆盖月份约为 {_fmt_metric(month.get('min'), decimals=0)} 到 {_fmt_metric(month.get('max'), decimals=0)}。")
+    if demand and demand.get("max") is not None and demand.get("min") is not None and float(demand.get("max") or 0) > float(demand.get("min") or 0):
+        lines.append("初步判断：需求整体存在上升空间，后续应重点关注高需求月份的供货、库存和预算安排。")
+    lines.append("接下来建议：先确认 demand_qty、order_qty、returned_qty 和 revenue 的业务口径；再按月份做需求预测，结合库存和预算制定采购、备货与销售推进计划。")
+    return "\n\n".join(lines)
+
+
+def _fmt_metric(value: Any, *, decimals: int = 2) -> str:
+    if not isinstance(value, (int, float)):
+        return ""
+    if float(value).is_integer() or decimals == 0:
+        return f"{int(value):,}"
+    return f"{value:,.{decimals}f}"
 
 
 def _execute_with_delivered_workflow(handler: Any, envelope: dict[str, Any], platform_task_id: str, intent_task: dict[str, Any], capability: str, registration: dict[str, Any]) -> None:

@@ -10,6 +10,9 @@ New-Item -ItemType Directory -Path $runDir -Force | Out-Null
 & $python -c "from framework.core import initialize; initialize()"
 if ($LASTEXITCODE -ne 0) { throw 'Shared database initialization failed.' }
 $env:PLATFORM_DB_INITIALIZED = '1'
+if (-not $env:PLATFORM_BIND_HOST) {
+    $env:PLATFORM_BIND_HOST = '0.0.0.0'
+}
 
 # 自动加载本地模型配置。已在当前 PowerShell 显式设置的变量优先。
 $envFiles = @()
@@ -35,39 +38,8 @@ $envFiles | ForEach-Object {
     }
 }
 
-$services = @(
-    'application', 'engine', 'foundation',
-    'intent', 'intent_original', 'workflow', 'workflow_original',
-    'rule', 'rule_original', 'content', 'content_original',
-    'document_table_parsing', 'data_operation', 'analysis_prediction', 'monitoring_reminder', 'project_management',
-    'external_system_integration', 'knowledge_qa', 'digital_asset', 'knowledge_map', 'multimedia_generation',
-    'permission', 'model', 'template', 'registry',
-    'context_prompt_management', 'foundation_data', 'account_gateway', 'human_collaboration', 'evolution_mechanism',
-    'control_mechanism', 'knowledge_base', 'execution_sandbox', 'memory_management', 'device_system_interface',
-    'security_compliance', 'cost_control'
-)
-foreach ($service in $services) {
-    $outLog = Join-Path $runDir "$service.out.log"
-    $errLog = Join-Path $runDir "$service.err.log"
-    $start = [System.Diagnostics.ProcessStartInfo]::new()
-    $start.FileName = $python
-    $start.Arguments = "-m framework.run_services $service"
-    $start.WorkingDirectory = $root
-    $start.UseShellExecute = $false
-    $start.CreateNoWindow = $true
-    $start.RedirectStandardOutput = $true
-    $start.RedirectStandardError = $true
-    $process = [System.Diagnostics.Process]::Start($start)
-    $process.add_OutputDataReceived({
-        param($sender, $event)
-        if ($event.Data) { Add-Content -LiteralPath $outLog -Value $event.Data }
-    })
-    $process.add_ErrorDataReceived({
-        param($sender, $event)
-        if ($event.Data) { Add-Content -LiteralPath $errLog -Value $event.Data }
-    })
-    Set-Content -LiteralPath (Join-Path $runDir "$service.pid") -Value $process.Id
-    $process.BeginOutputReadLine()
-    $process.BeginErrorReadLine()
-}
-Write-Output "Started $($services.Count) services. Loaded $loadedModelVars settings from framework/config/model.env and framework/config/module.env."
+# Run the fleet in one cluster process. The cluster owns the 37 service
+# workers, so stop_all.ps1 can cleanly stop either the cluster or the ports.
+$launcher = Start-Process -FilePath $python -ArgumentList '-m','framework.run_cluster' -WorkingDirectory $root -WindowStyle Minimized -PassThru
+Set-Content -LiteralPath (Join-Path $runDir 'cluster.launcher.pid') -Value $launcher.Id
+Write-Output "Started unified backend cluster. Loaded $loadedModelVars settings from framework/config/model.env and framework/config/module.env."

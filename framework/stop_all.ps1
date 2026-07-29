@@ -27,6 +27,13 @@ $ports = @(
 
 $candidatePids = New-Object System.Collections.Generic.HashSet[int]
 
+# The unified launcher is the preferred runtime. Include it explicitly; the
+# old worker-only scan cannot see the cluster process.
+if (Test-Path -LiteralPath (Join-Path $runDir 'cluster.launcher.pid')) {
+    $clusterPid = Get-Content -LiteralPath (Join-Path $runDir 'cluster.launcher.pid') -ErrorAction SilentlyContinue
+    if ($clusterPid -match '^\d+$') { [void]$candidatePids.Add([int]$clusterPid) }
+}
+
 # PID files and listening-port scans miss stale processes which failed to bind.
 # The command line is the authoritative identity for framework service workers.
 Get-CimInstance Win32_Process | ForEach-Object {
@@ -54,7 +61,7 @@ $stopped = 0
 foreach ($pidValue in $candidatePids) {
     $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$pidValue"
     if (-not $proc) { continue }
-    if ($proc.CommandLine -notmatch 'framework\.run_services') { continue }
+    if ($proc.CommandLine -notmatch 'framework\.run_services|framework\.run_cluster|AI Platform Backend') { continue }
     try {
         Stop-Process -Id $pidValue -Force -ErrorAction Stop
         $stopped++

@@ -749,6 +749,40 @@ textarea:focus-visible {
   line-height: 1.7;
 }
 
+.auth-restore-panel {
+  width: min(520px, 100%);
+  grid-template-columns: 1fr;
+  gap: 18px;
+}
+
+.auth-restore-panel .auth-copy {
+  grid-column: 1;
+  grid-row: auto;
+  padding: 0;
+}
+
+.auth-restore-status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-muted);
+  color: var(--text-2);
+  font-size: 11px;
+}
+
+.spin {
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .auth-form {
   grid-column: 2;
   grid-row: 3;

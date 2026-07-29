@@ -1,7 +1,7 @@
 MODULES = {
     "engine-gateway": {"port": 8200, "interface": "/api/v1/engine/instructions", "implementation": "engine_gateway/service.py"},
     "intent-adapter": {"port": 8000, "interface": "/api/v1/intent/analyze", "implementation": "intent_analysis/service.py"},
-    "intent-analysis-engine-original": {"port": 8003, "interface": "/api/v1/delivered-intent/analyze", "implementation": "intent_analysis/delivered_engine/service.py", "source": "联调文件-7.20-解压/intent-analysis-engine-handoff-20260720-173426"},
+    "intent-analysis-engine-original": {"port": 8003, "interface": "/api/v1/delivered-intent/analyze", "implementation": "intent_analysis/delivered_engine/service.py", "source": "联调文件-7.20-解压/intent-analysis-engine-release-20260728-103356"},
     "workflow-execution": {"port": 8020, "interface": "/api/v1/workflows/executions", "implementation": "workflow_execution/service.py"},
     "workflow-execution-engine-original": {"port": 8021, "interface": "/api/v1/delivered-workflow/instructions", "implementation": "workflow_execution/delivered_engine/service.py"},
     "rule-adapter": {"port": 8010, "interface": "/api/v1/rules/instructions", "implementation": "rule_calculation/service.py"},

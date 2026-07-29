@@ -1,3 +1,5 @@
+import { uniqueId } from './id'
+
 export const KnowledgeGovernanceOperations = Object.freeze({
   createFromConversation: 'create_from_conversation',
   supplement: 'supplement',
@@ -27,7 +29,7 @@ async function postKnowledgeCommand(command) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       trace_id: command.trace_id ?? traceId(),
-      request_id: command.request_id ?? crypto.randomUUID(),
+      request_id: command.request_id ?? uniqueId('request'),
       actor: command.actor ?? {
         tenant_id: 'web-workbench',
         user_id: command.accountId,

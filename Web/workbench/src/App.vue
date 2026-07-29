@@ -39,6 +39,7 @@ import {
   Power,
   Plus,
   Puzzle,
+  RefreshCw,
   Search,
   Send,
   ShieldCheck,
@@ -201,6 +202,8 @@ const contextProfiles = {
 }
 
 const SESSION_STORAGE_KEY = 'hanhe.workbench.session'
+const SESSION_RESTORE_TIMEOUT_MS = 6000
+const skipAuthForDesign = import.meta.env.VITE_WORKBENCH_SKIP_AUTH === 'true'
 const defaultPermissions = ['report.read.own', 'report.write.own', 'resource.agent.view', 'resource.skill.view', 'knowledge.personal.view', 'file.view']
 
 const currentAccount = computed(() => accountRecords.value.find((item) => item.id === currentAccountId.value) ?? { id: '', name: '', role: '', department: '', avatar: '用', permissions: [] })
@@ -214,7 +217,7 @@ const filteredWorkspaceProjects = computed(() => {
 })
 const fixedWorkspaceProjects = computed(() => filteredWorkspaceProjects.value.filter((project) => project.fixed))
 const customWorkspaceProjects = computed(() => filteredWorkspaceProjects.value.filter((project) => !project.fixed))
-const visibleConversations = computed(() => currentProject.value?.conversations.filter((item) => hasPermission(item.permission)) ?? [])
+const visibleConversations = computed(() => uniqueConversations(currentProject.value?.conversations ?? []).filter((item) => hasPermission(item.permission)))
 const groupedVisibleConversations = computed(() => {
   const groups = new Map()
   visibleConversations.value
@@ -337,10 +340,37 @@ function conversationTimeGroup(conversation) {
   return '更早'
 }
 
+function conversationAliases(conversation) {
+  return [
+    conversation?.id,
+    conversation?.conversation_id,
+    conversation?.record_id,
+    conversation?.storageConversationId,
+    conversation?.storage_conversation_id,
+  ].filter((value) => value !== undefined && value !== null && String(value).trim())
+    .map((value) => String(value))
+}
+
+function normalizedConversationTitle(conversation) {
+  return String(conversation?.title || '').replace(/\s+/g, ' ').trim()
+}
+
+function uniqueConversations(conversations) {
+  const byAlias = new Set()
+  const unique = []
+  ;(conversations || []).forEach((conversation) => {
+    const aliases = conversationAliases(conversation)
+    if (aliases.some((alias) => byAlias.has(alias))) return
+    aliases.forEach((alias) => byAlias.add(alias))
+    unique.push(conversation)
+  })
+  return unique
+}
+
 function groupConversationsForProject(project) {
   const groups = new Map()
-  project.conversations
-    .filter((conversation) => hasPermission(conversation.permission) && !conversation.deleted)
+  uniqueConversations(project.conversations)
+    .filter((conversation) => hasPermission(conversation.permission) && !conversation.deleted && conversation.status !== 'archived')
     .sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)))
     .forEach((conversation) => {
       const label = conversationTimeGroup(conversation)
@@ -386,13 +416,36 @@ function renameConversation(conversation) {
   showToast('会话名称已更新')
 }
 
-function deleteConversation(conversation) {
+async function deleteConversation(conversation) {
   if (!window.confirm(`确定删除会话“${conversation.title}”吗？`)) return
   const project = workspaceProjects.value.find((item) => item.id === currentProjectId.value)
   if (!project) return
+  const previousConversations = [...project.conversations]
   project.conversations = project.conversations.filter((item) => item.id !== conversation.id)
-  if (currentConversationId.value === conversation.id) currentConversationId.value = null
-  showToast('会话已删除')
+  if (currentConversationId.value === conversation.id) currentConversationId.value = project.conversations[0]?.id ?? null
+  try {
+    const backendProjectId = await ensureProjectRegistered(project)
+    const conversationId = conversation.storageConversationId || conversation.conversation_id || conversation.record_id || conversation.id
+    const receipt = workspaceApplicationApi.acceptCommand({
+      operation: 'archive_conversation',
+      accountId: currentAccount.value.id,
+      projectId: backendProjectId,
+      conversationId,
+      payload: {
+        conversation_id: conversationId,
+        project_id: backendProjectId,
+        project_name: project.name,
+        title: conversation.title,
+        owner_account_id: currentAccount.value.id,
+      },
+    })
+    await receipt.requestPromise
+    showToast('会话已删除')
+  } catch (error) {
+    project.conversations = previousConversations
+    if (!currentConversationId.value) currentConversationId.value = conversation.id
+    showToast(accountError(error))
+  }
 }
 
 function autoNameConversation(conversation, text) {
@@ -491,6 +544,14 @@ function rememberSession(account, sessionId) {
 
 function forgetSession() {
   window.localStorage.removeItem(SESSION_STORAGE_KEY)
+}
+
+function withTimeout(promise, timeoutMs, message = 'SESSION_RESTORE_TIMEOUT') {
+  let timer = null
+  const timeout = new Promise((_, reject) => {
+    timer = window.setTimeout(() => reject(new Error(message)), timeoutMs)
+  })
+  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timer))
 }
 
 function upsertAccount(account) {
@@ -769,6 +830,44 @@ function intentOutputLabel(parameters) {
   return '给出可直接阅读的处理结果和需要你确认的问题'
 }
 
+const userFacingInputLabels = {
+  data_source: '需要使用哪些数据来源',
+  analysis_method: '希望按什么分析口径处理',
+  analysis_object: '要分析的对象或范围',
+  uploaded_documents: '需要上传或选择相关文件',
+  time_range: '需要明确时间范围',
+  region: '需要明确地区范围',
+  product: '需要明确产品或品类',
+  customer: '需要明确客户或对象',
+  amount: '需要明确金额或数量',
+  rule_ref: '需要明确适用规则',
+  authorized_data: '需要选择有权限的数据',
+  formal_rule: '需要选择正式规则',
+}
+
+function userFacingInputLabel(input) {
+  if (!input) return ''
+  if (typeof input === 'object') {
+    return input.label || input.name_cn || input.description || userFacingInputLabel(input.kind || input.field || input.name || input.id)
+  }
+  const value = String(input).trim()
+  if (!value) return ''
+  if (userFacingInputLabels[value]) return userFacingInputLabels[value]
+  return value
+    .replace(/_/g, ' ')
+    .replace(/\bdata\b/gi, '数据')
+    .replace(/\bsource\b/gi, '来源')
+    .replace(/\banalysis\b/gi, '分析')
+    .replace(/\bmethod\b/gi, '方法')
+    .replace(/\bobject\b/gi, '对象')
+    .replace(/\brange\b/gi, '范围')
+}
+
+function missingInputsLabel(inputs = []) {
+  const labels = inputs.map(userFacingInputLabel).filter(Boolean)
+  return [...new Set(labels)].join('、')
+}
+
 function includesAny(text, words) {
   return words.some((word) => text.includes(word))
 }
@@ -813,11 +912,21 @@ function buildIntentCard(task, uploadedDocuments = []) {
     ? parameters.intent_summary
     : fallbackIntentSummary(parameters, uploadedDocuments)
   const fileNames = uploadedDocuments.map(uploadedDocumentLabel).filter(Boolean).slice(0, 3)
-  const plannedSteps = Array.isArray(summary?.planned_steps) ? summary.planned_steps : []
-  const checkItems = Array.isArray(summary?.check_items) ? summary.check_items : []
-  const expectedOutputs = Array.isArray(summary?.expected_outputs) ? summary.expected_outputs : []
+  const dataScope = summary?.data_scope || (uploadedDocuments.length
+    ? `当前对话上传的 ${uploadedDocuments.length} 个文件${fileNames.length ? `：${fileNames.join('、')}${uploadedDocuments.length > fileNames.length ? '等' : ''}` : ''}`
+    : '当前对话和项目资料')
+  const businessGoal = summary?.business_goal || intent.description || '处理当前对话中的业务请求'
+  const outputFocus = summary?.output_focus || intentOutputLabel(parameters)
+  const taskList = Array.isArray(summary?.task_list)
+    ? summary.task_list
+    : Array.isArray(summary?.planned_steps)
+      ? summary.planned_steps
+      : []
+  const taskLines = taskList.length
+    ? taskList.map((item, index) => `${index + 1}. ${item}`)
+    : [`1. ${intent.description || businessGoal}`]
   return {
-    title: '请确认我的理解是否正确',
+    title: '请确认任务清单是否正确',
     label: '等待确认',
     confirmationId,
     taskId: task.task_id,
@@ -827,19 +936,27 @@ function buildIntentCard(task, uploadedDocuments = []) {
     adjustmentOpen: false,
     adjustmentText: '',
     items: [
-      `任务目标：${summary?.business_goal || intent.description || '处理当前对话里的业务需求'}`,
-      `使用资料：${summary?.data_scope || (uploadedDocuments.length ? `${uploadedDocuments.length} 个上传文件${fileNames.length ? `（${fileNames.join('、')}${uploadedDocuments.length > fileNames.length ? '等' : ''}）` : ''}` : '当前对话和项目资料')}`,
-      `处理步骤：${plannedSteps.length ? plannedSteps.join('、') : '读取资料、提取信息、检查问题、输出结论'}`,
-      `重点核对：${checkItems.length ? checkItems.join('、') : '文件关键信息、需要人工核对的事项、风险点'}`,
-      `完成后输出：${expectedOutputs.length ? expectedOutputs.join('、') : intentOutputLabel(parameters)}`,
-      ...(parameters.missing_inputs?.length ? [`待补充信息：${parameters.missing_inputs.join('、')}`] : []),
+      `任务目标：${businessGoal}`,
+      ...taskLines,
+      `使用资料：${dataScope}`,
+      `完成后输出：${outputFocus}`,
+      ...(parameters.missing_inputs?.length ? [`还需要你补充：${missingInputsLabel(parameters.missing_inputs)}`] : []),
     ],
   }
 }
-
 async function submitIntentAnalysis(text, { conversationId, project, uploadedDocuments = null, pendingLabel = '处理中' } = {}) {
   const conversation = project?.conversations?.find((item) => String(item.id) === String(conversationId))
   const documents = uploadedDocuments ?? extractUploadedDocuments(conversation)
+  if (skipAuthForDesign) {
+    appendMessage(conversationId, {
+      id: `${Date.now()}-assistant-design`,
+      role: 'assistant',
+      text: '前端设计模式：已收到你的消息。当前模式不连接后端，适合修改页面布局和交互样式。',
+      source: '前端设计模式',
+      receipt: true,
+    })
+    return
+  }
   const pendingMessage = {
     id: `${Date.now()}-assistant`,
     role: 'assistant',
@@ -966,11 +1083,12 @@ function normalizeConversation(record, messageItems = [], fileItems = []) {
 }
 
 async function loadAccountWorkspace(account) {
+  const ownershipFilter = { owner_account_id: account.id }
   const [projectResult, conversationResult, messageResult, uploadResult] = await Promise.all([
-    platformApi.queryRecords('projects'),
-    platformApi.queryRecords('conversations'),
-    platformApi.queryRecords('conversation_messages'),
-    platformApi.queryRecords('uploaded_files'),
+    platformApi.queryRecords('projects', { filters: ownershipFilter }),
+    platformApi.queryRecords('conversations', { filters: ownershipFilter }),
+    platformApi.queryRecords('conversation_messages', { filters: ownershipFilter, limit: 300 }),
+    platformApi.queryRecords('uploaded_files', { filters: ownershipFilter }),
   ])
   const fixedProjects = projectSeed.filter((project) => project.fixed).map((project) => createFixedProject(account, project))
   const fixedStorageIds = new Set(fixedProjects.map((project) => String(projectStorageId(project))))
@@ -985,18 +1103,26 @@ async function loadAccountWorkspace(account) {
   const ownedProjectIds = new Set(projectStorageToUiId.keys())
   const ownedConversations = (conversationResult.items || [])
     .filter((conversation) => String(conversation.owner_account_id || '') === String(account.id) && ownedProjectIds.has(String(conversation.project_id)))
+  const archivedConversationIds = new Set(
+    ownedConversations
+      .filter((conversation) => conversation.status === 'archived')
+      .flatMap((conversation) => conversationAliases(conversation))
+  )
+  const activeOwnedConversations = ownedConversations.filter((conversation) => conversation.status !== 'archived')
   const ownedMessages = (messageResult.items || []).filter((message) => String(message.owner_account_id || '') === String(account.id))
   const ownedUploads = (uploadResult.items || []).filter((file) => String(file.owner_account_id || '') === String(account.id))
   ownedProjects.forEach((project) => {
-    const seededConversations = project.fixed ? structuredClone(project.conversations || []) : []
-    const persistedConversations = ownedConversations
+    const seededConversations = project.fixed
+      ? structuredClone(project.conversations || []).filter((conversation) => !conversationAliases(conversation).some((alias) => archivedConversationIds.has(alias)))
+      : []
+    const persistedConversations = activeOwnedConversations
       .filter((conversation) => String(conversation.project_id) === String(projectStorageId(project)))
       .map((conversation) => ({ ...normalizeConversation(conversation, ownedMessages, ownedUploads), project_id: project.id, storageProjectId: conversation.project_id }))
     const seededIds = new Set(seededConversations.map((conversation) => String(conversation.id)))
-    project.conversations = [
+    project.conversations = uniqueConversations([
       ...seededConversations,
       ...persistedConversations.filter((conversation) => !seededIds.has(String(conversation.id))),
-    ]
+    ])
     project.metrics = [
       { label: '对话', value: String(project.conversations.length) },
       { label: '进行中任务', value: String(project.conversations.filter((item) => item.badge).length) },
@@ -1032,6 +1158,65 @@ async function enterWorkbench(account, operation, payload = undefined, sessionId
   authState.loggedIn = true
   authState.password = ''
   if (sessionId) rememberSession(account, sessionId)
+}
+
+async function enterDesignWorkbench() {
+  const account = upsertAccount({
+    account_id: 'frontend-designer',
+    login_name: 'frontend-designer',
+    display_name: '前端设计账号',
+    name: '前端设计账号',
+    department: '前端联调',
+    role: '前端设计',
+    status: 'active',
+    permissions: [
+      ...defaultPermissions,
+      'report.read.team',
+      'team.read',
+      'team.activity.read',
+      'resource.group.manage',
+      'knowledge.group.view',
+      'knowledge.group.supplement',
+      'knowledge.group.maintain',
+      'knowledge.group.grant',
+    ],
+  })
+  currentAccountId.value = account.id
+  workspaceProjects.value = structuredClone(projectSeed).map((project) => ({
+    ...project,
+    owner_account_id: account.id,
+    storageProjectId: fixedProjectStorageId(account, project),
+    conversations: uniqueConversations((project.conversations || []).map((conversation) => ({
+      ...conversation,
+      owner_account_id: account.id,
+      project_id: project.id,
+    }))),
+  }))
+  notificationRecords.value = structuredClone(notifications)
+  agentRecords.value = structuredClone(agentCatalog)
+  skillRecords.value = structuredClone(skillCatalog).map((item) => ({
+    ...item,
+    version: item.version ?? 'v1.0',
+    calls: item.calls ?? '0 次',
+    adoption: item.adoption ?? '--',
+    consistency: item.consistency ?? '96.5%',
+  }))
+  personalKnowledge.value = structuredClone(personalKnowledgeBases)
+  groupKnowledgeRecords.value = structuredClone(groupKnowledgeBases)
+  disabledResourceIds.value = []
+  selectedAgentId.value = agentRecords.value[0]?.id ?? null
+  selectedSkillId.value = skillRecords.value[0]?.id ?? null
+  selectedPersonalKnowledgeId.value = personalKnowledge.value[0]?.id ?? null
+  knowledgeGrantTargetId.value = groupKnowledgeRecords.value[0]?.id ?? null
+  notificationReadIds.value = []
+  expandedProjectIds.value = new Set(workspaceProjects.value.slice(0, 2).map((project) => project.id))
+  currentProjectId.value = workspaceProjects.value[0]?.id ?? null
+  currentConversationId.value = workspaceProjects.value[0]?.conversations?.[0]?.id ?? null
+  accountCenterActive.value = !currentProjectId.value
+  rightTab.value = 'session'
+  authState.loggedIn = true
+  authState.restoring = false
+  authState.error = ''
 }
 
 function submitLoginLegacy() {
@@ -1205,15 +1390,17 @@ async function restoreSession() {
     return
   }
   try {
-    const receipt = authApplicationApi.acceptCommand({
-      operation: AuthOperations.resume,
-      accountId: stored.accountId,
-      payload: { session_id: stored.sessionId },
-    })
-    const result = await receipt.requestPromise
-    const capability = result.data?.capability_result || {}
-    const account = upsertAccount(capability.account || {})
-    await enterWorkbench(account, AuthOperations.resume, undefined, capability.session_id || stored.sessionId)
+    await withTimeout((async () => {
+      const receipt = authApplicationApi.acceptCommand({
+        operation: AuthOperations.resume,
+        accountId: stored.accountId,
+        payload: { session_id: stored.sessionId },
+      })
+      const result = await receipt.requestPromise
+      const capability = result.data?.capability_result || {}
+      const account = upsertAccount(capability.account || {})
+      await enterWorkbench(account, AuthOperations.resume, undefined, capability.session_id || stored.sessionId)
+    })(), SESSION_RESTORE_TIMEOUT_MS)
   } catch {
     forgetSession()
   } finally {
@@ -1705,12 +1892,16 @@ async function confirmIntent(message) {
     })
     const completedWithErrors = result.status === 'completed_with_errors'
     task.status = completedWithErrors ? 'completed_with_errors' : 'confirmed'
-    const resultLines = workflowResultLines(result)
-    const userResult = workflowUserResult(result)
     updateSessionMessage(conversationId, message.id, {
       task: null,
       receipt: false,
     })
+    if (result.idempotent_replay) {
+      showToast('该确认已执行完成')
+      return
+    }
+    const resultLines = workflowResultLines(result)
+    const userResult = workflowUserResult(result)
     appendMessage(conversationId, {
       id: `${Date.now()}-confirm`,
       role: 'assistant',
@@ -2221,13 +2412,23 @@ function projectIcon(type) {
 }
 
 onMounted(async () => {
-  await restoreSession()
+  if (skipAuthForDesign) {
+    await enterDesignWorkbench()
+  } else {
+    await restoreSession()
+  }
   await scrollCurrentConversationToLatest()
 })
 </script>
 
 <template>
-  <div v-if="authState.restoring" class="auth-shell"></div>
+  <div v-if="authState.restoring" class="auth-shell">
+    <section class="auth-panel auth-restore-panel">
+      <div class="auth-brand"><span class="auth-mark"><Sparkles :size="18" /></span><div><strong>AI 工作台</strong></div></div>
+      <div class="auth-copy"><span class="eyebrow">WORKBENCH</span><h1>正在恢复登录状态</h1><p>正在连接账号网关并读取你的工作区，请稍候。</p></div>
+      <div class="auth-restore-status"><RefreshCw class="spin" :size="18" /><span>如果后端会话已过期，将自动返回登录页。</span></div>
+    </section>
+  </div>
   <div v-else-if="!authState.loggedIn" class="auth-shell">
     <section class="auth-panel">
       <div class="auth-brand"><span class="auth-mark"><Sparkles :size="18" /></span><div><strong>AI 工作台</strong></div></div>

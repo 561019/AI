@@ -48,6 +48,14 @@ def get(handler: Any) -> bool:
         query = parse_qs(urlparse(handler.path).query)
         dataset = (query.get("dataset") or [""])[0]
         tenant_id = (query.get("tenant_id") or ["web-workbench"])[0]
+        raw_filters = (query.get("filters") or ["{}"])[0]
+        try:
+            filters = json.loads(raw_filters)
+        except json.JSONDecodeError:
+            handler.send(400, {"error": {"code": "INVALID_DATA_FILTERS"}}); return True
+        if not isinstance(filters, dict):
+            handler.send(400, {"error": {"code": "INVALID_DATA_FILTERS"}}); return True
+        compact = (query.get("compact") or ["false"])[0].lower() == "true" or dataset == "conversation_messages"
         if not dataset:
             handler.send(400, {"error": {"code": "DATASET_REQUIRED"}}); return True
         if dataset in {"account_credentials", "account_sessions", "model_secrets", "api_credentials"}:
@@ -56,7 +64,7 @@ def get(handler: Any) -> bool:
         actor = {"tenant_id": tenant_id, "user_id": "data-verifier", "authenticated": True, "roles": ["platform_data_auditor"]}
         envelope = make_internal_envelope(
             trace_id, actor, str(uuid4()), "data.search", "business_engine", "engine-gateway",
-            {"dataset": dataset, "filters": {}, "limit": min(int((query.get("limit") or ["100"])[0]), 500)},
+            {"dataset": dataset, "filters": filters, "limit": min(int((query.get("limit") or ["100"])[0]), 500), "compact": compact},
             source_layer="business_application", source_module="application-gateway",
         )
         status, response = post_json(
@@ -119,6 +127,35 @@ def _call_data_engine(capability: str, payload: dict[str, Any], *, tenant_id: st
     operation = response.get("data") or {}
     storage = operation.get("storage_result") or {}
     return 200, storage
+
+
+def _friendly_dependency_error(response: Any) -> dict[str, Any]:
+    leaf = _deepest_error(response)
+    message = str(leaf.get("message") or "").strip()
+    code = str(leaf.get("code") or "DEPENDENCY_UNAVAILABLE")
+    if code == "MODEL_UPSTREAM_FAILED":
+        message = message or "模型调度服务调用失败，意图分析暂时无法完成"
+    elif not message:
+        message = "平台处理依赖暂时不可用，请查看调用审计中的下游错误"
+    return {
+        "code": code,
+        "message": message,
+        "details": response,
+        "retryable": bool(leaf.get("retryable", True)),
+    }
+
+
+def _deepest_error(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    error = value.get("error")
+    if isinstance(error, dict):
+        details = error.get("details")
+        nested = _deepest_error(details)
+        return nested or error
+    details = value.get("details")
+    nested = _deepest_error(details)
+    return nested or {}
 
 
 def _read_data_record(trace_id: str, actor: dict[str, Any], dataset: str, record_id: str) -> dict[str, Any] | None:
@@ -306,15 +343,71 @@ def post(handler: Any, body: dict[str, Any]) -> None:
         handler.send(503, standard_response(body, "failed", error={"code": "DATA_PERSISTENCE_FAILED", "message": "用户请求未能写入数据模块", "details": persistence})); return
     task_id = create_task(body["trace_id"], body["request_id"])
     forwarded = json.loads(json.dumps(body)); forwarded["source"] = {"layer": "business_application", "module": "application-gateway"}; forwarded["payload"]["platform_task_id"] = task_id
-    status, _ = post_json("http://127.0.0.1:8200/api/v1/engine/instructions", forwarded, timeout=70, caller={"layer": "business_application", "module": "application-gateway"})
+    forwarded["payload"]["conversation_context"] = _load_recent_conversation_context(body, limit=12)
+    status, forwarded_response = post_json("http://127.0.0.1:8200/api/v1/engine/instructions", forwarded, timeout=70, caller={"layer": "business_application", "module": "application-gateway"})
     if status not in {200, 202}:
-        update_task(task_id, state="failed", error={"code": "DEPENDENCY_UNAVAILABLE"})
+        error = _friendly_dependency_error(forwarded_response)
+        update_task(task_id, state="failed", error=error)
         _persist_task_and_assistant_message(body, task_id, get_task(task_id), "execution_error")
-        handler.send(502, standard_response(body, "failed", error={"code": "DEPENDENCY_UNAVAILABLE", "message": "engine gateway unavailable", "retryable": True})); return
+        handler.send(502, standard_response(body, "failed", error=error)); return
     task = get_task(task_id)
     _persist_task_and_assistant_message(body, task_id, task, "intent_analysis")
     response = standard_response(body, "accepted", task_id=task_id, progress=0, status_url=f"http://127.0.0.1:8100/api/v1/tasks/{task_id}")
     idempotent_put("application", body["idempotency_key"], body, response); handler.send(202, response)
+
+
+def _load_recent_conversation_context(envelope: dict[str, Any], *, limit: int) -> list[dict[str, Any]]:
+    """Load a small, ownership-scoped context window for intent resolution."""
+    actor = envelope.get("actor") or {}
+    context = envelope.get("context") or {}
+    conversation_id = str(context.get("conversation_id") or envelope.get("trace_id") or "")
+    if not conversation_id:
+        return []
+    query = make_internal_envelope(
+        envelope.get("trace_id") or str(uuid4()),
+        actor,
+        str(uuid4()),
+        "data.search",
+        "business_engine",
+        "engine-gateway",
+        {
+            "dataset": "conversation_messages",
+            "filters": {
+                "conversation_id": conversation_id,
+                "owner_account_id": actor.get("user_id") or actor.get("actor_id"),
+                "project_id": context.get("project_id"),
+            },
+            "limit": max(1, min(limit, 30)),
+            "compact": True,
+        },
+        source_layer="business_application",
+        source_module="application-gateway",
+        context=context,
+    )
+    status, response = post_json(
+        "http://127.0.0.1:8200/api/v1/engine/instructions",
+        query,
+        timeout=20,
+        caller={"layer": "business_application", "module": "application-gateway"},
+    )
+    if status not in {200, 202} or not isinstance(response, dict) or response.get("status") != "success":
+        return []
+    operation = response.get("data") or {}
+    storage = operation.get("storage_result") if isinstance(operation.get("storage_result"), dict) else {}
+    items = storage.get("items") if isinstance(storage.get("items"), list) else []
+    compact: list[dict[str, Any]] = []
+    for item in items[-limit:]:
+        if not isinstance(item, dict):
+            continue
+        content = item.get("content")
+        if not isinstance(content, str) or not content.strip():
+            continue
+        compact.append({
+            "role": str(item.get("role") or "unknown"),
+            "content": content[:2000],
+            "created_at": item.get("created_at"),
+        })
+    return compact
 
 
 def _confirm(handler: Any, confirmation_id: str, decision: dict[str, Any]) -> None:
@@ -326,6 +419,16 @@ def _confirm(handler: Any, confirmation_id: str, decision: dict[str, Any]) -> No
     decision["task_id"] = task_id
     choice = decision.get("decision")
     if choice not in {"confirm", "reject"}: handler.send(400, {"error": {"code": "INVALID_DECISION"}}); return
+    if task["state"] in {"succeeded", "completed_with_errors"}:
+        existing_result = task.get("result_ref") or {}
+        handler.send(200, {
+            "status": task["state"],
+            "task_id": task_id,
+            "trace_id": task["trace_id"],
+            "data": existing_result,
+            "idempotent_replay": True,
+        })
+        return
     if task["state"] != "waiting_human": handler.send(409, {"error": {"code": "INVALID_TASK_STATE", "message": task["state"]}}); return
     if choice == "reject":
         update_task(task_id, state="failed", progress=100, error={"code": "HUMAN_REJECTED", "message": "用户已驳回意图"})
@@ -784,18 +887,20 @@ def _execute_conversation_command(handler: Any, command: dict[str, Any]) -> None
         return
     conversation_id = str(command.get("conversationId") or payload.get("conversation_id") or f"conversation-{uuid4().hex[:12]}")
     timestamp = datetime.now(timezone.utc).isoformat()
+    existing = _read_data_record(trace_id, actor, "conversations", conversation_id) if operation in {"update", "archive"} else None
     record = {
+        **(existing or {}),
         "conversation_id": conversation_id,
         "record_id": conversation_id,
         "tenant_id": actor.get("tenant_id") or "web-workbench",
-        "project_id": project_id,
-        "project_name": payload.get("project_name"),
-        "title": payload.get("title") or "未命名对话",
+        "project_id": project_id or (existing or {}).get("project_id"),
+        "project_name": payload.get("project_name") or (existing or {}).get("project_name"),
+        "title": payload.get("title") or (existing or {}).get("title") or "未命名对话",
         "owner_account_id": actor.get("user_id") or command.get("accountId") or "anonymous",
         "status": "archived" if operation == "archive" else "active",
-        "has_history": False,
-        "context_usage": 0,
-        "created_at": payload.get("created_at") or timestamp,
+        "has_history": payload.get("has_history", (existing or {}).get("has_history", False)),
+        "context_usage": payload.get("context_usage", (existing or {}).get("context_usage", 0)),
+        "created_at": payload.get("created_at") or (existing or {}).get("created_at") or timestamp,
         "updated_at": timestamp,
     }
     persisted = _persist_records(trace_id, actor, str(uuid4()), [{
@@ -889,6 +994,42 @@ def _persist_incoming_instruction(envelope: dict[str, Any]) -> dict[str, Any]:
     return _persist_records(envelope.get("trace_id"), actor, envelope.get("request_id"), writes)
 
 
+def _compact_persisted_result(value: Any, *, depth: int = 0) -> Any:
+    """Keep user results and audit references without duplicating raw datasets."""
+    if depth > 8:
+        return "[内容已省略]"
+    if isinstance(value, dict):
+        compact: dict[str, Any] = {}
+        for key, item in value.items():
+            if key in {"request_payload", "workflow_prior_outputs"}:
+                continue
+            if key in {"items", "records"} and isinstance(item, list):
+                compact[f"{key}_count"] = len(item)
+                continue
+            if key == "uploaded_documents" and isinstance(item, list):
+                compact[key] = [
+                    {
+                        field: document.get(field)
+                        for field in ("file_id", "object_id", "original_name", "content_type", "size_bytes")
+                        if document.get(field) is not None
+                    }
+                    for document in item
+                    if isinstance(document, dict)
+                ]
+                continue
+            compact[key] = _compact_persisted_result(item, depth=depth + 1)
+        return compact
+    if isinstance(value, list):
+        if len(value) > 80:
+            return [_compact_persisted_result(item, depth=depth + 1) for item in value[:80]] + [
+                f"[其余 {len(value) - 80} 项已保留在对应数据集]"
+            ]
+        return [_compact_persisted_result(item, depth=depth + 1) for item in value]
+    if isinstance(value, str) and len(value) > 12000:
+        return value[:12000] + "\n[内容过长，原始数据保留在对应数据集]"
+    return value
+
+
 def _persist_task_and_assistant_message(envelope: dict[str, Any], task_id: str, task: dict[str, Any] | None, content_type: str) -> None:
     if not task:
         return
@@ -898,8 +1039,9 @@ def _persist_task_and_assistant_message(envelope: dict[str, Any], task_id: str, 
     account_id = str(actor.get("user_id") or actor.get("actor_id") or "anonymous")
     tenant_id = str(actor.get("tenant_id") or "default")
     timestamp = datetime.now(timezone.utc).isoformat()
+    compact_task = {**task, "result_ref": _compact_persisted_result(task.get("result_ref"))}
     _persist_records(envelope.get("trace_id"), actor, task_id, [
-        {"dataset": "task_snapshots", "operation": "upsert", "records": [{**task, "record_id": task_id, "tenant_id": tenant_id, "owner_account_id": account_id, "conversation_id": conversation_id, "project_id": context.get("project_id")}]},
+        {"dataset": "task_snapshots", "operation": "upsert", "records": [{**compact_task, "record_id": task_id, "tenant_id": tenant_id, "owner_account_id": account_id, "conversation_id": conversation_id, "project_id": context.get("project_id")}]},
         {"dataset": "conversation_messages", "operation": "upsert", "records": [{
             "message_id": f"intent-{task_id}",
             "conversation_id": conversation_id,
@@ -908,7 +1050,7 @@ def _persist_task_and_assistant_message(envelope: dict[str, Any], task_id: str, 
             "owner_account_id": account_id,
             "role": "assistant",
             "content_type": content_type,
-            "content": task.get("result_ref"),
+            "content": compact_task.get("result_ref"),
             "task_id": task_id,
             "trace_id": envelope.get("trace_id"),
             "created_at": timestamp,
@@ -925,8 +1067,10 @@ def _persist_confirmation_result(original_task: dict[str, Any], completed_task: 
     account_id = str(actor.get("user_id") or actor.get("actor_id") or "anonymous")
     tenant_id = str(actor.get("tenant_id") or "default")
     timestamp = datetime.now(timezone.utc).isoformat()
+    compact_result = _compact_persisted_result(result)
+    compact_task = {**completed_task, "result_ref": _compact_persisted_result(completed_task.get("result_ref"))}
     _persist_records(original_task.get("trace_id"), actor, completed_task.get("task_id"), [
-        {"dataset": "task_snapshots", "operation": "upsert", "records": [{**completed_task, "record_id": completed_task.get("task_id"), "tenant_id": tenant_id, "owner_account_id": account_id, "conversation_id": conversation_id, "project_id": project_id}]},
+        {"dataset": "task_snapshots", "operation": "upsert", "records": [{**compact_task, "record_id": completed_task.get("task_id"), "tenant_id": tenant_id, "owner_account_id": account_id, "conversation_id": conversation_id, "project_id": project_id}]},
         {"dataset": "conversation_messages", "operation": "upsert", "records": [{
             "message_id": f"result-{completed_task.get('task_id')}",
             "conversation_id": conversation_id,
@@ -935,7 +1079,7 @@ def _persist_confirmation_result(original_task: dict[str, Any], completed_task: 
             "owner_account_id": account_id,
             "role": "assistant",
             "content_type": "execution_result",
-            "content": result,
+            "content": compact_result,
             "task_id": completed_task.get("task_id"),
             "trace_id": original_task.get("trace_id"),
             "created_at": timestamp,

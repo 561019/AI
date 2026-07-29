@@ -151,9 +151,11 @@ class Handler(BaseHTTPRequestHandler):
             source = body.get("source") if isinstance(body.get("source"), dict) else {"layer": "external", "module": "frontend-client"}
             target = {"layer": "runtime", "module": self.service}
             capability = str((body.get("target") or {}).get("capability") or body.get("action") or self.path)
+            bind_host = os.getenv("PLATFORM_BIND_HOST", "127.0.0.1")
+            display_host = "127.0.0.1" if bind_host in {"", "0.0.0.0"} else bind_host
             record_interface_call(
                 trace_id=str(body.get("trace_id") or "untraced"), source=source, target=target,
-                capability=capability, method="POST", url=f"http://127.0.0.1:{self.server.server_port}{self.path}",
+                capability=capability, method="POST", url=f"http://{display_host}:{self.server.server_port}{self.path}",
                 request=body, response=getattr(self, "last_response_body", None),
                 status_code=int(getattr(self, "last_response_status", 500)), duration_ms=0,
             )
@@ -164,5 +166,6 @@ def serve(service: str, port: int) -> None:
     # service fleet. Keep standalone `run_services` usable as well.
     if os.getenv("PLATFORM_DB_INITIALIZED") != "1":
         initialize()
+    bind_host = os.getenv("PLATFORM_BIND_HOST", "127.0.0.1")
     handler = type(f"{service.title()}Handler", (Handler,), {"service": service})
-    ThreadingHTTPServer(("127.0.0.1", port), handler).serve_forever()
+    ThreadingHTTPServer((bind_host, port), handler).serve_forever()

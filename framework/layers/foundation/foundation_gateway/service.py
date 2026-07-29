@@ -21,7 +21,7 @@ def post(handler:Any,envelope:dict[str,Any])->None:
     if capability=="model.respond":
         request=dict(envelope.get("payload",{})); request.setdefault("trace_id",envelope["trace_id"]); request.setdefault("actor",envelope["actor"])
         status,response=post_json(registration["endpoint"],request,timeout=40,caller={"layer":"foundation","module":"foundation-gateway"})
-        if status!=200: handler.send(502,standard_response(envelope,"failed",error={"code":"MODEL_UPSTREAM_FAILED","message":"model dispatcher unavailable","retryable":True})); return
+        if status!=200: handler.send(502,standard_response(envelope,"failed",error={"code":"MODEL_UPSTREAM_FAILED","message":"模型调度服务调用失败","details":response,"retryable":True})); return
         handler.send(200,standard_response(envelope,"success",data=response)); return
     if capability.startswith("template."):
         status,response=post_json(registration["endpoint"],envelope,caller={"layer":"foundation","module":"foundation-gateway"})

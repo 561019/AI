@@ -1,3 +1,5 @@
+import { uniqueId } from './id'
+
 const platformBaseUrl = (import.meta.env.VITE_PLATFORM_API_BASE_URL ?? '').replace(/\/$/, '')
 
 function traceId(prefix) {
@@ -20,7 +22,7 @@ async function postCommand(path, command) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       trace_id: command.trace_id ?? traceId('L4-WORKSPACE'),
-      request_id: command.request_id ?? crypto.randomUUID(),
+      request_id: command.request_id ?? uniqueId('request'),
       actor: command.actor ?? {
         tenant_id: 'web-workbench',
         user_id: command.accountId,

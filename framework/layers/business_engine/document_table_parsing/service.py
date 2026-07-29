@@ -16,7 +16,7 @@ from framework.module_catalog import MODULE_BY_CODE
 
 MODULE = MODULE_BY_CODE["document-table-parsing"]
 UPLOAD_ROOT = ROOT / "framework" / "data" / "foundation_data" / "objects" / "uploads"
-MAX_EXTRACTED_FIELDS_PER_FILE = 5_000
+MAX_EXTRACTED_FIELDS_PER_FILE = 50_000
 
 
 def get(handler: Any) -> bool:
@@ -86,19 +86,47 @@ def _extract_documents(envelope: dict[str, Any], documents: list[Any]) -> dict[s
     summaries: list[dict[str, Any]] = []
     for document in documents:
         job = _job_record(envelope, document, state="running")
+        cached = _load_cached_parse_job(envelope, job)
+        if cached:
+            jobs.append(cached)
+            summaries.append({
+                "parse_job_id": cached["parse_job_id"],
+                "file_id": cached["file_id"],
+                "original_name": cached["original_name"],
+                "sha256": cached.get("sha256"),
+                "state": "completed",
+                "parser": cached.get("parser") or "cached",
+                "table_count": int(cached.get("table_count") or 0),
+                "sheet_names": cached.get("sheet_names") or [],
+                "field_count": int(cached.get("field_count") or 0),
+                "cache_hit": True,
+                "reused_from_parse_job_id": cached.get("reused_from_parse_job_id") or cached["parse_job_id"],
+                "evidence_preview": [],
+            })
+            continue
         file_path = _safe_uploaded_path(document)
         try:
             values, detail = _extract_values(file_path)
-            job.update({"state": "completed", "field_count": len(values), "table_count": detail["table_count"], "parser": detail["parser"], "review_required": False})
+            job.update({
+                "state": "completed",
+                "field_count": len(values),
+                "table_count": detail["table_count"],
+                "sheet_names": detail.get("sheet_names") or [],
+                "parser": detail["parser"],
+                "review_required": False,
+            })
             for index, value in enumerate(values, start=1):
                 fields.append({
                     "record_id": f"{job['parse_job_id']}:field:{index}", "parse_job_id": job["parse_job_id"],
                     "file_id": job["file_id"], "field_name": value["field_name"], "value": value["value"],
                     "value_type": value["value_type"], "source": value["source"],
+                    "object_id": job.get("object_id"), "original_name": job.get("original_name"),
+                    "sha256": job.get("sha256"),
                     **_ownership(envelope),
                 })
             summaries.append({
-                "file_id": job["file_id"], "original_name": job["original_name"], "state": "completed",
+                "parse_job_id": job["parse_job_id"], "file_id": job["file_id"], "original_name": job["original_name"],
+                "sha256": job.get("sha256"), "state": "completed",
                 **detail, "field_count": len(values), "evidence_preview": _evidence_preview(values, job["original_name"]),
             })
         except ValueError as exc:
@@ -116,9 +144,80 @@ def _extract_documents(envelope: dict[str, Any], documents: list[Any]) -> dict[s
     return {
         "state": "completed" if completed == len(summaries) else "completed_with_review_required",
         "module": MODULE.code, "platform_capability": envelope.get("target", {}).get("capability") or envelope.get("action"),
-        "documents": summaries, "field_count": len(fields),
+        "documents": summaries, "field_count": sum(int(item.get("field_count") or 0) for item in summaries),
         "storage": {"datasets": [item["dataset"] for item in writes], "writer": "data-operation"},
     }
+
+
+def _load_cached_parse_job(envelope: dict[str, Any], job: dict[str, Any]) -> dict[str, Any] | None:
+    """Read a prior successful parse through the data-operation engine."""
+    cached = _query_cached_parse_job(envelope, {"sha256": job["sha256"], "state": "completed"}) if job.get("sha256") else None
+    if not cached:
+        cached = _query_cached_parse_job(envelope, {"file_id": job["file_id"], "state": "completed"})
+    if not isinstance(cached, dict):
+        return None
+    if job.get("sha256") and cached.get("sha256") != job.get("sha256"):
+        return None
+    parse_job_id = str(cached.get("parse_job_id") or job["parse_job_id"])
+    referenced_file_ids = _unique_strings([
+        *(
+            cached.get("referenced_file_ids")
+            if isinstance(cached.get("referenced_file_ids"), list)
+            else [cached.get("file_id")]
+        ),
+        job.get("file_id"),
+    ])
+    return {
+        **cached,
+        **_ownership(envelope),
+        "parse_job_id": parse_job_id,
+        "record_id": str(cached.get("record_id") or parse_job_id),
+        "file_id": job["file_id"],
+        "object_id": job.get("object_id") or cached.get("object_id"),
+        "original_name": job["original_name"],
+        "sha256": job.get("sha256") or cached.get("sha256"),
+        "referenced_file_ids": referenced_file_ids,
+        "reused_from_parse_job_id": parse_job_id,
+    }
+
+
+def _query_cached_parse_job(envelope: dict[str, Any], filters: dict[str, Any]) -> dict[str, Any] | None:
+    task_id = str((envelope.get("payload") or {}).get("platform_task_id") or envelope.get("request_id"))
+    inner = make_internal_envelope(
+        str(envelope.get("trace_id")),
+        envelope.get("actor") or {},
+        task_id,
+        "data.search",
+        "business_engine",
+        "engine-gateway",
+        {
+            "dataset": "parse_jobs",
+            "filters": filters,
+            "limit": 1,
+            "compact": True,
+        },
+        source_layer="business_engine",
+        source_module=MODULE.code,
+        context=envelope.get("context") if isinstance(envelope.get("context"), dict) else None,
+    )
+    try:
+        status, response = post_json(
+            "http://127.0.0.1:8200/api/v1/engine/instructions",
+            inner,
+            timeout=10,
+            caller={"layer": "business_engine", "module": MODULE.code},
+        )
+    except OSError:
+        return None
+    if status not in {200, 202} or not isinstance(response, dict) or response.get("status") != "success":
+        return None
+    data = response.get("data") or {}
+    storage = data.get("storage_result") if isinstance(data, dict) else {}
+    items = storage.get("items") if isinstance(storage, dict) else []
+    if not isinstance(items, list) or not items:
+        return None
+    cached = items[0]
+    return cached if isinstance(cached, dict) else None
 
 
 def _extract_values(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
@@ -225,12 +324,16 @@ def _job_record(envelope: dict[str, Any], document: Any, *, state: str) -> dict[
     file_id = _file_id(document)
     if not file_id:
         raise ValueError("uploaded document file_id is required")
+    sha256 = document.get("sha256")
+    parse_key = f"sha256-{str(sha256)[:32]}" if sha256 else file_id
     return {
-        "parse_job_id": f"parse-{envelope.get('payload', {}).get('platform_task_id')}-{file_id}",
-        "record_id": f"parse-{envelope.get('payload', {}).get('platform_task_id')}-{file_id}",
+        # A parse result belongs to the immutable uploaded object, not to one
+        # workflow run. Stable identifiers make later writes idempotent.
+        "parse_job_id": f"parse-{parse_key}",
+        "record_id": f"parse-{parse_key}",
         "file_id": file_id, "object_id": document.get("object_id"),
         "original_name": document.get("original_name") or document.get("name") or file_id,
-        "sha256": document.get("sha256"), "state": state, **_ownership(envelope),
+        "sha256": sha256, "state": state, "referenced_file_ids": [file_id], **_ownership(envelope),
     }
 
 
@@ -245,6 +348,17 @@ def _ownership(envelope: dict[str, Any]) -> dict[str, Any]:
         "tenant_id": actor.get("tenant_id"), "owner_account_id": actor.get("user_id") or actor.get("actor_id"),
         "project_id": context.get("project_id"), "conversation_id": context.get("conversation_id"),
     }
+
+
+def _unique_strings(values: list[Any]) -> list[str]:
+    result: list[str] = []
+    for value in values:
+        if value in (None, ""):
+            continue
+        text = str(value)
+        if text not in result:
+            result.append(text)
+    return result
 
 
 def _safe_uploaded_path(document: Any) -> Path:
