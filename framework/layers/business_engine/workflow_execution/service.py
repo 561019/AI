@@ -7,9 +7,120 @@ from uuid import uuid4
 from framework.core import create_task, get_task, standard_response, update_task
 from framework.envelope import make_internal_envelope
 from framework.http import post_json
+from framework.module_catalog import CAPABILITY_TO_MODULE
 
 
 DELIVERED_WORKFLOW_CAPABILITIES = {"rule.calculate", "content.generate"}
+CORE_WORKFLOW_CAPABILITIES = {
+    "rule.calculate",
+    "content.generate",
+    "permissions.check",
+    "model.respond",
+}
+KNOWN_EXECUTABLE_CAPABILITIES = set(CAPABILITY_TO_MODULE) | CORE_WORKFLOW_CAPABILITIES
+
+DATA_CAPABILITIES = {"data.search", "data.aggregate", "data.read", "data.collect", "data.consolidate"}
+DOCUMENT_CAPABILITIES = {"document.parse", "document.table.extract", "document.package.build"}
+ANSWER_CAPABILITY = "content.generate"
+WEAK_DATA_AGGREGATE_OPERATIONS = {
+    "",
+    "answer",
+    "process",
+    "retrieve",
+    "query",
+    "search",
+    "summarize",
+    "summary",
+    "analyze",
+    "analyse",
+    "retrieve_and_summarize",
+    "retrieve_and_rank",
+    "recommend",
+    "rank",
+    "forecast",
+    "predict",
+    "prediction",
+}
+
+V40_CAPABILITY_ALIASES = {
+    "data.query": "data.search",
+    "data.retrieve": "data.search",
+    "data.fetch": "data.search",
+    "data.summary": "data.aggregate",
+    "data.summarize": "data.aggregate",
+    "data.statistics": "data.aggregate",
+    "analysis": "analysis.business_metric",
+    "analysis.forecast": "analysis.business_metric",
+    "analysis.predict": "analysis.business_metric",
+    "analysis.prediction": "analysis.business_metric",
+    "analysis.business": "analysis.business_metric",
+    "rule.check": "rule.calculate",
+    "rule.compute": "rule.calculate",
+    "project.create": "project.register.simple",
+    "project.register": "project.register.simple",
+    "project.approval": "project.approval.result.record",
+    "monitor.create": "monitor.item.register",
+    "monitor.register": "monitor.item.register",
+    "reminder.create": "human.task.create",
+    "human.confirm": "human.task.create",
+    "human.review": "human.task.create",
+    "governance.control": "control.policy.apply",
+    "control.apply": "control.policy.apply",
+    "capability.evolve": "evolution.candidate.create",
+    "knowledge.search": "knowledge.query",
+    "knowledge.answer": "knowledge.qa.answer",
+}
+
+BUSINESS_OBJECT_SCOPES = {
+    "product": {
+        "label": "产品资料",
+        "preferred_sheets": ["产品资料", "价格成本"],
+        "allowed_fields": [
+            "product_id", "product_name", "product_type", "category", "target_crop", "applicable_crop",
+            "region", "specification", "package_spec", "unit_price", "price", "unit_cost", "cost",
+            "gross_margin_rate", "fixed_project_budget", "description", "usage", "dosage",
+            "产品编号", "产品名称", "产品类型", "适用作物", "适用区域", "规格", "包装规格",
+            "单价", "成本", "毛利率", "固定项目预算", "说明", "用法", "用量",
+        ],
+    },
+    "budget": {
+        "label": "项目预算",
+        "preferred_sheets": ["项目预算", "价格成本"],
+        "allowed_fields": [
+            "item_name", "amount_cny", "budget_item", "budget_amount", "fixed_project_budget",
+            "unit_price", "unit_cost", "gross_margin_rate", "项目", "预算项", "费用项",
+            "项目名称", "金额", "预算金额", "预算合计", "预备费", "单价", "成本", "毛利率",
+        ],
+    },
+    "demand": {
+        "label": "需求历史",
+        "preferred_sheets": ["需求历史", "历史销售", "销售历史"],
+        "allowed_fields": [
+            "year", "month", "period", "date", "demand_qty", "order_qty", "sales_qty",
+            "quantity", "amount", "region", "dealer_name", "product_id", "年份", "月份",
+            "年月", "日期", "需求量", "订单量", "销量", "销售量", "数量", "金额", "区域",
+            "经销商", "经销商名称", "产品编号",
+        ],
+    },
+    "customer_feedback": {
+        "label": "客户反馈",
+        "preferred_sheets": ["客户反馈", "回访记录", "经销商反馈", "经销商订单"],
+        "allowed_fields": [
+            "customer_id", "customer_name", "dealer_id", "dealer_name", "feedback", "comment",
+            "sentiment", "satisfaction", "issue", "order_qty", "amount", "is_repeat_order",
+            "客户编号", "客户名称", "经销商编号", "经销商名称", "反馈", "评价", "满意度",
+            "问题", "订单量", "金额", "是否复购",
+        ],
+    },
+    "module": {
+        "label": "平台模块",
+        "preferred_sheets": ["模块清单", "能力字典", "模块验证", "模块"],
+        "allowed_fields": [
+            "module", "module_name", "module_name_cn", "capability", "capability_code",
+            "status", "owner", "模块", "模块名称", "中文名", "能力", "能力码", "状态", "负责人",
+        ],
+    },
+}
 
 
 def get(handler: Any) -> bool:
@@ -91,6 +202,8 @@ def _normalize_task_plan(intent_task: dict[str, Any]) -> list[dict[str, Any]]:
     if contract_tasks:
         plan = _plan_from_intent_contract(contract_tasks, parameters)
         if plan:
+            if _contract_plan_needs_workflow_rebuild(plan, parameters):
+                return _build_plan_from_intent_task(intent_task)
             return plan
     raw_plan = parameters.get("task_plan_draft") if isinstance(parameters.get("task_plan_draft"), list) else []
     plan: list[dict[str, Any]] = []
@@ -110,8 +223,34 @@ def _normalize_task_plan(intent_task: dict[str, Any]) -> list[dict[str, Any]]:
                 "purpose": item.get("purpose") or "",
             })
     if len(plan) > 1:
+        if _contract_plan_needs_workflow_rebuild(plan, parameters):
+            return _build_plan_from_intent_task(intent_task)
         return sorted(plan, key=lambda item: item["step"])
     return _build_plan_from_intent_task(intent_task)
+
+
+def _contract_plan_needs_workflow_rebuild(plan: list[dict[str, Any]], parameters: dict[str, Any]) -> bool:
+    """Reject model-produced plans that omit required v4.0 orchestration nodes."""
+    utterance = str(parameters.get("utterance") or "")
+    capabilities = {str(item.get("capability") or "") for item in plan}
+    business_capabilities = capabilities - DOCUMENT_CAPABILITIES - {ANSWER_CAPABILITY}
+    if _goal_needs_data(utterance) and not business_capabilities:
+        return True
+    if _looks_like_forecast_request(utterance) and "analysis.business_metric" not in capabilities:
+        return True
+    if _looks_like_rule_request(utterance) and "rule.calculate" not in capabilities:
+        return True
+    if _goal_needs_project_management(utterance) and "project.register.simple" not in capabilities:
+        return True
+    if _goal_needs_monitoring(utterance) and "monitor.item.register" not in capabilities:
+        return True
+    if _goal_needs_human_confirmation(utterance) and "human.task.create" not in capabilities:
+        return True
+    if _goal_needs_data(utterance) and not any(capability in DATA_CAPABILITIES for capability in capabilities):
+        return True
+    if (parameters.get("uploaded_documents") or _goal_mentions_uploaded_file(utterance)) and not any(capability in DOCUMENT_CAPABILITIES for capability in capabilities):
+        return True
+    return False
 
 
 def _plan_from_intent_contract(contract_tasks: list[dict[str, Any]], parameters: dict[str, Any]) -> list[dict[str, Any]]:
@@ -124,16 +263,29 @@ def _plan_from_intent_contract(contract_tasks: list[dict[str, Any]], parameters:
         capability = _normalize_executable_capability(str(item.get("capability_code") or "").strip())
         if not capability or capability == "workflow.execute":
             continue
+        user_goal = str(item.get("user_goal") or parameters.get("utterance") or item.get("task_name") or "")
+        capability = _coerce_data_capability_for_goal(capability, user_goal)
+        operation = item.get("operation") or "process"
+        aggregate_operation = None
+        if capability == "data.aggregate" and _looks_like_entity_list_request(user_goal):
+            operation = "list_distinct"
+            aggregate_operation = "list_distinct"
+        elif capability == "data.aggregate":
+            inferred_operation = _infer_data_aggregate_operation(user_goal)
+            if inferred_operation != "retrieve":
+                operation = inferred_operation
+                aggregate_operation = inferred_operation
         depends_on = item.get("dependencies") if isinstance(item.get("dependencies"), list) else []
         plan.append({
             "step": index,
             "task_id": str(item.get("task_id") or f"intent-task-{index}"),
-            "name": item.get("task_name") or item.get("user_goal") or capability,
+            "name": item.get("task_name") or user_goal or capability,
             "capability": capability,
             "depends_on": depends_on,
             "payload_hint": {
-                "user_goal": item.get("user_goal") or parameters.get("utterance"),
-                "operation": item.get("operation") or "process",
+                "user_goal": user_goal,
+                "operation": operation,
+                **({"aggregate_operation": aggregate_operation} if aggregate_operation else {}),
                 "data_object": item.get("data_object") or "",
                 "data_scope": item.get("data_scope") or "",
                 "fields": item.get("fields") if isinstance(item.get("fields"), list) else [],
@@ -159,6 +311,7 @@ def _plan_from_intent_contract(contract_tasks: list[dict[str, Any]], parameters:
             if not item["depends_on"]:
                 item["depends_on"] = [1]
     _ensure_data_evidence_step(plan, parameters, uploaded_documents)
+    _ensure_data_before_downstream_analysis(plan)
     if not any(item["capability"] == "content.generate" for item in plan):
         plan.append({
             "step": len(plan) + 1,
@@ -218,7 +371,28 @@ def _ensure_data_evidence_step(
     for index, item in enumerate(plan, start=1):
         item["step"] = index
     content_step = plan[first_content + 1]
-    content_step["depends_on"] = [evidence_step["step"]]
+    existing_dependencies = content_step.get("depends_on") if isinstance(content_step.get("depends_on"), list) else []
+    content_step["depends_on"] = _merge_dependencies(existing_dependencies, [evidence_step["step"]])
+
+
+def _ensure_data_before_downstream_analysis(plan: list[dict[str, Any]]) -> None:
+    data_steps = [item["step"] for item in plan if item.get("capability") in DATA_CAPABILITIES]
+    if not data_steps:
+        return
+    data_step = data_steps[0]
+    for item in plan:
+        capability = str(item.get("capability") or "")
+        if capability.startswith("analysis.") or capability == "rule.calculate" or capability.startswith("knowledge."):
+            dependencies = item.get("depends_on") if isinstance(item.get("depends_on"), list) else []
+            item["depends_on"] = _merge_dependencies(dependencies, [data_step])
+
+
+def _merge_dependencies(existing: list[Any], required: list[Any]) -> list[Any]:
+    merged: list[Any] = []
+    for value in [*existing, *required]:
+        if value not in merged:
+            merged.append(value)
+    return merged
 
 
 def _topologically_order_plan(plan: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -249,12 +423,25 @@ def _topologically_order_plan(plan: list[dict[str, Any]]) -> list[dict[str, Any]
             task_id = str(item.get("task_id") or item["step"])
             completed.add(task_id)
             ordered.append(item)
+    old_step_to_new = {str(item.get("step")): index for index, item in enumerate(ordered, start=1)}
+    task_id_to_new = {
+        str(item.get("task_id")): index
+        for index, item in enumerate(ordered, start=1)
+        if item.get("task_id")
+    }
     for index, item in enumerate(ordered, start=1):
+        remapped_dependencies: list[int] = []
+        for dependency in item.get("depends_on") if isinstance(item.get("depends_on"), list) else []:
+            dependency_key = str(dependency)
+            mapped = task_id_to_new.get(dependency_key) or old_step_to_new.get(dependency_key)
+            if mapped and mapped != index and mapped not in remapped_dependencies:
+                remapped_dependencies.append(mapped)
+        item["depends_on"] = remapped_dependencies
         item["step"] = index
     return ordered
 
 
-def _build_plan_from_intent_task(intent_task: dict[str, Any]) -> list[dict[str, Any]]:
+def _legacy_build_plan_from_intent_task(intent_task: dict[str, Any]) -> list[dict[str, Any]]:
     """Let workflow execution derive the graph from a simple intent task."""
     parameters = intent_task.get("parameters") if isinstance(intent_task.get("parameters"), dict) else {}
     capability = _normalize_executable_capability(str(intent_task.get("capability_code") or "").strip())
@@ -262,6 +449,7 @@ def _build_plan_from_intent_task(intent_task: dict[str, Any]) -> list[dict[str, 
         return []
     utterance = str(parameters.get("utterance") or intent_task.get("description") or "").strip()
     uploaded_documents = parameters.get("uploaded_documents") if isinstance(parameters.get("uploaded_documents"), list) else []
+    capability = _coerce_data_capability_for_goal(capability, utterance)
     plan: list[dict[str, Any]] = []
 
     if uploaded_documents and capability not in {"document.table.extract", "document.parse"}:
@@ -284,6 +472,7 @@ def _build_plan_from_intent_task(intent_task: dict[str, Any]) -> list[dict[str, 
             "payload_hint": {
                 "analysis_goal": utterance,
                 "user_goal": utterance,
+                **({"operation": "list_distinct", "aggregate_operation": "list_distinct"} if capability == "data.aggregate" and _looks_like_entity_list_request(utterance) else {}),
             },
             "purpose": "根据意图分析输出的业务目标调用已登记能力，不在意图分析阶段预设具体模块链路。",
         })
@@ -314,7 +503,19 @@ def _build_plan_from_intent_task(intent_task: dict[str, Any]) -> list[dict[str, 
     return plan
 
 
-def _normalize_executable_capability(capability: str) -> str:
+def _coerce_data_capability_for_goal(capability: str, user_goal: str) -> str:
+    if capability == "data.search":
+        inferred_operation = _infer_data_aggregate_operation(user_goal)
+        if (
+            _looks_like_entity_list_request(user_goal)
+            or _looks_like_rule_request(user_goal)
+            or inferred_operation != "retrieve"
+        ):
+            return "data.aggregate"
+    return capability
+
+
+def _legacy_normalize_executable_capability(capability: str) -> str:
     """Map semantic capability names to registered executable platform abilities."""
     value = str(capability or "").strip()
     lowered = value.lower()
@@ -364,11 +565,455 @@ def _normalize_executable_capability(capability: str) -> str:
     return value
 
 
+def _normalize_executable_capability(capability: str, user_goal: str = "") -> str:
+    """Normalize model/intent capability names to registered v4.0 abilities."""
+    value = str(capability or "").strip()
+    if not value or value == "workflow.execute":
+        return _infer_primary_capability_from_goal(user_goal, ANSWER_CAPABILITY)
+    lowered = value.lower()
+    normalized = lowered.replace("-", "_")
+    dotted = normalized.replace("_", ".")
+    for candidate in (value, lowered, dotted):
+        if candidate in KNOWN_EXECUTABLE_CAPABILITIES:
+            return candidate
+        if candidate in V40_CAPABILITY_ALIASES:
+            return V40_CAPABILITY_ALIASES[candidate]
+    if lowered.startswith(("data.query", "data.retrieve", "data.fetch")) or normalized.startswith(("data_query", "data_retrieve", "data_fetch")):
+        return "data.search"
+    if lowered.startswith(("data.aggregate", "data.summary", "data.summarize", "data.statistics")):
+        return "data.aggregate"
+    if lowered.startswith(("analysis.", "forecast.", "predict.", "prediction.", "data.analyze.", "data.analysis.")):
+        return "analysis.business_metric"
+    if lowered.startswith(("rule.", "risk.", "compliance.")):
+        return "rule.calculate"
+    if lowered.startswith("project."):
+        return "project.task.query" if "query" in lowered or "list" in lowered else "project.register.simple"
+    if lowered.startswith(("monitor.", "reminder.")):
+        return "monitor.item.register"
+    if lowered.startswith("human."):
+        return "human.task.create"
+    if lowered.startswith(("control.", "governance.", "drive.")):
+        return "control.policy.apply"
+    if lowered.startswith(("evolution.", "capability.evolve.")):
+        return "evolution.candidate.create"
+    if lowered.startswith("knowledge."):
+        return "knowledge.query"
+    return _infer_primary_capability_from_goal(user_goal, ANSWER_CAPABILITY)
+
+
+def _build_plan_from_intent_task(intent_task: dict[str, Any]) -> list[dict[str, Any]]:
+    """Build a v4.0 workflow graph from one confirmed business intent."""
+    parameters = intent_task.get("parameters") if isinstance(intent_task.get("parameters"), dict) else {}
+    utterance = str(parameters.get("utterance") or intent_task.get("description") or "").strip()
+    raw_capability = str(intent_task.get("capability_code") or "").strip()
+    capability = _normalize_executable_capability(raw_capability, utterance)
+    uploaded_documents = parameters.get("uploaded_documents") if isinstance(parameters.get("uploaded_documents"), list) else []
+    business_scope = _infer_business_scope(utterance, parameters)
+
+    plan: list[dict[str, Any]] = []
+    used: set[str] = set()
+
+    def add(
+        capability_code: str,
+        name: str,
+        *,
+        depends_on: list[int] | None = None,
+        payload_hint: dict[str, Any] | None = None,
+        purpose: str = "",
+    ) -> int:
+        normalized_capability = _normalize_executable_capability(capability_code, utterance)
+        if normalized_capability in used and normalized_capability not in DATA_CAPABILITIES:
+            return next(item["step"] for item in plan if item["capability"] == normalized_capability)
+        step = len(plan) + 1
+        hint = dict(payload_hint or {})
+        if normalized_capability != capability_code:
+            hint.setdefault("original_capability_code", capability_code)
+            hint.setdefault("fallback_reason", "capability_normalized_by_workflow")
+        plan.append({
+            "step": step,
+            "name": name,
+            "capability": normalized_capability,
+            "depends_on": depends_on or [],
+            "payload_hint": hint,
+            "purpose": purpose,
+        })
+        used.add(normalized_capability)
+        return step
+
+    control_step = None
+    if _goal_needs_control(utterance):
+        control_step = add(
+            "control.policy.apply",
+            "应用流程驾驭策略",
+            payload_hint={"user_goal": utterance, "control_subject": "workflow_execution"},
+            purpose="在流程派发前检查任务边界、人工接管策略和执行范围。",
+        )
+
+    parse_step = None
+    if uploaded_documents or capability in DOCUMENT_CAPABILITIES or _goal_mentions_uploaded_file(utterance):
+        parse_step = add(
+            "document.table.extract",
+            "解析当前对话上传文件",
+            depends_on=[control_step] if control_step else [],
+            payload_hint={"uploaded_documents": uploaded_documents, "user_goal": utterance},
+            purpose="提取正文、表格、字段、行号和来源位置，供后续模块按授权读取。",
+        )
+
+    needs_data = (
+        bool(uploaded_documents)
+        or capability in DATA_CAPABILITIES
+        or capability.startswith("analysis.")
+        or capability.startswith("rule.")
+        or capability.startswith("project.")
+        or capability.startswith("monitor.")
+        or capability.startswith("knowledge.")
+        or _goal_needs_data(utterance)
+    )
+    data_step = None
+    if needs_data:
+        aggregate_operation = _infer_data_aggregate_operation(utterance)
+        data_step = add(
+            "data.aggregate" if aggregate_operation != "retrieve" or business_scope.get("scope_key") != "generic" else "data.search",
+            "读取并整理授权业务数据",
+            depends_on=[step for step in (parse_step, control_step) if step],
+            payload_hint={
+                "user_goal": utterance,
+                "analysis_goal": utterance,
+                "aggregate_operation": aggregate_operation,
+                "operation": aggregate_operation,
+                "data_object": parameters.get("data_object") or parameters.get("object") or business_scope.get("label") or "",
+                "business_scope": business_scope,
+            },
+            purpose="按账号、项目、对话权限读取/聚合数据，并把结构化业务结果交给下游引擎。",
+        )
+
+    capability_steps: dict[str, int] = {}
+    last_business_step = data_step or parse_step or control_step
+    for capability_code in _infer_v40_capability_sequence(utterance, capability):
+        if capability_code in DATA_CAPABILITIES or capability_code in DOCUMENT_CAPABILITIES or capability_code == ANSWER_CAPABILITY:
+            continue
+        dependencies = _dependencies_for_v40_capability(capability_code, capability_steps, data_step, parse_step, control_step, last_business_step)
+        step = add(
+            capability_code,
+            _capability_step_name(capability_code),
+            depends_on=dependencies,
+            payload_hint={"user_goal": utterance, "analysis_goal": utterance},
+            purpose=_capability_step_purpose(capability_code),
+        )
+        capability_steps[capability_code] = step
+        last_business_step = step
+
+    if ANSWER_CAPABILITY not in used:
+        content_dependencies = _leaf_steps(plan)
+        add(
+            ANSWER_CAPABILITY,
+            "生成用户可读业务回答",
+            depends_on=content_dependencies,
+            payload_hint={
+                "content_type": "workflow_user_answer",
+                "utterance": utterance,
+                "user_goal": utterance,
+            },
+            purpose="汇总各模块业务结果，向前端输出用户真正要看的结论。",
+        )
+
+    return _assign_execution_groups(_topologically_order_plan(plan))
+
+
+def _infer_primary_capability_from_goal(user_goal: str, fallback: str) -> str:
+    text = str(user_goal or "").lower()
+    if any(token in text for token in ("预测", "趋势", "下季度", "需求区间", "盈亏平衡", "break-even", "forecast")):
+        return "analysis.business_metric"
+    if _looks_like_rule_request(user_goal):
+        return "rule.calculate"
+    if _goal_needs_project_management(user_goal):
+        return "project.register.simple"
+    if _goal_needs_monitoring(user_goal):
+        return "monitor.item.register"
+    if _goal_needs_human_confirmation(user_goal):
+        return "human.task.create"
+    if any(token in text for token in ("监控", "提醒", "预警", "跟踪", "执行进度")):
+        return "monitor.item.register"
+    if any(token in text for token in ("确认", "人工", "待办", "负责人", "审批人", "审批")):
+        return "human.task.create"
+    if any(token in text for token in ("知识库", "资料", "制度", "参数", "说明", "p-fert", "产品")):
+        return "knowledge.query"
+    if any(token in text for token in ("多少", "几个", "哪些", "列出", "统计", "汇总", "最高", "最多", "最大", "金额", "订单", "需求")):
+        return "data.aggregate"
+    return fallback
+
+
+def _infer_business_scope(user_goal: str, parameters: dict[str, Any] | None = None) -> dict[str, Any]:
+    params = parameters if isinstance(parameters, dict) else {}
+    text = str(user_goal or "")
+    explicit_object = str(params.get("data_object") or params.get("object") or "").strip()
+    product_match = re.search(r"P-[A-Z0-9-]+", text, re.IGNORECASE)
+    if _looks_like_demand_forecast_scope(text):
+        scope_key = "demand"
+    elif product_match or any(word in text for word in ("产品", "肥料", "参数", "P-FERT")):
+        scope_key = "product"
+    elif any(word in text for word in ("预算", "费用", "金额", "价格", "成本", "毛利", "盈亏平衡")):
+        scope_key = "budget"
+    elif any(word in text for word in ("需求", "订单", "销量", "销售", "下季度", "月份", "2025", "2026")):
+        scope_key = "demand"
+    elif any(word in text for word in ("客户反馈", "反馈", "优质客户", "满意", "评价", "回访")):
+        scope_key = "customer_feedback"
+    elif any(word in text for word in ("模块", "引擎", "能力码", "能力字典", "上游未接入")):
+        scope_key = "module"
+    elif explicit_object:
+        scope_key = "generic"
+    else:
+        scope_key = "generic"
+
+    spec = BUSINESS_OBJECT_SCOPES.get(scope_key, {})
+    entity_id = str(params.get("entity_id") or params.get("product_id") or "").strip()
+    if product_match:
+        entity_id = product_match.group(0).upper()
+    query_kind = "detail" if entity_id or any(word in text for word in ("基本参数", "参数", "详情", "是什么", "告诉我")) else "summary"
+    if scope_key == "budget":
+        query_kind = "budget_summary"
+    if scope_key == "demand" and _looks_like_month_metric_request(text):
+        query_kind = "monthly_max_metric"
+    if scope_key == "customer_feedback":
+        query_kind = "evidence_for_analysis"
+    return {
+        "scope_key": scope_key,
+        "label": explicit_object or spec.get("label") or "当前授权业务数据",
+        "preferred_sheets": spec.get("preferred_sheets") or [],
+        "allowed_fields": spec.get("allowed_fields") or [],
+        "entity_id": entity_id,
+        "query_kind": query_kind,
+    }
+
+
+def _dependencies_for_v40_capability(
+    capability: str,
+    capability_steps: dict[str, int],
+    data_step: int | None,
+    parse_step: int | None,
+    control_step: int | None,
+    last_step: int | None,
+) -> list[int]:
+    evidence_step = data_step or parse_step or control_step
+    if capability.startswith("analysis.") or capability == "rule.calculate" or capability.startswith("knowledge."):
+        return [evidence_step] if evidence_step else []
+    if capability.startswith("project."):
+        deps = [
+            capability_steps.get("analysis.business_metric"),
+            capability_steps.get("rule.calculate"),
+            evidence_step,
+        ]
+        return _unique_steps(deps)
+    if capability.startswith("monitor."):
+        deps = [
+            capability_steps.get("project.register.simple"),
+            capability_steps.get("project.register.major"),
+            capability_steps.get("analysis.business_metric"),
+            capability_steps.get("rule.calculate"),
+            evidence_step,
+        ]
+        return _unique_steps(deps)
+    if capability.startswith("human."):
+        deps = [
+            capability_steps.get("rule.calculate"),
+            capability_steps.get("project.register.simple"),
+            capability_steps.get("project.register.major"),
+            capability_steps.get("analysis.business_metric"),
+            evidence_step,
+        ]
+        return _unique_steps(deps)
+    if capability.startswith("evolution."):
+        deps = [
+            capability_steps.get("monitor.item.register"),
+            capability_steps.get("project.register.simple"),
+            capability_steps.get("project.register.major"),
+            capability_steps.get("analysis.business_metric"),
+            capability_steps.get("rule.calculate"),
+            evidence_step,
+        ]
+        return _unique_steps(deps)
+    return [last_step] if last_step else []
+
+
+def _unique_steps(values: list[int | None]) -> list[int]:
+    result: list[int] = []
+    for value in values:
+        if isinstance(value, int) and value not in result:
+            result.append(value)
+    return result
+
+
+def _leaf_steps(plan: list[dict[str, Any]]) -> list[int]:
+    depended_on = {
+        int(dep)
+        for item in plan
+        for dep in (item.get("depends_on") or [])
+        if str(dep).isdigit()
+    }
+    leaves = [
+        item["step"]
+        for item in plan
+        if item["step"] not in depended_on and item["capability"] != "control.policy.apply"
+    ]
+    if leaves:
+        return leaves
+    return [plan[-1]["step"]] if plan else []
+
+
+def _infer_v40_capability_sequence(user_goal: str, primary_capability: str) -> list[str]:
+    text = str(user_goal or "").lower()
+    sequence: list[str] = []
+
+    def include(capability: str) -> None:
+        normalized = _normalize_executable_capability(capability, user_goal)
+        if normalized not in sequence and normalized not in {"workflow.execute"}:
+            sequence.append(normalized)
+
+    include(primary_capability)
+    if any(token in text for token in ("预测", "趋势", "下季度", "需求区间", "盈亏平衡", "break-even", "forecast")):
+        include("analysis.business_metric")
+    if _looks_like_rule_request(user_goal):
+        include("rule.calculate")
+    if _goal_needs_project_management(user_goal):
+        include("project.register.simple")
+    if _goal_needs_monitoring(user_goal):
+        include("monitor.item.register")
+    if _goal_needs_human_confirmation(user_goal):
+        include("human.task.create")
+    if any(token in text for token in ("监控", "提醒", "预警", "跟踪", "执行进度")):
+        include("monitor.item.register")
+    if any(token in text for token in ("确认", "人工", "待办", "负责人", "审批人", "审批")):
+        include("human.task.create")
+    if any(token in text for token in ("复盘", "沉淀", "可复用", "能力", "优化")):
+        include("evolution.candidate.create")
+    return sequence
+
+
+def _goal_needs_data(user_goal: str) -> bool:
+    text = str(user_goal or "").lower()
+    return any(token in text for token in (
+        "根据", "基于", "已入库", "上传", "文件", "数据", "统计", "汇总", "多少", "几个",
+        "哪些", "最高", "最多", "最大", "订单", "需求", "销售", "客户", "经销商", "预算", "金额",
+        "成本", "价格", "反馈", "库存", "2025", "2026",
+    ))
+
+
+def _goal_mentions_uploaded_file(user_goal: str) -> bool:
+    text = str(user_goal or "")
+    return any(token in text for token in ("上传", "文件", "文档", "表格", "Excel", "excel", "xlsx", "采购验收"))
+
+
+def _goal_needs_control(user_goal: str) -> bool:
+    text = str(user_goal or "")
+    if any(token in text for token in ("审批", "执行", "监控", "复盘", "沉淀", "流程", "落地", "推广")):
+        return True
+    return _goal_needs_project_management(text)
+
+
+def _goal_needs_project_management(user_goal: str) -> bool:
+    text = str(user_goal or "")
+    project_actions = ("立项", "审批", "登记", "结项", "归档", "创建项目", "新建项目", "项目创建", "项目登记", "项目审批")
+    return _contains_any(text, (
+        "\u7acb\u9879", "\u5ba1\u6279", "\u767b\u8bb0", "\u7ed3\u9879", "\u5f52\u6863",
+        "\u521b\u5efa\u9879\u76ee", "\u65b0\u5efa\u9879\u76ee", "\u9879\u76ee\u521b\u5efa",
+        "\u9879\u76ee\u767b\u8bb0", "\u9879\u76ee\u5ba1\u6279", "project",
+    )) or any(token in text for token in project_actions)
+
+
+def _goal_needs_monitoring(user_goal: str) -> bool:
+    return _contains_any(str(user_goal or ""), (
+        "\u76d1\u63a7", "\u63d0\u9192", "\u9884\u8b66", "\u8ddf\u8e2a", "\u6267\u884c\u76d1\u63a7",
+        "\u6267\u884c\u8fdb\u5ea6", "\u540e\u7eed\u6267\u884c", "\u843d\u5730\u6267\u884c",
+        "monitor", "reminder", "alert", "tracking",
+    ))
+
+
+def _goal_needs_human_confirmation(user_goal: str) -> bool:
+    return _contains_any(str(user_goal or ""), (
+        "\u786e\u8ba4", "\u4eba\u5de5", "\u771f\u4eba", "\u5f85\u529e", "\u5ba1\u6279\u5f85\u529e",
+        "\u9700\u8981\u4eba\u786e\u8ba4", "\u9700\u8981\u771f\u4eba\u786e\u8ba4", "\u8d1f\u8d23\u4eba",
+        "\u5ba1\u6279\u4eba", "human", "manual", "approval task",
+    ))
+
+
+def _contains_any(text: str, tokens: tuple[str, ...]) -> bool:
+    lowered = str(text or "").lower()
+    return any(token.lower() in lowered for token in tokens)
+
+
+def _capability_step_name(capability: str) -> str:
+    names = {
+        "analysis.business_metric": "调用分析预测引擎",
+        "analysis.price_forecast": "调用价格预测引擎",
+        "analysis.financial_statement": "调用财务分析引擎",
+        "rule.calculate": "调用规则计算引擎",
+        "project.register.simple": "调用项目管理引擎",
+        "project.register.major": "调用项目管理引擎",
+        "project.task.query": "查询项目任务",
+        "monitor.item.register": "登记监控提醒",
+        "human.task.create": "创建真人确认待办",
+        "evolution.candidate.create": "登记可复用能力沉淀候选",
+        "control.policy.apply": "应用流程驾驭策略",
+        "knowledge.query": "调用知识库问答引擎",
+        "knowledge.qa.answer": "调用知识库问答引擎",
+    }
+    return names.get(capability, f"调用已登记能力 {capability}")
+
+
+def _capability_step_purpose(capability: str) -> str:
+    purposes = {
+        "analysis.business_metric": "基于授权业务数据形成预测、趋势或指标分析结果。",
+        "analysis.price_forecast": "基于授权价格和历史数据形成预测结果。",
+        "analysis.financial_statement": "基于授权财务数据形成分析结果。",
+        "rule.calculate": "按已登记规则或结构化约束执行核算、校验和风险识别。",
+        "project.register.simple": "把已确认的项目事项登记为项目管理记录或项目任务。",
+        "project.register.major": "把重大项目事项登记为项目管理记录或项目任务。",
+        "project.task.query": "读取项目任务状态和执行记录。",
+        "monitor.item.register": "为后续执行节点登记监控项、提醒或预警条件。",
+        "human.task.create": "把需要真人判断的事项转成待确认任务。",
+        "evolution.candidate.create": "把本次流程可复用经验沉淀为能力候选。",
+        "control.policy.apply": "应用驾驭机制约束流程边界、权限和人工接管策略。",
+        "knowledge.query": "按授权知识材料形成可追溯业务回答。",
+        "knowledge.qa.answer": "按授权知识材料形成可追溯业务回答。",
+    }
+    return purposes.get(capability, "按能力字典调用对应模块并保留输入输出审计。")
+
+
+def _assign_execution_groups(plan: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    by_step = {item["step"]: item for item in plan}
+    levels: dict[int, int] = {}
+    for item in plan:
+        dependencies = [int(dep) for dep in item.get("depends_on") or [] if str(dep).isdigit()]
+        levels[item["step"]] = 1 + max((levels.get(dep, 0) for dep in dependencies), default=0)
+    for item in plan:
+        item["execution_group"] = levels.get(item["step"], 1)
+        item["execution_mode"] = "parallel_ready" if sum(1 for other in plan if levels.get(other["step"], 1) == item["execution_group"]) > 1 else "sequential"
+        item["provider_module_hint"] = _provider_module_for_capability(item["capability"])
+    return plan
+
+
+def _provider_module_for_capability(capability: str) -> str:
+    if capability in CAPABILITY_TO_MODULE:
+        return CAPABILITY_TO_MODULE[capability].code
+    if capability == "rule.calculate":
+        return "rule-adapter"
+    if capability == "content.generate":
+        return "content-adapter"
+    return "capability-registry"
+
+
 def _execute_task_plan(handler: Any, envelope: dict[str, Any], platform_task_id: str, intent_task: dict[str, Any], task_plan: list[dict[str, Any]]) -> None:
     workflow_instance_id = f"wf-{platform_task_id}"
     if not _persist_workflow_state(
         envelope, platform_task_id, workflow_instance_id, "running",
-        [{"node_instance_id": f"{workflow_instance_id}:step-{item['step']}", "capability": item["capability"], "state": "ready", "step": item["step"]} for item in task_plan],
+        [{
+            "node_instance_id": f"{workflow_instance_id}:step-{item['step']}",
+            "capability": item["capability"],
+            "state": "ready",
+            "step": item["step"],
+            "execution_group": item.get("execution_group"),
+            "provider_module_hint": item.get("provider_module_hint"),
+        } for item in task_plan],
         "workflow_started",
     ):
         handler.send(502, standard_response(envelope, "failed", error={"code": "WORKFLOW_STATE_PERSISTENCE_FAILED"}))
@@ -397,6 +1042,10 @@ def _execute_task_plan(handler: Any, envelope: dict[str, Any], platform_task_id:
         step_result = _invoke_capability(envelope, platform_task_id, capability, target_layer, target_module, target_url, payload, step=item["step"])
         step_result["plan_item"]["name"] = item["name"]
         step_result["plan_item"]["purpose"] = item["purpose"]
+        step_result["plan_item"]["depends_on"] = item.get("depends_on") or []
+        step_result["plan_item"]["execution_group"] = item.get("execution_group")
+        step_result["plan_item"]["execution_mode"] = item.get("execution_mode")
+        step_result["plan_item"]["provider_module_hint"] = item.get("provider_module_hint")
         step_result["permission"] = permission
         steps.append(step_result)
         step_output = (step_result.get("response") or {}).get("data") or {}
@@ -414,6 +1063,8 @@ def _execute_task_plan(handler: Any, envelope: dict[str, Any], platform_task_id:
                 "capability": item["capability"],
                 "state": item["plan_item"]["status"],
                 "step": index,
+                "execution_group": item["plan_item"].get("execution_group"),
+                "provider_module_hint": item["plan_item"].get("provider_module_hint"),
             }
             for index, item in enumerate(steps, start=1)
         ],
@@ -472,6 +1123,8 @@ def _build_plan_step_payload(item: dict[str, Any], intent_task: dict[str, Any], 
         "intent_dependencies": item.get("depends_on") or [],
     }
     capability = item["capability"]
+    user_goal_for_scope = str(parameters.get("utterance") or intent_task.get("description") or payload.get("analysis_goal") or payload.get("user_goal") or "")
+    payload.setdefault("business_scope", _infer_business_scope(user_goal_for_scope, parameters))
     _apply_data_access_contract(payload, capability)
     if capability == "data.aggregate":
         uploaded_documents = parameters.get("uploaded_documents") if isinstance(parameters.get("uploaded_documents"), list) else []
@@ -479,7 +1132,9 @@ def _build_plan_step_payload(item: dict[str, Any], intent_task: dict[str, Any], 
         payload.setdefault("limit", 20000 if uploaded_documents else 500)
         if uploaded_documents and payload.get("dataset") == "extracted_fields":
             payload["filters"] = _merge_parsed_document_filters(payload.get("filters"), uploaded_documents, prior_outputs)
-        payload.setdefault("analysis_goal", parameters.get("utterance") or intent_task.get("description"))
+        user_goal = str(parameters.get("utterance") or intent_task.get("description") or payload.get("analysis_goal") or "")
+        payload.setdefault("analysis_goal", user_goal)
+        _apply_semantic_data_aggregate_contract(payload, user_goal)
     if capability == "data.search":
         uploaded_documents = parameters.get("uploaded_documents") if isinstance(parameters.get("uploaded_documents"), list) else []
         if uploaded_documents:
@@ -489,6 +1144,38 @@ def _build_plan_step_payload(item: dict[str, Any], intent_task: dict[str, Any], 
                 payload["filters"] = _merge_parsed_document_filters(payload.get("filters"), uploaded_documents, prior_outputs)
     if capability in {"document.parse", "document.table.extract", "document.package.build"}:
         payload.setdefault("uploaded_documents", parameters.get("uploaded_documents") or [])
+    if capability.startswith("analysis."):
+        payload.setdefault("analysis_goal", payload.get("user_goal") or parameters.get("utterance") or intent_task.get("description"))
+        payload.setdefault("input_data_refs", _prior_output_refs(prior_outputs))
+        payload.setdefault("expected_outputs", ["forecast_or_metric_result", "assumptions", "confidence", "evidence_refs"])
+    if capability == "rule.calculate":
+        payload.setdefault("rule_context", payload.get("user_goal") or parameters.get("utterance") or intent_task.get("description"))
+        payload.setdefault("input_data_refs", _prior_output_refs(prior_outputs))
+        payload.setdefault("expected_outputs", ["rule_results", "risks", "exceptions", "evidence_refs"])
+    if capability.startswith("project."):
+        payload.setdefault("project_context", payload.get("user_goal") or parameters.get("utterance") or intent_task.get("description"))
+        payload.setdefault("input_data_refs", _prior_output_refs(prior_outputs))
+        payload.setdefault("expected_outputs", ["project_record", "tasks", "approval_state"])
+    if capability.startswith("monitor.") or capability.startswith("reminder."):
+        payload.setdefault("monitor_context", payload.get("user_goal") or parameters.get("utterance") or intent_task.get("description"))
+        payload.setdefault("input_data_refs", _prior_output_refs(prior_outputs))
+        payload.setdefault("expected_outputs", ["monitor_items", "reminder_policy", "trigger_conditions"])
+    if capability.startswith("human."):
+        payload.setdefault("human_context", payload.get("user_goal") or parameters.get("utterance") or intent_task.get("description"))
+        payload.setdefault("input_data_refs", _prior_output_refs(prior_outputs))
+        payload.setdefault("expected_outputs", ["confirmation_cards", "assignee", "decision_options"])
+        payload.setdefault("task_type", "workflow_human_confirmation")
+        payload.setdefault("cards", _default_human_confirmation_cards(payload.get("human_context"), prior_outputs))
+    if capability.startswith("control."):
+        payload.setdefault("control_context", payload.get("user_goal") or parameters.get("utterance") or intent_task.get("description"))
+        payload.setdefault("expected_outputs", ["policy_decision", "handoff_policy", "execution_bounds"])
+    if capability.startswith("evolution."):
+        payload.setdefault("evolution_context", payload.get("user_goal") or parameters.get("utterance") or intent_task.get("description"))
+        payload.setdefault("input_data_refs", _prior_output_refs(prior_outputs))
+        payload.setdefault("expected_outputs", ["capability_candidate", "reuse_scope", "review_required"])
+    if capability.startswith("knowledge."):
+        payload.setdefault("question", payload.get("user_goal") or parameters.get("utterance") or intent_task.get("description"))
+        payload.setdefault("input_data_refs", _prior_output_refs(prior_outputs))
     if capability == "content.generate":
         payload.setdefault("content_type", "workflow_user_answer")
         payload["workflow_evidence"] = _compact_prior_outputs_for_model(prior_outputs, parameters.get("utterance") or intent_task.get("description") or "")
@@ -497,6 +1184,148 @@ def _build_plan_step_payload(item: dict[str, Any], intent_task: dict[str, Any], 
             payload["workflow_evidence"],
         )
     return payload
+
+
+def _infer_data_aggregate_operation(user_goal: str) -> str:
+    text = str(user_goal or "")
+    if _looks_like_rule_data_preparation_request(text):
+        return "budget_summary"
+    if _looks_like_forecast_request(text):
+        if any(word in text.lower() for word in ("需求", "订单", "销量", "销售", "demand", "order", "sales", "quantity", "qty")):
+            return "monthly_metric_series"
+        return "retrieve"
+    if re.search(r"P-[A-Z0-9-]+", text, re.IGNORECASE) or any(word in text for word in ("基本参数", "产品参数", "产品资料", "产品详情")):
+        return "business_object_detail"
+    if any(word in text for word in ("预算", "预算合计", "费用", "成本", "价格", "毛利")):
+        return "budget_summary"
+    if any(word in text for word in ("优质", "反馈", "评价", "满意", "推荐", "排序", "画像")):
+        return "retrieve"
+    if _looks_like_entity_list_request(text):
+        return "list_distinct"
+    if _looks_like_month_metric_request(text):
+        return "monthly_max_metric"
+    return "retrieve"
+
+
+def _apply_semantic_data_aggregate_contract(payload: dict[str, Any], user_goal: str) -> None:
+    """Translate a natural-language data request into an auditable operation contract."""
+    business_scope = payload.get("business_scope") if isinstance(payload.get("business_scope"), dict) else {}
+    current_operation = str(payload.get("aggregate_operation") or payload.get("operation") or "").lower()
+    inferred_operation = _infer_data_aggregate_operation(user_goal)
+    scope_query_kind = str(business_scope.get("query_kind") or "").lower()
+    if scope_query_kind == "monthly_max_metric":
+        inferred_operation = "monthly_max_metric"
+    elif scope_query_kind in {"detail", "budget_summary"} and current_operation in WEAK_DATA_AGGREGATE_OPERATIONS:
+        inferred_operation = scope_query_kind
+
+    should_replace = (
+        not current_operation
+        or current_operation in WEAK_DATA_AGGREGATE_OPERATIONS
+        or inferred_operation in {"list_distinct", "monthly_max_metric", "monthly_metric_series", "business_object_detail", "budget_summary"}
+    )
+    if inferred_operation and should_replace:
+        payload["aggregate_operation"] = inferred_operation
+        payload["operation"] = inferred_operation
+
+    operation = str(payload.get("aggregate_operation") or payload.get("operation") or "").lower()
+    semantic_operation = {
+        "planner": "workflow_execution.semantic_data_task_translator",
+        "source": "intent_task_and_user_goal",
+        "operation": operation,
+        "business_scope": business_scope,
+        "confidence": "medium",
+    }
+    if operation in {"monthly_max_metric", "monthly_metric_series"}:
+        target_year = _year_from_text(user_goal)
+        metric_candidates = _metric_candidates_from_goal(user_goal)
+        time_candidates = ["month", "year_month", "period", "date"]
+        payload.setdefault("time_field_candidates", time_candidates)
+        payload.setdefault("metric_field_candidates", metric_candidates)
+        payload.setdefault("dimension", "month")
+        payload.setdefault("group_by", ["month"])
+        if target_year:
+            payload.setdefault("year", target_year)
+            payload.setdefault("year_filter", target_year)
+        if metric_candidates:
+            payload.setdefault("metric_field", metric_candidates[0])
+        payload.setdefault("time_field", "month")
+        semantic_operation.update({
+            "dimension": "month",
+            "metric_candidates": metric_candidates,
+            "time_field_candidates": time_candidates,
+            "year": target_year,
+            "expected_output": ["period_values", "monthly_values", "max_month", "max_value", "evidence"],
+        })
+    elif operation == "list_distinct":
+        payload.setdefault("distinct", True)
+        payload.setdefault("expected_output", ["distinct_count", "names", "evidence"])
+        semantic_operation.update({"expected_output": ["distinct_count", "names", "evidence"]})
+    payload["semantic_operation"] = semantic_operation
+
+
+def _year_from_text(text: str) -> int | None:
+    match = re.search(r"(20\d{2})", str(text or ""))
+    return int(match.group(1)) if match else None
+
+
+def _metric_candidates_from_goal(text: str) -> list[str]:
+    lowered = str(text or "").lower()
+    if any(token in lowered for token in ("demand", "需求")):
+        return ["demand_qty", "demand", "需求量", "需求"]
+    if any(token in lowered for token in ("order", "订单")):
+        return ["order_qty", "order_count", "quantity", "订单量", "订单数"]
+    if any(token in lowered for token in ("sales", "销量", "销售")):
+        return ["sales_qty", "quantity", "销量", "销售量"]
+    if any(token in lowered for token in ("amount", "revenue", "金额", "收入")):
+        return ["amount", "revenue", "amount_cny", "金额", "收入"]
+    return ["demand_qty", "order_qty", "sales_qty", "quantity", "amount"]
+
+
+def _looks_like_entity_list_request(text: str) -> bool:
+    lowered = str(text or "").lower()
+    entity_words = ("经销商", "客户", "供应商", "产品", "物料", "人员", "员工", "门店", "仓库", "区域", "dealer", "distributor", "customer", "supplier", "product")
+    list_words = ("哪些", "有哪些", "都有谁", "有谁", "所有", "全部", "确定", "列出", "列举", "名单", "清单", "明细", "去重", "一一", "分别")
+    return any(word in lowered for word in entity_words) and any(word in lowered for word in list_words)
+
+
+def _looks_like_month_metric_request(text: str) -> bool:
+    lowered = str(text or "").lower()
+    extreme_words = ("\u6700\u591a", "\u6700\u9ad8", "\u6700\u5927", "\u5cf0\u503c", "top", "max")
+    month_words = ("\u6bcf\u4e2a\u6708", "\u5404\u6708", "\u54ea\u4e2a\u6708", "\u54ea\u6708", "\u90a3\u4e2a\u6708", "\u6708\u4efd", "\u6708", "month", "monthly")
+    metric_words = ("\u9700\u6c42", "\u8ba2\u5355", "\u9500\u91cf", "\u9500\u552e", "\u91d1\u989d", "\u6536\u5165", "\u6570\u91cf", "demand", "order", "sales", "amount", "revenue", "qty")
+    has_extreme = any(word in lowered for word in extreme_words)
+    has_month = any(word in lowered for word in month_words)
+    has_metric = any(word in lowered for word in metric_words)
+    return has_extreme and has_month and has_metric
+
+
+def _looks_like_forecast_request(text: str) -> bool:
+    lowered = str(text or "").lower()
+    return any(word in lowered for word in ("预测", "下季度", "趋势", "forecast", "predict"))
+
+
+def _looks_like_rule_request(text: str) -> bool:
+    lowered = str(text or "").lower()
+    return any(word in lowered for word in (
+        "规则", "核对", "校验", "差异", "风险", "合规", "预算规则", "价格规则", "盈亏平衡",
+        "rule", "check", "validate", "risk", "exception", "break-even", "breakeven",
+    ))
+
+
+def _looks_like_rule_data_preparation_request(text: str) -> bool:
+    lowered = str(text or "").lower()
+    return any(word in lowered for word in (
+        "\u89c4\u5219", "\u6838\u5bf9", "\u6821\u9a8c", "\u5dee\u5f02", "\u98ce\u9669", "\u5408\u89c4",
+        "\u9884\u7b97", "\u4ef7\u683c", "\u6210\u672c", "\u6bdb\u5229", "\u76c8\u4e8f\u5e73\u8861",
+        "rule", "check", "validate", "risk", "exception", "budget", "price", "cost",
+        "margin", "break-even", "breakeven",
+    ))
+
+
+def _looks_like_demand_forecast_scope(text: str) -> bool:
+    lowered = str(text or "").lower()
+    has_demand = any(word in lowered for word in ("需求", "订单", "销量", "销售", "demand", "order", "sales"))
+    return has_demand and _looks_like_forecast_request(lowered)
 
 
 def _merge_parsed_document_filters(existing: Any, uploaded_documents: list[dict[str, Any]], prior_outputs: dict[str, Any]) -> dict[str, Any]:
@@ -574,6 +1403,52 @@ def _apply_data_access_contract(payload: dict[str, Any], capability: str) -> Non
         payload["data_access_contract"] = contract
 
 
+def _prior_output_refs(prior_outputs: dict[str, Any]) -> list[dict[str, Any]]:
+    refs: list[dict[str, Any]] = []
+    for key, data in prior_outputs.items():
+        if not isinstance(data, dict):
+            continue
+        storage = data.get("storage_result") if isinstance(data.get("storage_result"), dict) else {}
+        aggregate = storage.get("aggregate") if isinstance(storage.get("aggregate"), dict) else data.get("aggregate")
+        items = storage.get("items") if isinstance(storage.get("items"), list) else data.get("items")
+        refs.append({
+            "upstream_key": key,
+            "state": data.get("state"),
+            "module": data.get("module"),
+            "platform_capability": data.get("platform_capability"),
+            "integration_status": data.get("integration_status"),
+            "aggregate": aggregate if isinstance(aggregate, dict) else None,
+            "items_count": len(items) if isinstance(items, list) else None,
+        })
+    return refs
+
+
+def _default_human_confirmation_cards(human_context: Any, prior_outputs: dict[str, Any]) -> list[dict[str, Any]]:
+    context = str(human_context or "")
+    cards = [
+        {
+            "card_id": "confirm-project-approval-entry",
+            "title": "\u662f\u5426\u540c\u610f\u8fdb\u5165\u7acb\u9879\u5ba1\u6279",
+            "description": context or "\u8bf7\u786e\u8ba4\u5f53\u524d\u9879\u76ee\u662f\u5426\u53ef\u4ee5\u8fdb\u5165\u7acb\u9879\u5ba1\u6279\u3002",
+            "options": ["\u540c\u610f\u8fdb\u5165\u7acb\u9879\u5ba1\u6279", "\u5148\u8865\u5145\u8d44\u6599", "\u6682\u4e0d\u8fdb\u5165"],
+        },
+        {
+            "card_id": "confirm-missing-materials",
+            "title": "\u9700\u8981\u4eba\u5de5\u6838\u5bf9\u7684\u8d44\u6599",
+            "description": "\u8bf7\u6838\u5bf9\u5ba2\u6237\u9700\u6c42\u3001\u571f\u58e4\u68c0\u6d4b\u3001\u5386\u53f2\u9500\u552e\u3001\u4ea7\u54c1\u8d44\u6599\u548c\u9884\u7b97\u4f9d\u636e\u662f\u5426\u5b8c\u6574\u3002",
+            "options": ["\u8d44\u6599\u5b8c\u6574", "\u8d44\u6599\u4e0d\u5b8c\u6574"],
+        },
+    ]
+    if "project.register.simple" in prior_outputs or "monitor.item.register" in prior_outputs:
+        cards.append({
+            "card_id": "confirm-generated-work-items",
+            "title": "\u786e\u8ba4\u9879\u76ee\u767b\u8bb0\u548c\u76d1\u63a7\u4e8b\u9879",
+            "description": "\u8bf7\u786e\u8ba4\u5df2\u751f\u6210\u7684\u9879\u76ee\u767b\u8bb0\u3001\u5ba1\u6279\u5f85\u529e\u548c\u540e\u7eed\u6267\u884c\u76d1\u63a7\u4e8b\u9879\u662f\u5426\u7b26\u5408\u4e1a\u52a1\u9700\u6c42\u3002",
+            "options": ["\u786e\u8ba4", "\u9700\u8c03\u6574"],
+        })
+    return cards
+
+
 def _build_model_answer_requirement(user_goal: str, evidence: dict[str, Any]) -> str:
     return (
         "你是面向业务用户的对话助手。请基于以下已授权的平台数据处理结果，直接回答用户真正想知道的业务结果。\n"
@@ -599,6 +1474,22 @@ def _compact_prior_outputs_for_model(prior_outputs: dict[str, Any], user_goal: s
         if isinstance(items, list):
             step["items_count"] = len(items)
             step["sample_rows"] = _compact_extracted_field_rows(items, user_goal, limit=120)
+        if data.get("platform_capability"):
+            step["platform_capability"] = data.get("platform_capability")
+        if data.get("module_name_cn"):
+            step["module_name_cn"] = data.get("module_name_cn")
+        if data.get("integration_status"):
+            step["integration_status"] = data.get("integration_status")
+        normalized_task = data.get("normalized_task") if isinstance(data.get("normalized_task"), dict) else {}
+        if normalized_task:
+            step["normalized_task"] = normalized_task
+        received_payload = data.get("received_payload") if isinstance(data.get("received_payload"), dict) else {}
+        if received_payload:
+            step["received_payload_summary"] = {
+                key: received_payload.get(key)
+                for key in ("user_goal", "analysis_goal", "expected_outputs", "input_data_refs", "control_context", "project_context", "monitor_context", "human_context")
+                if key in received_payload
+            }
         compact["steps"][capability] = step
     return compact
 
@@ -656,6 +1547,11 @@ def _failed_plan_step(item: dict[str, Any], code: str, details: dict[str, Any]) 
         "plan_item": {
             "step": item["step"], "capability": item["capability"], "name": item.get("name"),
             "target_layer": "unknown", "target_module": "unknown", "status": "interface_returned_error",
+            "purpose": item.get("purpose"),
+            "depends_on": item.get("depends_on") or [],
+            "execution_group": item.get("execution_group"),
+            "execution_mode": item.get("execution_mode"),
+            "provider_module_hint": item.get("provider_module_hint"),
         },
         "status_code": 422,
         "capability": item["capability"],
@@ -675,9 +1571,37 @@ def _build_generic_user_result(intent_task: dict[str, Any], steps: list[dict[str
     aggregate = aggregate_data.get("storage_result", {}).get("aggregate") if isinstance(aggregate_data.get("storage_result"), dict) else aggregate_data.get("aggregate")
     findings: list[dict[str, Any]] = []
 
+    document_structure_answer = _document_structure_answer(intent_task, steps)
+    if document_structure_answer:
+        findings.append(document_structure_answer)
+
+    analysis_answer = _analysis_prediction_answer(steps)
+    if not findings and analysis_answer:
+        findings.append(analysis_answer)
+
+    rule_answer = _rule_calculation_answer(steps)
+    if not findings and rule_answer:
+        findings.append(rule_answer)
+
+    project_flow_answer = _project_flow_answer(steps)
+    if not findings and project_flow_answer:
+        findings.append(project_flow_answer)
+
+    aggregate_first = _aggregate_should_override_content(aggregate)
+    if not findings and aggregate_first and isinstance(aggregate, dict) and aggregate.get("answer"):
+        deterministic_answer = _build_deterministic_business_answer(intent_task, aggregate)
+        findings.append({
+            "finding_id": "business-summary",
+            "title": deterministic_answer or aggregate["answer"],
+            "detail": aggregate.get("detail") or "",
+            "evidence": aggregate.get("evidence") or [],
+            "impact": "该结果来自流程执行引擎按已登记模块处理后的汇总。",
+            "recommendation": aggregate.get("recommendation") or "请结合业务口径确认后使用。",
+        })
+
     content = content_data.get("content") if isinstance(content_data, dict) else None
     content_result = content_data.get("user_result") if isinstance(content_data, dict) else None
-    if isinstance(content_result, dict) and content_result.get("summary") and not _is_unusable_model_content(str(content_result.get("summary"))):
+    if not findings and isinstance(content_result, dict) and content_result.get("summary") and not _is_unusable_model_content(str(content_result.get("summary"))):
         findings.append({
             "finding_id": "content-result",
             "title": str(content_result["summary"]),
@@ -686,7 +1610,7 @@ def _build_generic_user_result(intent_task: dict[str, Any], steps: list[dict[str
             "impact": "",
             "recommendation": str(content_result.get("recommendation") or ""),
         })
-    elif isinstance(content, str) and content.strip() and not _is_unusable_model_content(content):
+    elif not findings and isinstance(content, str) and content.strip() and not _is_unusable_model_content(content):
         findings.append({
             "finding_id": "content-result",
             "title": content.strip(),
@@ -715,6 +1639,194 @@ def _build_generic_user_result(intent_task: dict[str, Any], steps: list[dict[str
         "findings": findings,
         "next_action": {"type": "completed" if workflow_state == "completed" else "review_failed_steps", "prompt": "请在调用审计中查看未完成节点。" if failed else "本次处理已完成。"},
         "grounding": {"verified": workflow_state == "completed", "module_count": len(steps)},
+    }
+
+
+def _document_structure_answer(intent_task: dict[str, Any], steps: list[dict[str, Any]]) -> dict[str, Any] | None:
+    goal = str((intent_task.get("parameters") or {}).get("utterance") or intent_task.get("description") or "")
+    if not any(word in goal for word in ("工作表", "字段", "记录", "表", "sheet", "field")):
+        return None
+    parse_data = next(
+        (((step.get("response") or {}).get("data") or {})
+        for step in steps
+        if step.get("capability") in {"document.parse", "document.table.extract"}),
+        {},
+    )
+    documents = parse_data.get("documents") if isinstance(parse_data.get("documents"), list) else []
+    if not documents:
+        return None
+    lines: list[str] = []
+    evidence: list[dict[str, Any]] = []
+    for document in documents:
+        if not isinstance(document, dict):
+            continue
+        sheet_summaries = document.get("sheet_summaries") if isinstance(document.get("sheet_summaries"), list) else []
+        if not sheet_summaries:
+            continue
+        original_name = str(document.get("original_name") or document.get("file_id") or "上传文件")
+        lines.append(f"{original_name} 包含 {len(sheet_summaries)} 张工作表，已提取 {int(document.get('field_count') or 0)} 个非空字段单元。")
+        for sheet in sheet_summaries[:30]:
+            if not isinstance(sheet, dict):
+                continue
+            fields = [str(item) for item in (sheet.get("fields") or []) if str(item)]
+            field_text = "、".join(fields[:12]) + (" 等" if len(fields) > 12 else "")
+            lines.append(f"- {sheet.get('name')}: 约 {int(sheet.get('record_count') or 0)} 条记录；主要字段：{field_text or '未识别到字段'}。")
+            evidence.append({
+                "file_name": original_name,
+                "sheet": sheet.get("name"),
+                "record_count": sheet.get("record_count"),
+                "fields": fields[:12],
+            })
+    if not lines:
+        return None
+    return {
+        "finding_id": "document-structure",
+        "title": "\n".join(lines),
+        "detail": "",
+        "evidence": evidence[:30],
+        "impact": "该结果来自文档表格解析引擎返回的结构化工作表摘要。",
+        "recommendation": "后续按工作表名称或字段继续提问时，流程可直接读取已解析字段，不需要重复解析文件。",
+    }
+
+
+def _aggregate_should_override_content(aggregate: Any) -> bool:
+    if not isinstance(aggregate, dict):
+        return False
+    operation = str(aggregate.get("operation") or "")
+    return operation in {"entity_list", "group_count", "monthly_max_metric", "business_object_detail", "budget_summary", "data_scope_mismatch"}
+
+
+def _rule_calculation_answer(steps: list[dict[str, Any]]) -> dict[str, Any] | None:
+    rule_data = next(
+        (((step.get("response") or {}).get("data") or {})
+        for step in steps
+        if step.get("capability") == "rule.calculate"),
+        {},
+    )
+    if not isinstance(rule_data, dict):
+        return None
+    rule_results = rule_data.get("rule_results") if isinstance(rule_data.get("rule_results"), list) else []
+    risks = rule_data.get("risks") if isinstance(rule_data.get("risks"), list) else []
+    exceptions = rule_data.get("exceptions") if isinstance(rule_data.get("exceptions"), list) else []
+    if not rule_results and not risks and not exceptions:
+        return None
+    lines = ["规则计算引擎已完成核对："]
+    for item in rule_results[:8]:
+        if not isinstance(item, dict):
+            continue
+        name = item.get("rule_name") or item.get("rule_id") or "规则"
+        status = item.get("status") or "unknown"
+        message = item.get("message") or ""
+        lines.append(f"- {name}：{status}。{message}".strip())
+    if risks:
+        lines.append("风险点：")
+        for risk in risks[:5]:
+            if isinstance(risk, dict):
+                lines.append(f"- {risk.get('description') or risk.get('risk_id')}")
+    if exceptions:
+        lines.append("异常项：")
+        for exception in exceptions[:5]:
+            if isinstance(exception, dict):
+                lines.append(f"- {exception.get('description') or exception.get('exception_id')}")
+    return {
+        "finding_id": "rule-calculation",
+        "title": "\n".join(lines),
+        "detail": "该结果由流程执行引擎调用规则计算引擎生成；规则计算输入包含 rule_context 和 input_data_refs。",
+        "evidence": rule_data.get("evidence_refs") or rule_data.get("input_data_refs") or [],
+        "impact": "规则结果用于业务核对和风险提示，不替代负责人最终审批。",
+        "recommendation": "请结合正式预算规则、价格规则和盈亏平衡口径复核后再作为正式结论。",
+    }
+
+
+def _analysis_prediction_answer(steps: list[dict[str, Any]]) -> dict[str, Any] | None:
+    analysis_data = next(
+        (((step.get("response") or {}).get("data") or {})
+        for step in steps
+        if str(step.get("capability") or "").startswith("analysis.")),
+        {},
+    )
+    if not isinstance(analysis_data, dict):
+        return None
+    result = analysis_data.get("analysis_result") if isinstance(analysis_data.get("analysis_result"), dict) else {}
+    forecasts = result.get("forecasts") if isinstance(result.get("forecasts"), list) else []
+    if forecasts:
+        lines = ["分析预测引擎已基于数据操作引擎提供的上游数据形成下季度预测："]
+        evidence: list[Any] = []
+        for item in forecasts:
+            if not isinstance(item, dict):
+                continue
+            date_value = str(item.get("date") or f"第 {item.get('step')} 期")
+            value = item.get("value")
+            lower = item.get("lower")
+            upper = item.get("upper")
+            if lower is not None and upper is not None:
+                lines.append(f"- {date_value}: 预测需求约 {value}，参考区间 {lower} 至 {upper}。")
+            else:
+                lines.append(f"- {date_value}: 预测需求约 {value}。")
+            evidence.extend(item.get("source_record_ids") or [])
+        return {
+            "finding_id": "analysis-prediction",
+            "title": "\n".join(lines),
+            "detail": "该结果由流程执行引擎调用分析预测引擎生成；分析预测引擎输入包含 analysis_goal 和 input_data_refs。",
+            "evidence": evidence[:20],
+            "impact": "该预测结果仅作为经营判断参考，不替代负责人审批或人工确认。",
+            "recommendation": "建议结合库存、预算、经销商计划和实际推广节奏复核后再用于正式立项。",
+        }
+    status = result.get("status") or analysis_data.get("state")
+    if status and status != "complete":
+        return {
+            "finding_id": "analysis-prediction",
+            "title": "分析预测引擎已收到任务，但当前上游数据不足，未形成可直接采用的预测结果。",
+            "detail": str((analysis_data.get("error") or {}).get("message") or result.get("metric_reason") or ""),
+            "evidence": analysis_data.get("input_data_refs") or [],
+            "impact": "流程已经走到分析预测节点，问题集中在上游可计算数据是否足够。",
+            "recommendation": "请在调用审计中查看 analysis.business_metric 的 input_data_refs 和 upstream_contract。",
+        }
+    return None
+
+
+def _project_flow_answer(steps: list[dict[str, Any]]) -> dict[str, Any] | None:
+    project_step = next((step for step in steps if step.get("capability") == "project.register.simple"), None)
+    monitor_step = next((step for step in steps if step.get("capability") == "monitor.item.register"), None)
+    human_step = next((step for step in steps if step.get("capability") == "human.task.create"), None)
+    if not any((project_step, monitor_step, human_step)):
+        return None
+    project_data = ((project_step or {}).get("response") or {}).get("data") or {}
+    monitor_data = ((monitor_step or {}).get("response") or {}).get("data") or {}
+    human_data = ((human_step or {}).get("response") or {}).get("data") or {}
+    pending_items = human_data.get("pending_items") if isinstance(human_data.get("pending_items"), list) else []
+    lines = ["当前建议：可以进入立项审批前置确认，但正式立项仍需负责人确认。"]
+    if project_step:
+        state = project_data.get("state") or project_data.get("integration_status") or "已派发"
+        project = project_data.get("project") if isinstance(project_data.get("project"), dict) else {}
+        project_name = project.get("name") or "当前推广项目"
+        lines.append(f"项目管理：已调用 project.register.simple，项目记录状态：{state}，项目名称：{project_name}。")
+    if monitor_step:
+        state = monitor_data.get("state") or monitor_data.get("integration_status") or "已派发"
+        lines.append(f"监控提醒：已调用 monitor.item.register，后续执行监控事项状态：{state}。")
+    if human_step:
+        state = human_data.get("state") or human_data.get("integration_status") or "已派发"
+        lines.append(f"人机协同：已调用 human.task.create，待确认任务状态：{state}。")
+    if pending_items:
+        lines.append("需要真人确认的事项：")
+        lines.extend(f"- {item}" for item in pending_items[:8])
+    else:
+        lines.append("需要真人确认的事项：请确认资料是否完整、是否同意进入立项审批、是否生成项目登记和后续监控事项。")
+    evidence = []
+    for step in (project_step, monitor_step, human_step):
+        if step:
+            evidence.append({
+                "capability": step.get("capability"),
+                "status_code": step.get("status_code"),
+                "request_keys": sorted(((step.get("request_payload") or {}).keys())),
+            })
+    return {
+        "finding_id": "project-flow",
+        "title": "\n".join(lines),
+        "detail": "该结果由流程执行引擎按项目管理、监控提醒、人机协同三个模块回执汇总。",
+        "evidence": evidence,
+        "impact": "用于推进立项审批前置处理，不替代负责人最终审批。",
+        "recommendation": "请先完成真人确认事项，再将项目登记、审批待办和监控事项作为正式执行项。",
     }
 
 

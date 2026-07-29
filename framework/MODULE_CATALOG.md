@@ -18,7 +18,7 @@
 | 流程执行引擎 | workflow | 8020 | `/api/v1/workflows/executions` | `workflow.execute` |
 | 内容产出引擎 | content | 8011 | `/api/v1/content/instructions` | `content.generate` |
 | 文档表格解析引擎 | document_table_parsing | 8036 | `/api/v1/document-table/instructions` | `document.parse`, `document.table.extract`, `document.package.build` |
-| 数据操作引擎 | data_operation | 8031 | `/api/v1/data/instructions` | `data.search`, `data.persist`, `data.trace`, `data.read/create/update/delete/aggregate` |
+| 数据操作引擎 | data_operation | 8031 | `/api/v1/data-operation/instructions` | `data.collect`, `data.consolidate`, `data.search`, `data.persist`, `data.trace`, `data.read/create/update/delete/aggregate` |
 | 规则计算引擎 | rule | 8010 | `/api/v1/rules/instructions` | `rule.calculate` |
 | 分析预测引擎 | analysis_prediction | 8030 | `/api/v1/analysis/instructions` | `analysis.financial_statement`, `analysis.price_forecast`, `analysis.business_metric` |
 | 监控提醒引擎 | monitoring_reminder | 8034 | `/api/v1/monitoring/instructions` | `monitor.*`, `reminder.*` |

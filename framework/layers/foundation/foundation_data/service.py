@@ -32,7 +32,7 @@ def get(handler: Any) -> bool:
             handler.send(403, {"error": {"code": "SENSITIVE_DATASET_FORBIDDEN"}})
             return True
         tenant_id = (query.get("tenant_id") or ["web-workbench"])[0]
-        limit = min(max(int((query.get("limit") or ["100"])[0]), 1), 20000)
+        limit = min(max(int((query.get("limit") or ["100"])[0]), 1), 50000)
         handler.send(200, {"dataset": dataset, "items": _query_records(dataset, tenant_id, {}, limit)})
         return True
     return False
@@ -182,7 +182,19 @@ def _write(envelope: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
             access_summaries.append((dataset, len(records)))
     for dataset, record_count in access_summaries:
         _allow(envelope, dataset, "write", {"records": record_count})
-    return {"state": "persisted", "storage": "foundation-data", "count": len(saved), "items": saved}
+    preview_limit = 50
+    return {
+        "state": "persisted",
+        "storage": "foundation-data",
+        "count": len(saved),
+        "items": saved[:preview_limit],
+        "items_truncated": len(saved) > preview_limit,
+        "omitted_item_count": max(len(saved) - preview_limit, 0),
+        "write_summary": [
+            {"dataset": dataset, "record_count": record_count}
+            for dataset, record_count in access_summaries
+        ],
+    }
 
 
 def _read(envelope: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
@@ -214,7 +226,7 @@ def _query(envelope: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
     _authorize(envelope, dataset, "read")
     tenant_id = _tenant_for_request(envelope, payload)
     filters = payload.get("filters") if isinstance(payload.get("filters"), dict) else {}
-    limit = min(max(int(payload.get("limit", 100)), 1), 20000)
+    limit = min(max(int(payload.get("limit", 100)), 1), 50000)
     items = _query_records(dataset, tenant_id, filters, limit)
     allowed_projects = _allowed_projects(envelope.get("actor") or {})
     if allowed_projects is not None:

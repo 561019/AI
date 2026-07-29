@@ -101,8 +101,15 @@ def get(handler: Any) -> bool:
         handler.send(200, {"items": list_cases()}); return True
     if handler.path.startswith("/api/v1/tasks/"):
         item = get_task(handler.path.rsplit("/", 1)[-1]); handler.send(200, item) if item else handler.send(404, {"error": {"code": "RESOURCE_NOT_FOUND"}}); return True
-    if handler.path.startswith("/api/v1/traces/") and handler.path.endswith("/calls"):
-        trace_id = handler.path.split("/")[-2]; handler.send(200, {"trace_id": trace_id, "items": get_trace_calls(trace_id)}); return True
+    if clean_path.startswith("/api/v1/traces/") and clean_path.endswith("/calls"):
+        trace_id = clean_path.split("/")[-2]
+        query = parse_qs(urlparse(handler.path).query)
+        call_id = (query.get("call_id") or [None])[0]
+        max_payload_chars = int((query.get("max_payload_chars") or ["20000"])[0])
+        handler.send(200, {
+            "trace_id": trace_id,
+            "items": get_trace_calls(trace_id, call_id=call_id, max_payload_chars=max_payload_chars),
+        }); return True
     if clean_path.startswith("/api/v1/traces/") and clean_path.endswith("/data-access"):
         trace_id = clean_path.split("/")[-2]
         tenant_id = (parse_qs(urlparse(handler.path).query).get("tenant_id") or ["web-workbench"])[0]

@@ -40,8 +40,13 @@ def main() -> int:
             foundation_data.post(handler, envelope)
             return handler.status, handler.body
 
+        def route_engine(_url, envelope, **_kwargs):
+            handler = CaptureHandler(data_operation.MODULE.interface)
+            data_operation.post(handler, envelope)
+            return handler.status, handler.body
+
         data_operation.post_json = route_foundation
-        account_gateway.post_json = route_foundation
+        account_gateway.post_json = route_engine
 
         actor = {"tenant_id": "validation-tenant", "user_id": "validation-user", "authenticated": True}
         message_envelope = make_internal_envelope(
@@ -64,7 +69,7 @@ def main() -> int:
                 }],
             },
         )
-        message_handler = CaptureHandler("/api/v1/data/instructions")
+        message_handler = CaptureHandler(data_operation.MODULE.interface)
         data_operation.post(message_handler, message_envelope)
         assert message_handler.status == 200, message_handler.body
 

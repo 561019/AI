@@ -88,6 +88,16 @@ def _extract_documents(envelope: dict[str, Any], documents: list[Any]) -> dict[s
         job = _job_record(envelope, document, state="running")
         cached = _load_cached_parse_job(envelope, job)
         if cached:
+            cached_fields = _query_cached_fields(envelope, str(cached.get("reused_from_parse_job_id") or ""))
+            mapped_fields = _map_cached_fields(envelope, cached, cached_fields)
+            fields.extend(mapped_fields)
+            sheet_summaries = _sheet_summaries(mapped_fields or cached_fields)
+            cached.update({
+                "field_count": len(mapped_fields) or int(cached.get("field_count") or len(cached_fields)),
+                "table_count": len(sheet_summaries) or int(cached.get("table_count") or 0),
+                "sheet_names": [item["name"] for item in sheet_summaries] or cached.get("sheet_names") or [],
+                "sheet_summaries": sheet_summaries,
+            })
             jobs.append(cached)
             summaries.append({
                 "parse_job_id": cached["parse_job_id"],
@@ -98,6 +108,7 @@ def _extract_documents(envelope: dict[str, Any], documents: list[Any]) -> dict[s
                 "parser": cached.get("parser") or "cached",
                 "table_count": int(cached.get("table_count") or 0),
                 "sheet_names": cached.get("sheet_names") or [],
+                "sheet_summaries": sheet_summaries,
                 "field_count": int(cached.get("field_count") or 0),
                 "cache_hit": True,
                 "reused_from_parse_job_id": cached.get("reused_from_parse_job_id") or cached["parse_job_id"],
@@ -112,6 +123,7 @@ def _extract_documents(envelope: dict[str, Any], documents: list[Any]) -> dict[s
                 "field_count": len(values),
                 "table_count": detail["table_count"],
                 "sheet_names": detail.get("sheet_names") or [],
+                "sheet_summaries": detail.get("sheet_summaries") or [],
                 "parser": detail["parser"],
                 "review_required": False,
             })
@@ -158,7 +170,7 @@ def _load_cached_parse_job(envelope: dict[str, Any], job: dict[str, Any]) -> dic
         return None
     if job.get("sha256") and cached.get("sha256") != job.get("sha256"):
         return None
-    parse_job_id = str(cached.get("parse_job_id") or job["parse_job_id"])
+    source_parse_job_id = str(cached.get("parse_job_id") or job["parse_job_id"])
     referenced_file_ids = _unique_strings([
         *(
             cached.get("referenced_file_ids")
@@ -170,14 +182,14 @@ def _load_cached_parse_job(envelope: dict[str, Any], job: dict[str, Any]) -> dic
     return {
         **cached,
         **_ownership(envelope),
-        "parse_job_id": parse_job_id,
-        "record_id": str(cached.get("record_id") or parse_job_id),
+        "parse_job_id": job["parse_job_id"],
+        "record_id": job["record_id"],
         "file_id": job["file_id"],
         "object_id": job.get("object_id") or cached.get("object_id"),
         "original_name": job["original_name"],
         "sha256": job.get("sha256") or cached.get("sha256"),
         "referenced_file_ids": referenced_file_ids,
-        "reused_from_parse_job_id": parse_job_id,
+        "reused_from_parse_job_id": source_parse_job_id,
     }
 
 
@@ -220,6 +232,65 @@ def _query_cached_parse_job(envelope: dict[str, Any], filters: dict[str, Any]) -
     return cached if isinstance(cached, dict) else None
 
 
+def _query_cached_fields(envelope: dict[str, Any], parse_job_id: str) -> list[dict[str, Any]]:
+    if not parse_job_id:
+        return []
+    task_id = str((envelope.get("payload") or {}).get("platform_task_id") or envelope.get("request_id"))
+    inner = make_internal_envelope(
+        str(envelope.get("trace_id")),
+        envelope.get("actor") or {},
+        task_id,
+        "data.search",
+        "business_engine",
+        "engine-gateway",
+        {
+            "dataset": "extracted_fields",
+            "filters": {"parse_job_id": parse_job_id},
+            "limit": MAX_EXTRACTED_FIELDS_PER_FILE,
+            "compact": False,
+        },
+        source_layer="business_engine",
+        source_module=MODULE.code,
+        context=envelope.get("context") if isinstance(envelope.get("context"), dict) else None,
+    )
+    try:
+        status, response = post_json(
+            "http://127.0.0.1:8200/api/v1/engine/instructions",
+            inner,
+            timeout=30,
+            caller={"layer": "business_engine", "module": MODULE.code},
+        )
+    except OSError:
+        return []
+    if status not in {200, 202} or not isinstance(response, dict) or response.get("status") != "success":
+        return []
+    data = response.get("data") or {}
+    storage = data.get("storage_result") if isinstance(data, dict) else {}
+    items = storage.get("items") if isinstance(storage, dict) else []
+    return [item for item in items if isinstance(item, dict)]
+
+
+def _map_cached_fields(envelope: dict[str, Any], cached: dict[str, Any], cached_fields: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    mapped: list[dict[str, Any]] = []
+    ownership = _ownership(envelope)
+    parse_job_id = str(cached.get("parse_job_id") or "")
+    file_id = str(cached.get("file_id") or "")
+    for index, item in enumerate(cached_fields[:MAX_EXTRACTED_FIELDS_PER_FILE], start=1):
+        mapped.append({
+            **item,
+            **ownership,
+            "record_id": f"{parse_job_id}:field:{index}",
+            "parse_job_id": parse_job_id,
+            "file_id": file_id,
+            "object_id": cached.get("object_id"),
+            "original_name": cached.get("original_name"),
+            "sha256": cached.get("sha256"),
+            "source_parse_job_id": cached.get("reused_from_parse_job_id"),
+            "source_record_id": item.get("record_id"),
+        })
+    return mapped
+
+
 def _extract_values(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     suffix = path.suffix.lower()
     if suffix == ".xlsx":
@@ -232,6 +303,7 @@ def _extract_values(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
 def _extract_xlsx(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     workbook = load_workbook(path, read_only=True, data_only=True)
     values: list[dict[str, Any]] = []
+    sheet_names = list(workbook.sheetnames)
     try:
         for sheet in workbook.worksheets:
             rows = list(sheet.iter_rows(values_only=True))
@@ -253,14 +325,19 @@ def _extract_xlsx(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
                     }))
     finally:
         workbook.close()
-    return values, {"parser": "openpyxl", "table_count": len(workbook.sheetnames), "sheet_names": workbook.sheetnames}
+    return values, {
+        "parser": "openpyxl",
+        "table_count": len(sheet_names),
+        "sheet_names": sheet_names,
+        "sheet_summaries": _sheet_summaries(values),
+    }
 
 
 def _extract_csv(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     with path.open("r", encoding="utf-8-sig", errors="replace", newline="") as handle:
         rows = list(csv.reader(handle))
     if not rows:
-        return [], {"parser": "csv", "table_count": 0, "sheet_names": []}
+        return [], {"parser": "csv", "table_count": 0, "sheet_names": [], "sheet_summaries": []}
     headers = [cell.strip() or f"column_{index + 1}" for index, cell in enumerate(rows[0])]
     values: list[dict[str, Any]] = []
     for row_number, row in enumerate(rows[1:], start=2):
@@ -270,7 +347,47 @@ def _extract_csv(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
             if len(values) >= MAX_EXTRACTED_FIELDS_PER_FILE:
                 raise ValueError(f"document exceeds {MAX_EXTRACTED_FIELDS_PER_FILE} non-empty cells")
             values.append(_value(headers[column_number - 1], raw_value, {"sheet": "csv", "cell": f"R{row_number}C{column_number}", "row": row_number, "column": column_number}))
-    return values, {"parser": "csv", "table_count": 1, "sheet_names": ["csv"]}
+    return values, {"parser": "csv", "table_count": 1, "sheet_names": ["csv"], "sheet_summaries": _sheet_summaries(values)}
+
+
+def _sheet_summaries(values: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    summaries: dict[str, dict[str, Any]] = {}
+    field_order: dict[str, list[str]] = {}
+    for item in values:
+        if not isinstance(item, dict):
+            continue
+        source = item.get("source") if isinstance(item.get("source"), dict) else {}
+        sheet = str(source.get("sheet") or item.get("sheet_name") or item.get("sheet") or "默认工作表")
+        field_name = str(item.get("field_name") or "").strip()
+        row_number = source.get("row") or item.get("row") or item.get("row_number") or item.get("source_row")
+        summary = summaries.setdefault(sheet, {
+            "name": sheet,
+            "fields": [],
+            "record_count": 0,
+            "field_count": 0,
+            "sample_sources": [],
+        })
+        field_order.setdefault(sheet, [])
+        summary["field_count"] += 1
+        if field_name and field_name not in field_order[sheet]:
+            field_order[sheet].append(field_name)
+            summary["fields"] = field_order[sheet]
+        rows = summary.setdefault("_rows", set())
+        if row_number not in (None, ""):
+            rows.add(str(row_number))
+        if len(summary["sample_sources"]) < 3:
+            summary["sample_sources"].append({
+                "field_name": field_name,
+                "cell": source.get("cell"),
+                "row": source.get("row"),
+                "column": source.get("column"),
+            })
+    result: list[dict[str, Any]] = []
+    for summary in summaries.values():
+        rows = summary.pop("_rows", set())
+        summary["record_count"] = len(rows)
+        result.append(summary)
+    return result
 
 
 def _header_row_index(rows: list[tuple[Any, ...]]) -> int | None:
@@ -385,7 +502,7 @@ def _persist(envelope: dict[str, Any], writes: list[dict[str, Any]]) -> None:
         context=envelope.get("context") if isinstance(envelope.get("context"), dict) else None,
     )
     status, response = post_json(
-        "http://127.0.0.1:8200/api/v1/engine/instructions", inner, timeout=30,
+        "http://127.0.0.1:8200/api/v1/engine/instructions", inner, timeout=120,
         caller={"layer": "business_engine", "module": MODULE.code},
     )
     if status not in {200, 202} or not isinstance(response, dict) or response.get("status") != "success":

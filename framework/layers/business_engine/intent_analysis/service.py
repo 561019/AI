@@ -323,6 +323,20 @@ def _normalize_task_description(raw_description: Any, utterance: str, capability
 
 
 def _looks_like_runtime_context(text: str) -> bool:
+    normalized = str(text or "")
+    if any(token in normalized for token in (
+        "AUTHORIZED_DATA_SCOPE",
+        "CONVERSATION_CONTEXT",
+        "PROJECT_CONTEXT",
+        "HISTORICAL_PROJECT_CONTEXT",
+        "USER_INPUT",
+        "Intent analysis boundary",
+        "意图分析边界",
+        "运行上下文",
+        "不是用户原话",
+        "只能用于补全指代",
+    )):
+        return True
     if any(token in text for token in ("平台运行上下文", "当前对话已授权访问", "此上下文不是用户原话", "严格约束", "runtime context")):
         return True
     return any(token in text for token in ("平台运行上下文", "当前对话已授权访问", "此上下文不是用户原话", "runtime context"))
@@ -340,7 +354,7 @@ def _build_intent_contract(
     for index, task in enumerate(tasks, start=1):
         parameters = task.get("parameters") if isinstance(task.get("parameters"), dict) else {}
         capability = str(task.get("capability_code") or "content.generate").strip()
-        description = str(task.get("description") or utterance).strip()
+        description = _normalize_task_description(task.get("description"), utterance, capability, parameters)
         data_access_contract = _build_data_access_contract(utterance, capability, parameters, uploaded_documents)
         contract = {
             "task_id": str(task.get("task_id") or f"intent-task-{index}"),
@@ -616,7 +630,8 @@ def _build_task_plan_draft(utterance: str, capability: str, parameters: dict[str
             "payload_hint": {"uploaded_documents": uploaded_documents},
             "purpose": "把文件中的表格、字段、来源位置提取出来，供后续分析使用",
         })
-    needs_aggregate = any(word in text for word in ("最多", "最高", "最大", "汇总", "统计", "哪个月", "哪月", "月份", "需求"))
+    needs_entity_list = _looks_like_entity_list_request(text)
+    needs_aggregate = needs_entity_list or any(word in text for word in ("最多", "最高", "最大", "汇总", "统计", "哪个月", "哪月", "月份", "需求"))
     needs_forecast = any(word in text for word in ("预测", "下季度", "需求区间", "趋势"))
     if needs_aggregate:
         plan.append({
@@ -627,9 +642,11 @@ def _build_task_plan_draft(utterance: str, capability: str, parameters: dict[str
             "payload_hint": {
                 "dataset": "extracted_fields" if uploaded_documents else "business_records",
                 "analysis_goal": text,
-                "aggregate_operation": "monthly_max_metric",
-                "time_field": "month",
-                "metric_field": "demand_qty",
+                **(
+                    {"aggregate_operation": "list_distinct"}
+                    if needs_entity_list
+                    else {"aggregate_operation": "monthly_max_metric", "time_field": "month", "metric_field": "demand_qty"}
+                ),
             },
             "purpose": "根据用户问题筛选年份、月份和需求字段，计算汇总结果",
         })
@@ -845,3 +862,10 @@ def _infer_user_facing_task_steps(utterance: str, capability: str, uploaded_docu
         steps.append("调用已登记能力处理用户问题")
     steps.append("生成包含结论和依据的用户可读回答")
     return steps
+
+
+def _looks_like_entity_list_request(text: str) -> bool:
+    lowered = str(text or "").lower()
+    entity_words = ("经销商", "客户", "供应商", "产品", "物料", "人员", "员工", "门店", "仓库", "区域", "dealer", "distributor", "customer", "supplier", "product")
+    list_words = ("哪些", "有哪些", "都有谁", "有谁", "所有", "全部", "确定", "列出", "列举", "名单", "清单", "明细", "去重", "一一", "分别", "几个", "多少个", "数量")
+    return any(word in lowered for word in entity_words) and any(word in lowered for word in list_words)

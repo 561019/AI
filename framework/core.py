@@ -86,6 +86,10 @@ def initialize() -> None:
               duration_ms REAL,
               created_at TEXT NOT NULL
             );
+            CREATE INDEX IF NOT EXISTS idx_interface_calls_created_at
+              ON interface_calls(created_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_interface_calls_trace_created_at
+              ON interface_calls(trace_id, created_at);
             CREATE TABLE IF NOT EXISTS data_records (
               dataset TEXT NOT NULL,
               record_id TEXT NOT NULL,
@@ -321,14 +325,20 @@ def record_interface_call(*, trace_id: str, source: dict[str, Any], target: dict
     return call_id
 
 
-def get_trace_calls(trace_id: str) -> list[dict[str, Any]]:
+def get_trace_calls(trace_id: str, *, call_id: str | None = None, max_payload_chars: int | None = None) -> list[dict[str, Any]]:
     with connect() as db:
-        rows = db.execute("SELECT * FROM interface_calls WHERE trace_id=? ORDER BY created_at, rowid", (trace_id,)).fetchall()
+        if call_id:
+            rows = db.execute(
+                "SELECT * FROM interface_calls WHERE trace_id=? AND call_id=? ORDER BY created_at, rowid",
+                (trace_id, call_id),
+            ).fetchall()
+        else:
+            rows = db.execute("SELECT * FROM interface_calls WHERE trace_id=? ORDER BY created_at, rowid", (trace_id,)).fetchall()
     result = []
     for row in rows:
         item = dict(row)
-        item["request"] = _load(item.pop("request_json"))
-        item["response"] = _load(item.pop("response_json"))
+        item["request"] = _load_audit_payload(item.pop("request_json"), max_payload_chars)
+        item["response"] = _load_audit_payload(item.pop("response_json"), max_payload_chars)
         result.append(item)
     return result
 
@@ -361,6 +371,18 @@ def _json(value: Any) -> str | None:
 
 def _load(value: str | None) -> Any:
     return None if value is None else json.loads(value)
+
+
+def _load_audit_payload(value: str | None, max_chars: int | None) -> Any:
+    if value is None:
+        return None
+    if max_chars is not None and len(value) > max_chars:
+        return {
+            "_truncated": True,
+            "size_chars": len(value),
+            "preview": value[:max_chars],
+        }
+    return json.loads(value)
 
 
 def _redact_sensitive(value: Any) -> Any:

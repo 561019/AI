@@ -28,7 +28,8 @@ def post(handler:Any,envelope:dict[str,Any])->None:
         if status!=200 or response.get("status")!="success": handler.send(502,standard_response(envelope,"failed",error={"code":"TEMPLATE_UPSTREAM_FAILED","details":response,"retryable":False})); return
         handler.send(200,response); return
     if capability!="permissions.check":
-        status,response=post_json(registration["endpoint"],envelope,caller={"layer":"foundation","module":"foundation-gateway"})
+        timeout=120 if capability=="foundation_data.write" else 30
+        status,response=post_json(registration["endpoint"],envelope,timeout=timeout,caller={"layer":"foundation","module":"foundation-gateway"})
         if status!=200 or response.get("status")!="success": handler.send(502,standard_response(envelope,"failed",error={"code":"FOUNDATION_UPSTREAM_FAILED","details":response,"retryable":False})); return
         handler.send(200,response); return
     request={"actor":envelope["actor"],"action":envelope["action"],"resource":envelope["payload"].get("resource",{}),"scope":envelope["payload"].get("scope",{}),"trace_id":envelope["trace_id"],"context":envelope.get("context") if isinstance(envelope.get("context"),dict) else {},"platform_task_id":(envelope.get("payload") or {}).get("platform_task_id")}

@@ -20,7 +20,7 @@ def get(handler: Any) -> bool:
 
 
 def post(handler: Any, envelope: dict[str, Any]) -> None:
-    if handler.path != MODULE.interface:
+    if handler.path not in {MODULE.interface, "/api/v1/data/instructions"}:
         handler.send(404, {"error": {"code": "RESOURCE_NOT_FOUND"}})
         return
     capability = envelope.get("target", {}).get("capability") or envelope.get("action")
@@ -56,6 +56,7 @@ def post(handler: Any, envelope: dict[str, Any]) -> None:
     status, response = post_json(
         "http://127.0.0.1:8300/api/v1/foundation/instructions",
         inner,
+        timeout=120 if foundation_capability == "foundation_data.write" else 30,
         caller={"layer": "business_engine", "module": "data-operation"},
     )
     if status != 200 or response.get("status") != "success":
@@ -87,8 +88,10 @@ def _translate(capability: str, payload: dict[str, Any]) -> tuple[str, dict[str,
         return "foundation_data.catalog.list", {}
     if capability == "data.trace":
         return "foundation_data.access.trace", {"trace_id": payload.get("trace_id")}
-    if capability in {"data.persist", "data.create", "data.update", "data.delete"}:
+    if capability in {"data.collect", "data.consolidate", "data.persist", "data.create", "data.update", "data.delete"}:
         operation = {
+            "data.collect": payload.get("operation") or "upsert",
+            "data.consolidate": payload.get("operation") or "upsert",
             "data.persist": payload.get("operation") or "upsert",
             "data.create": "insert",
             "data.update": "update",
@@ -125,16 +128,31 @@ def _translate(capability: str, payload: dict[str, Any]) -> tuple[str, dict[str,
 
 
 def _aggregate(data: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
-    items = data.get("items") or []
+    raw_items = data.get("items") or []
+    items = _filter_items_by_business_scope(raw_items, payload)
     operation = str(payload.get("aggregate_operation") or payload.get("operation") or "").lower()
-    if operation in {"list", "list_distinct", "entity_list", "enumerate"}:
-        return {**data, "aggregate": _list_entity_summary(items, payload)}
-    if operation == "monthly_max_metric":
-        return {**data, "aggregate": _monthly_max_metric(items, payload)}
+    goal = str(payload.get("analysis_goal") or payload.get("utterance") or payload.get("query") or "")
+    if raw_items and not items and _has_business_scope(payload):
+        return {**data, "items": [], "aggregate": _scope_mismatch_summary(raw_items, payload)}
+    if operation == "business_object_detail":
+        return {**data, "items": items, "aggregate": _business_object_detail(items, payload)}
+    if operation == "budget_summary":
+        return {**data, "items": items, "aggregate": _budget_summary(items, payload)}
+    scope = payload.get("business_scope") if isinstance(payload.get("business_scope"), dict) else {}
+    allow_entity_list = scope.get("scope_key") != "customer_feedback"
+    if operation in {"list", "list_distinct", "entity_list", "enumerate"} or (allow_entity_list and (_looks_like_entity_list_goal(goal) or _looks_like_group_count_goal(goal))):
+        return {**data, "items": items, "aggregate": _list_entity_summary(items, payload)}
+    if operation in {"monthly_max_metric", "monthly_metric_series"}:
+        return {**data, "items": items, "aggregate": _monthly_max_metric(items, payload)}
     if operation in {"retrieve", "query", "search", "summarize", "summary", "analyze", "analyse", "retrieve_and_summarize", "retrieve_and_rank", "recommend", "rank", "统计", "汇总", "分析"}:
+        scope = payload.get("business_scope") if isinstance(payload.get("business_scope"), dict) else {}
+        should_list_entities = scope.get("scope_key") != "customer_feedback" and (_looks_like_entity_list_goal(goal) or _looks_like_group_count_goal(goal))
+        entity_summary = _list_entity_summary(items, payload) if should_list_entities else None
+        if entity_summary and entity_summary.get("names"):
+            return {**data, "items": items, "aggregate": entity_summary}
         summary = _summarize_relevant_rows(items, payload)
         if summary:
-            return {**data, "aggregate": summary}
+            return {**data, "items": items, "aggregate": summary}
     if operation == "business_summary":
         return {**data, "aggregate": {
             "operation": "unsupported",
@@ -156,6 +174,210 @@ def _aggregate(data: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
         }}
     values = [item.get(field) for item in items if isinstance(item.get(field), (int, float))]
     return {**data, "aggregate": {"operation": payload.get("aggregate_operation", "sum"), "field": field, "value": sum(values)}}
+
+
+def _has_business_scope(payload: dict[str, Any]) -> bool:
+    scope = payload.get("business_scope")
+    return isinstance(scope, dict) and str(scope.get("scope_key") or "generic") != "generic"
+
+
+def _filter_items_by_business_scope(items: list[dict[str, Any]], payload: dict[str, Any]) -> list[dict[str, Any]]:
+    scope = payload.get("business_scope") if isinstance(payload.get("business_scope"), dict) else {}
+    if not scope or str(scope.get("scope_key") or "generic") == "generic":
+        return items
+    preferred_sheets = [str(item).strip() for item in (scope.get("preferred_sheets") or []) if str(item).strip()]
+    allowed_fields = [str(item).strip().lower() for item in (scope.get("allowed_fields") or []) if str(item).strip()]
+    entity_id = str(scope.get("entity_id") or "").strip().upper()
+    groups = _row_groups(items)
+    kept_keys: set[str] = set()
+    for key, group in groups.items():
+        sheet = str(group.get("sheet") or "")
+        fields = group.get("fields") or {}
+        text = f"{sheet} {fields}".upper()
+        sheet_ok = not preferred_sheets or any(sheet == name or name in sheet or sheet in name for name in preferred_sheets)
+        entity_ok = not entity_id or entity_id in text
+        field_ok = not allowed_fields or any(_field_allowed(name, allowed_fields) for name in fields)
+        if sheet_ok and entity_ok and field_ok:
+            kept_keys.add(key)
+    result: list[dict[str, Any]] = []
+    for item in items:
+        key = _row_key(item)
+        if key not in kept_keys:
+            continue
+        if allowed_fields and not _field_allowed(str(item.get("field_name") or ""), allowed_fields):
+            if entity_id and entity_id in str(item.get("value") or "").upper():
+                result.append(item)
+            continue
+        result.append(item)
+    return result
+
+
+def _row_groups(items: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    groups: dict[str, dict[str, Any]] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        key = _row_key(item)
+        source = item.get("source") if isinstance(item.get("source"), dict) else {}
+        group = groups.setdefault(key, {"sheet": source.get("sheet") or item.get("sheet"), "row": source.get("row") or item.get("row"), "fields": {}, "items": []})
+        field_name = str(item.get("field_name") or "")
+        if field_name:
+            group["fields"][field_name] = item.get("value")
+        group["items"].append(item)
+    return groups
+
+
+def _row_key(item: dict[str, Any]) -> str:
+    source = item.get("source") if isinstance(item.get("source"), dict) else {}
+    key = "|".join(str(source.get(part) or "") for part in ("sheet", "row", "record_key"))
+    if not key.strip("|"):
+        key = str(item.get("record_id") or id(item))
+    return key
+
+
+def _field_allowed(field_name: str, allowed_fields: list[str]) -> bool:
+    lower = str(field_name or "").strip().lower()
+    return any(lower == allowed or allowed in lower or lower in allowed for allowed in allowed_fields)
+
+
+def _scope_mismatch_summary(items: list[dict[str, Any]], payload: dict[str, Any]) -> dict[str, Any]:
+    scope = payload.get("business_scope") if isinstance(payload.get("business_scope"), dict) else {}
+    sheets = sorted({
+        str((item.get("source") or {}).get("sheet") or item.get("sheet") or "")
+        for item in items
+        if isinstance(item, dict)
+    })
+    return {
+        "operation": "data_scope_mismatch",
+        "answer": "未能在正确的业务数据范围内形成可信结果。",
+        "detail": "数据操作引擎已阻止把不同业务对象的数据混合成答案。",
+        "business_scope": scope,
+        "available_sheets": [sheet for sheet in sheets if sheet][:20],
+        "items_count": len(items),
+        "error": {"code": "BUSINESS_SCOPE_NO_MATCH"},
+        "requires_model_reasoning": False,
+    }
+
+
+def _business_object_detail(items: list[dict[str, Any]], payload: dict[str, Any]) -> dict[str, Any]:
+    scope = payload.get("business_scope") if isinstance(payload.get("business_scope"), dict) else {}
+    groups = _row_groups(items)
+    fields: dict[str, Any] = {}
+    evidence: list[str] = []
+    for group in groups.values():
+        for name, value in (group.get("fields") or {}).items():
+            if name not in fields and value not in (None, ""):
+                fields[name] = value
+        for item in (group.get("items") or [])[:4]:
+            evidence.append(_evidence_label(item))
+    label = str(scope.get("label") or payload.get("data_object") or "业务对象")
+    entity_id = str(scope.get("entity_id") or "")
+    title = f"已找到 {entity_id} 的{label}。" if entity_id else f"已找到{label}相关资料。"
+    if not fields:
+        title = f"未找到可展示的{label}字段。"
+    return {
+        "operation": "business_object_detail",
+        "answer": title,
+        "detail": fields,
+        "data_object": label,
+        "entity_id": entity_id,
+        "row_count": len(groups),
+        "evidence": evidence[:16],
+        "recommendation": "请按以上字段核对业务口径；如需继续分析，可指定价格、成本、预算或适用区域。",
+    }
+
+
+def _budget_summary(items: list[dict[str, Any]], payload: dict[str, Any]) -> dict[str, Any]:
+    groups = _row_groups(items)
+    rows: list[dict[str, Any]] = []
+    subtotal = 0.0
+    declared_total: float | None = None
+    evidence: list[str] = []
+    price_cost: dict[str, Any] = {}
+    price_cost_evidence: list[str] = []
+    for group in groups.values():
+        fields = group.get("fields") or {}
+        for field_name, value in fields.items():
+            if value in (None, "") or not _is_price_cost_field(str(field_name)):
+                continue
+            price_cost.setdefault(str(field_name), value)
+            if len(price_cost_evidence) < 8:
+                price_cost_evidence.extend((_evidence_label(item) for item in (group.get("items") or [])[:2]))
+        name = _first_field(fields, ("item_name", "budget_item", "项目", "预算项", "费用项", "项目名称"))
+        amount = _first_number(fields, ("amount_cny", "budget_amount", "金额", "预算金额"))
+        if name is None and amount is None:
+            continue
+        is_total_row = "合计" in str(name or "")
+        if amount is not None and is_total_row:
+            declared_total = amount
+        elif amount is not None:
+            subtotal += amount
+        rows.append({"item": name, "amount_cny": amount})
+        for item in (group.get("items") or [])[:2]:
+            evidence.append(_evidence_label(item))
+    total = declared_total if declared_total is not None else subtotal
+    return {
+        "operation": "budget_summary",
+        "answer": f"已汇总项目预算，共 {len(rows)} 个预算项，金额合计 {_format_number(total)} 元。" if rows else "未找到可汇总的预算项。",
+        "detail": rows,
+        "total_amount_cny": total,
+        "subtotal_amount_cny": subtotal,
+        "declared_total_amount_cny": declared_total,
+        "price_cost": price_cost,
+        "price_cost_evidence": price_cost_evidence[:8],
+        "row_count": len(rows),
+        "evidence": evidence[:16],
+        "recommendation": "请确认预算项是否完整；审批前应重点核对预备费、宣传制作、物流保障和客户培训等费用。",
+    }
+
+
+def _is_price_cost_field(field_name: str) -> bool:
+    lower = str(field_name or "").lower()
+    return any(token in lower for token in (
+        "unit_price", "price", "unit_cost", "cost", "gross_margin_rate",
+        "fixed_project_budget", "margin", "budget",
+        "\u5355\u4ef7", "\u4ef7\u683c", "\u6210\u672c", "\u6bdb\u5229",
+        "\u56fa\u5b9a\u9879\u76ee\u9884\u7b97", "\u9884\u7b97",
+    ))
+
+
+def _first_field(fields: dict[str, Any], names: tuple[str, ...]) -> Any:
+    for name in names:
+        if name in fields and fields.get(name) not in (None, ""):
+            return fields.get(name)
+    lowered = {str(key).lower(): key for key in fields}
+    for name in names:
+        key = lowered.get(name.lower())
+        if key and fields.get(key) not in (None, ""):
+            return fields.get(key)
+    return None
+
+
+def _month_from_value(value: Any, target_year: int) -> int | None:
+    text = str(value)
+    if target_year:
+        match = re.search(rf"{target_year}\D+(\d{{1,2}})", text)
+        if match:
+            month = int(match.group(1))
+            return month if 1 <= month <= 12 else None
+    match = re.search(r"(20\d{2})\D+(\d{1,2})", text)
+    if match and (not target_year or int(match.group(1)) == target_year):
+        month = int(match.group(2))
+        return month if 1 <= month <= 12 else None
+    match = re.search(r"(?<!\d)(\d{1,2})(?:月|month)(?!\d)", text, re.IGNORECASE)
+    if match:
+        month = int(match.group(1))
+        return month if 1 <= month <= 12 else None
+    return None
+
+
+def _first_number(fields: dict[str, Any], names: tuple[str, ...]) -> float | None:
+    for name in names:
+        value = _first_field(fields, (name,))
+        number = _number(value)
+        if number is not None:
+            return number
+    return None
 
 
 def _summarize_relevant_rows(items: list[dict[str, Any]], payload: dict[str, Any]) -> dict[str, Any] | None:
@@ -239,19 +461,15 @@ def _summarize_relevant_rows(items: list[dict[str, Any]], payload: dict[str, Any
 
 def _monthly_max_metric(items: list[dict[str, Any]], payload: dict[str, Any]) -> dict[str, Any]:
     """Execute an explicit monthly_max_metric operation only."""
+    operation_name = str(payload.get("aggregate_operation") or payload.get("operation") or "monthly_max_metric").lower()
     time_field = str(payload.get("time_field") or "").strip()
     metric_field = str(payload.get("metric_field") or "").strip()
-    if not time_field or not metric_field:
-        return {
-            "operation": "monthly_max_metric",
-            "answer": "",
-            "detail": "monthly_max_metric 需要明确提供 time_field 和 metric_field。",
-            "error": {
-                "code": "STRUCTURED_OPERATION_INPUT_REQUIRED",
-                "required": ["time_field", "metric_field"],
-            },
-        }
-    target_year = _year_from_text(str(payload.get("analysis_goal") or "")) or payload.get("year")
+    target_year = (
+        payload.get("year_filter")
+        or payload.get("target_year")
+        or _year_from_text(str(payload.get("analysis_goal") or ""))
+        or payload.get("year")
+    )
     try:
         target_year = int(target_year) if target_year else None
     except (TypeError, ValueError):
@@ -268,8 +486,32 @@ def _monthly_max_metric(items: list[dict[str, Any]], payload: dict[str, Any]) ->
         row["fields"][str(item.get("field_name")).strip()] = item.get("value")
         if len(row["evidence"]) < 4:
             row["evidence"].append(_evidence_label(item))
+    if time_field and not _field_exists(rows, time_field):
+        time_field = ""
+    if metric_field and not _field_exists(rows, metric_field):
+        metric_field = ""
+    if not time_field:
+        time_field = _choose_field_from_candidates(rows, payload.get("time_field_candidates"))
+    if not metric_field:
+        metric_field = _choose_field_from_candidates(rows, payload.get("metric_field_candidates"))
+    if not time_field or not metric_field:
+        inferred_time, inferred_metric = _infer_month_metric_fields(rows)
+        time_field = time_field or inferred_time
+        metric_field = metric_field or inferred_metric
+    if not time_field or not metric_field:
+        return {
+            "operation": "monthly_max_metric",
+            "answer": "",
+            "detail": "monthly_max_metric 需要明确提供或识别 time_field 和 metric_field。",
+            "error": {
+                "code": "STRUCTURED_OPERATION_INPUT_REQUIRED",
+                "required": ["time_field", "metric_field"],
+            },
+        }
     monthly: dict[int, float] = {}
+    period_values: dict[str, float] = {}
     evidence: dict[int, list[str]] = {}
+    period_evidence: dict[str, list[str]] = {}
     for row in rows.values():
         time_value = row["fields"].get(time_field)
         metric_value = _number(row["fields"].get(metric_field))
@@ -277,9 +519,15 @@ def _monthly_max_metric(items: list[dict[str, Any]], payload: dict[str, Any]) ->
             continue
         month = _month_from_value(time_value, target_year or 0)
         if month is None:
+            month = _month_from_fields(row["fields"], target_year or 0)
+        period = _period_from_fields(row["fields"], target_year or 0)
+        if month is None:
             continue
         monthly[month] = monthly.get(month, 0.0) + metric_value
         evidence.setdefault(month, []).extend(row["evidence"][:4])
+        if period:
+            period_values[period] = period_values.get(period, 0.0) + metric_value
+            period_evidence.setdefault(period, []).extend(row["evidence"][:4])
     if not monthly:
         return {
             "operation": "monthly_max_metric",
@@ -290,15 +538,107 @@ def _monthly_max_metric(items: list[dict[str, Any]], payload: dict[str, Any]) ->
         }
     month, value = max(monthly.items(), key=lambda pair: pair[1])
     return {
-        "operation": "monthly_max_metric",
-        "answer": f"{month} 月的 {metric_field} 汇总值最高，为 {_format_number(value)}。",
+        "operation": operation_name,
+        "answer": (
+            f"已形成 {len(period_values) or len(monthly)} 个月度{metric_field}序列，可交给分析预测引擎使用。"
+            if operation_name == "monthly_metric_series"
+            else f"{month} 月的 {metric_field} 汇总值最高，为 {_format_number(value)}。"
+        ),
         "time_field": time_field,
         "metric_field": metric_field,
+        "year": target_year,
         "month": month,
+        "max_month": month,
         "value": value,
+        "max_value": value,
+        "period_values": {key: val for key, val in sorted(period_values.items())},
         "monthly_values": {str(key): val for key, val in sorted(monthly.items())},
-        "evidence": evidence.get(month, [])[:8],
+        "evidence": (period_evidence.get(max(period_values, key=period_values.get), []) if period_values else evidence.get(month, []))[:8],
     }
+
+
+def _period_from_fields(fields: dict[str, Any], target_year: int) -> str | None:
+    for name, value in fields.items():
+        lower = str(name).lower()
+        if any(token in lower for token in ("date", "month", "year_month", "period", "日期", "月份", "年月", "期间")):
+            period = _period_from_value(value, target_year)
+            if period:
+                return period
+    year = None
+    month = None
+    for name, value in fields.items():
+        lower = str(name).lower()
+        if lower in {"year", "年份"} or "年度" in lower:
+            parsed = _number(value)
+            if parsed is not None:
+                year = int(parsed)
+        if lower in {"month", "月份", "月"}:
+            parsed = _number(value)
+            if parsed is not None:
+                month = int(parsed)
+    if year and month and 1 <= month <= 12 and (not target_year or year == target_year):
+        return f"{year:04d}-{month:02d}"
+    if target_year and month and 1 <= month <= 12:
+        return f"{target_year:04d}-{month:02d}"
+    return None
+
+
+def _period_from_value(value: Any, target_year: int) -> str | None:
+    text = str(value or "")
+    match = re.search(r"(20\d{2})\D+(\d{1,2})", text)
+    if match:
+        year = int(match.group(1))
+        month = int(match.group(2))
+        if 1 <= month <= 12 and (not target_year or year == target_year):
+            return f"{year:04d}-{month:02d}"
+    return None
+
+
+def _field_exists(rows: dict[str, dict[str, Any]], field_name: str) -> bool:
+    target = str(field_name or "").strip().lower()
+    if not target:
+        return False
+    return any(target == str(name).strip().lower() for row in rows.values() for name in (row.get("fields") or {}))
+
+
+def _choose_field_from_candidates(rows: dict[str, dict[str, Any]], candidates: Any) -> str:
+    candidate_list = [str(item).strip().lower() for item in (candidates or []) if str(item).strip()]
+    if not candidate_list:
+        return ""
+    scores: dict[str, int] = {}
+    for row in rows.values():
+        for name, value in (row.get("fields") or {}).items():
+            if value in (None, ""):
+                continue
+            lower = str(name).strip().lower()
+            for index, candidate in enumerate(candidate_list):
+                if lower == candidate:
+                    scores[str(name)] = scores.get(str(name), 0) + 100 - index
+                elif candidate in lower or lower in candidate:
+                    scores[str(name)] = scores.get(str(name), 0) + 30 - min(index, 20)
+    return max(scores.items(), key=lambda item: item[1])[0] if scores else ""
+
+
+def _infer_month_metric_fields(rows: dict[str, dict[str, Any]]) -> tuple[str, str]:
+    time_candidates: dict[str, int] = {}
+    metric_candidates: dict[str, int] = {}
+    for row in rows.values():
+        fields = row.get("fields") or {}
+        for name, value in fields.items():
+            lower = str(name).lower()
+            if any(token in lower for token in ("date", "month", "period", "年月", "月份", "日期", "月")):
+                time_candidates[str(name)] = time_candidates.get(str(name), 0) + 2
+            elif _month_from_value(value, 0) is not None:
+                time_candidates[str(name)] = time_candidates.get(str(name), 0) + 1
+            if _number(value) is None:
+                continue
+            if any(token in lower for token in ("demand_qty", "demand", "需求量", "需求")):
+                metric_candidates[str(name)] = metric_candidates.get(str(name), 0) + 5
+            elif any(token in lower for token in ("order_qty", "order", "订单量", "订单", "sales_qty", "销量", "销售量", "quantity", "qty", "amount", "金额")):
+                metric_candidates[str(name)] = metric_candidates.get(str(name), 0) + 2
+    time_field = max(time_candidates.items(), key=lambda item: item[1])[0] if time_candidates else ""
+    metric_field = max(metric_candidates.items(), key=lambda item: item[1])[0] if metric_candidates else ""
+    return time_field, metric_field
 
 
 def _year_from_text(text: str) -> int | None:
@@ -343,6 +683,24 @@ def _month_from_value(value: Any, target_year: int) -> int | None:
     return None
 
 
+def _month_from_value(value: Any, target_year: int) -> int | None:
+    text = str(value)
+    if target_year:
+        match = re.search(rf"{target_year}\D+(\d{{1,2}})", text)
+        if match:
+            month = int(match.group(1))
+            return month if 1 <= month <= 12 else None
+    match = re.search(r"(20\d{2})\D+(\d{1,2})", text)
+    if match and (not target_year or int(match.group(1)) == target_year):
+        month = int(match.group(2))
+        return month if 1 <= month <= 12 else None
+    match = re.search(r"(?<!\d)(\d{1,2})(?:月|month)(?!\d)", text, re.IGNORECASE)
+    if match:
+        month = int(match.group(1))
+        return month if 1 <= month <= 12 else None
+    return None
+
+
 def _demand_from_fields(fields: dict[str, Any]) -> float | None:
     candidates = []
     for name, value in fields.items():
@@ -363,6 +721,24 @@ def _number(value: Any) -> float | None:
     return float(match.group(0)) if match else None
 
 
+def _month_from_value(value: Any, target_year: int) -> int | None:
+    text = str(value)
+    if target_year:
+        match = re.search(rf"{target_year}\D+(\d{{1,2}})", text)
+        if match:
+            month = int(match.group(1))
+            return month if 1 <= month <= 12 else None
+    match = re.search(r"(20\d{2})\D+(\d{1,2})", text)
+    if match and (not target_year or int(match.group(1)) == target_year):
+        month = int(match.group(2))
+        return month if 1 <= month <= 12 else None
+    match = re.search(r"(?<!\d)(\d{1,2})(?:月|month)(?!\d)", text, re.IGNORECASE)
+    if match:
+        month = int(match.group(1))
+        return month if 1 <= month <= 12 else None
+    return None
+
+
 def _evidence_label(item: dict[str, Any]) -> str:
     source = item.get("source") if isinstance(item.get("source"), dict) else {}
     field = item.get("field_name")
@@ -377,7 +753,7 @@ def _format_number(value: float) -> str:
 def _looks_like_group_count_goal(goal: str) -> bool:
     text = goal.lower()
     has_dimension = any(token in text for token in ("经销商", "客户", "供应商", "dealer", "distributor", "customer", "supplier"))
-    has_count_or_list = any(token in text for token in ("几个", "多少个", "数量", "参与", "合作", "列举", "名单", "清单", "一一列举", "分别"))
+    has_count_or_list = any(token in text for token in ("几个", "多少个", "数量", "参与", "合作", "列举", "名单", "清单", "一一列举", "分别", "哪些", "有哪些", "所有", "全部", "确定", "去重"))
     return has_dimension and has_count_or_list
 
 
@@ -415,7 +791,8 @@ def _sheet_hint_from_goal(goal: str, row_groups: dict[str, dict[str, Any]]) -> s
 
 
 def _looks_like_entity_list_goal(goal: str) -> bool:
-    return any(token in goal for token in ("哪些", "有哪些", "列举", "清单", "明细", "名单", "一一"))
+    text = str(goal or "")
+    return any(token in text for token in ("哪些", "有哪些", "都有谁", "有谁", "所有", "全部", "确定", "列举", "列出", "清单", "明细", "名单", "一一", "分别", "去重"))
 
 
 def _display_field(fields: dict[str, Any]) -> str | None:
@@ -449,7 +826,11 @@ def _list_entity_summary(items: list[dict[str, Any]], payload: dict[str, Any]) -
         group["fields"][str(item.get("field_name") or "").strip()] = item.get("value")
         if len(group["evidence"]) < 4:
             group["evidence"].append(_evidence_label(item))
-    return _list_entity_summary_from_groups(row_groups, payload) or {
+    if _looks_like_group_count_goal(str(payload.get("analysis_goal") or payload.get("utterance") or "")):
+        grouped = _group_count_summary(row_groups, payload)
+        if grouped:
+            return grouped
+    return _list_entity_summary_from_groups(row_groups, payload) or _group_count_summary(row_groups, payload) or {
         "operation": "entity_list",
         "answer": "当前授权数据中没有找到可列举的实体记录。",
         "detail": f"已读取 {len(items)} 条结构化字段，但没有识别出可展示的实体名称或编号。",
@@ -465,7 +846,7 @@ def _list_entity_summary_from_groups(
     goal = str(payload.get("analysis_goal") or payload.get("utterance") or "")
     if not _looks_like_entity_list_goal(goal):
         return None
-    preferred_sheet = _sheet_hint_from_goal(goal, row_groups)
+    preferred_sheet = _sheet_hint_from_goal(goal, row_groups) or _preferred_sheet_from_goal(goal)
     groups = [
         group for group in row_groups.values()
         if not preferred_sheet or group.get("sheet") == preferred_sheet
@@ -477,7 +858,7 @@ def _list_entity_summary_from_groups(
     display_field = None
     for group in groups:
         fields = group.get("fields") or {}
-        field = _display_field(fields)
+        field = _target_entity_field(fields, goal) or _display_field(fields)
         if not field:
             continue
         display_field = display_field or field
@@ -500,6 +881,48 @@ def _list_entity_summary_from_groups(
         "evidence": evidence[:12],
         "recommendation": "如需进一步筛选，请补充时间、区域、状态或其他业务条件。",
     }
+
+
+def _target_entity_field(fields: dict[str, Any], goal: str) -> str | None:
+    goal_text = str(goal or "").lower()
+    candidates = [str(name) for name in fields if fields.get(name) not in (None, "")]
+    if not candidates:
+        return None
+    targets: list[tuple[int, str]] = []
+    for name in candidates:
+        lower = name.lower()
+        score = 100
+        if "经销商" in goal_text or "dealer" in goal_text or "distributor" in goal_text:
+            if lower in {"dealer_name", "distributor_name"} or "经销商名称" in name:
+                score = 0
+            elif lower in {"dealer", "distributor"} or name == "经销商":
+                score = 1
+            elif lower in {"dealer_id", "distributor_id"} or "经销商编号" in name:
+                score = 4
+        elif "客户" in goal_text or "customer" in goal_text:
+            if lower == "customer_name" or "客户名称" in name:
+                score = 0
+            elif lower == "customer" or name == "客户":
+                score = 1
+            elif lower == "customer_id" or "客户编号" in name:
+                score = 4
+        elif "供应商" in goal_text or "supplier" in goal_text:
+            if lower == "supplier_name" or "供应商名称" in name:
+                score = 0
+            elif lower == "supplier" or name == "供应商":
+                score = 1
+            elif lower == "supplier_id" or "供应商编号" in name:
+                score = 4
+        elif "产品" in goal_text or "product" in goal_text:
+            if lower == "product_name" or "产品名称" in name:
+                score = 0
+            elif lower == "product" or name == "产品":
+                score = 1
+            elif lower == "product_id" or "产品编号" in name:
+                score = 4
+        if score < 100:
+            targets.append((score, name))
+    return min(targets)[1] if targets else None
 
 
 def _dimension_score(name: str) -> int:
@@ -585,19 +1008,28 @@ def _month_from_fields(fields: dict[str, Any], target_year: int) -> int | None:
             parsed = _number(value)
             if parsed is not None:
                 month = int(parsed)
-    if year == target_year and month and 1 <= month <= 12:
+    if year and month and 1 <= month <= 12 and (not target_year or year == target_year):
+        return month
+    if target_year and month and 1 <= month <= 12:
         return month
     return None
 
 
 def _month_from_value(value: Any, target_year: int) -> int | None:
     text = str(value)
-    match = re.search(rf"{target_year}[-/.年](\d{{1,2}})", text)
+    if target_year:
+        match = re.search(rf"{target_year}\D+(\d{{1,2}})", text)
+        if match:
+            month = int(match.group(1))
+            return month if 1 <= month <= 12 else None
+    match = re.search(r"(20\d{2})\D+(\d{1,2})", text)
     if match:
         month = int(match.group(1))
+        if len(match.groups()) >= 2:
+            month = int(match.group(2))
         return month if 1 <= month <= 12 else None
     match = re.search(r"(\d{1,2})\s*月", text)
-    if match and str(target_year) in text:
+    if match and (not target_year or str(target_year) in text):
         month = int(match.group(1))
         return month if 1 <= month <= 12 else None
     return None

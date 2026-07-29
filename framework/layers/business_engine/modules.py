@@ -10,7 +10,7 @@ MODULES = {
     "content-production-engine-original": {"port": 8013, "interface": "/api/v1/delivered-content/generate", "implementation": "content_production/delivered_engine/service.py"},
     "document-table-parsing": {"port": 8036, "interface": "/api/v1/document-table/instructions", "implementation": "document_table_parsing/service.py"},
     "analysis-prediction": {"port": 8030, "interface": "/api/v1/analysis/instructions", "implementation": "analysis_prediction/service.py"},
-    "data-operation": {"port": 8031, "interface": "/api/v1/data/instructions", "implementation": "data_operation/service.py"},
+    "data-operation": {"port": 8031, "interface": "/api/v1/data-operation/instructions", "implementation": "data_operation/service.py"},
     "digital-asset": {"port": 8032, "interface": "/api/v1/assets/instructions", "implementation": "digital_asset/service.py"},
     "project-management": {"port": 8033, "interface": "/api/v1/projects/instructions", "implementation": "project_management/service.py"},
     "monitoring-reminder": {"port": 8034, "interface": "/api/v1/monitoring/instructions", "implementation": "monitoring_reminder/service.py"},

@@ -65,7 +65,7 @@ ENDPOINTS = {
     "content_original": ["GET /health", "POST /api/v1/delivered-content/generate"],
     "document_table_parsing": ["GET /health", "GET /api/v1/capabilities", "POST /api/v1/document-table/instructions"],
     "analysis_prediction": ["GET /health", "GET /api/v1/capabilities", "POST /api/v1/analysis/instructions"],
-    "data_operation": ["GET /health", "GET /api/v1/capabilities", "POST /api/v1/data/instructions"],
+    "data_operation": ["GET /health", "GET /api/v1/capabilities", "POST /api/v1/data-operation/instructions"],
     "digital_asset": ["GET /health", "GET /api/v1/capabilities", "POST /api/v1/assets/instructions"],
     "project_management": ["GET /health", "GET /api/v1/capabilities", "POST /api/v1/projects/instructions"],
     "monitoring_reminder": ["GET /health", "GET /api/v1/capabilities", "POST /api/v1/monitoring/instructions"],
