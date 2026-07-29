@@ -1,0 +1,80 @@
+{
+  "manifest_version": "local-final-2026.07.18-v0.8",
+  "schema_version": "1.0",
+  "service_code": "l2.monitor_reminder",
+  "service_name": "监控提醒引擎",
+  "status": "local_mock_final",
+  "notice": "本清单用于 v0.8 Mock 独立功能验证与联调准备；正式能力编号、制度编号、路径和字段版本以平台统一配置为准。",
+  "accepted_source": {
+    "layer": "L2",
+    "service_code": "l2.workflow_execution",
+    "channel": "l2_internal",
+    "route_type": "task.dispatch"
+  },
+  "capabilities": [
+    {
+      "capability_id": "CAP.MONITOR.ITEM.REGISTER",
+      "action": "monitor.item.register",
+      "result_mode": "success"
+    },
+    {
+      "capability_id": "CAP.MONITOR.ITEM.UPDATE",
+      "action": "monitor.item.update",
+      "result_mode": "success"
+    },
+    {
+      "capability_id": "CAP.MONITOR.ITEM.ENABLE",
+      "action": "monitor.item.enable",
+      "result_mode": "success"
+    },
+    {
+      "capability_id": "CAP.MONITOR.ITEM.PAUSE",
+      "action": "monitor.item.pause",
+      "result_mode": "success"
+    },
+    {
+      "capability_id": "CAP.MONITOR.ITEM.RESUME",
+      "action": "monitor.item.resume",
+      "result_mode": "success"
+    },
+    {
+      "capability_id": "CAP.MONITOR.ITEM.DISABLE",
+      "action": "monitor.item.disable",
+      "result_mode": "success"
+    },
+    {
+      "capability_id": "CAP.MONITOR.REMINDER.HANDLE",
+      "action": "reminder.handle",
+      "result_mode": "accepted_or_success"
+    },
+    {
+      "capability_id": "CAP.MONITOR.REMINDER.CONFIRM.RECORD",
+      "action": "reminder.confirm.record",
+      "result_mode": "success"
+    },
+    {
+      "capability_id": "CAP.MONITOR.REMINDER.ESCALATE.RECORD",
+      "action": "reminder.escalate.record",
+      "result_mode": "success"
+    },
+    {
+      "capability_id": "CAP.MONITOR.REMINDER.RECOVER.RECORD",
+      "action": "reminder.recover.record",
+      "result_mode": "success"
+    },
+    {
+      "capability_id": "CAP.MONITOR.TRACE.QUERY",
+      "action": "monitor.trace.query",
+      "result_mode": "success"
+    }
+  ],
+  "governance_profile": {
+    "event_deduplication": true,
+    "open_alert_suppression": true,
+    "same_class_merge": true,
+    "repeat_interval_control": true,
+    "dnd_control": true,
+    "urgent_exception": true,
+    "policy_library": "config/governance_policy_library.json"
+  }
+}

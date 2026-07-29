@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: intent-demo-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-intent_analysis}
+      POSTGRES_USER: ${POSTGRES_USER:-intent}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-intent}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-demo-data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-intent} -d ${POSTGRES_DB:-intent_analysis}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    build:
+      context: ./backend
+    container_name: intent-demo-backend
+    environment:
+      APP_ENV: ${APP_ENV:-demo}
+      PYTHONPATH: /app
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://intent:intent@postgres:5432/intent_analysis}
+      MILVUS_HOST: ${MILVUS_HOST:-milvus}
+      MILVUS_PORT: ${MILVUS_PORT:-19530}
+      MILVUS_COLLECTION: ${MILVUS_COLLECTION:-intent_vectors}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-1024}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: intent-demo-frontend
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api}
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5173').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres-demo-data:

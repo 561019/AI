@@ -1,0 +1,28 @@
+{
+  "trace_id": "TRACE-DEMO-MEDIA-001",
+  "workflow_instance_id": "FLOW-DEMO-001",
+  "node_id": "multimedia-generation",
+  "task_id": "FLOW-SUBTASK-MEDIA-001",
+  "idempotency_key": "IDEM-DEMO-MEDIA-001",
+  "callback_url": "http://127.0.0.1:8020/api/flow/callback",
+  "callback_protocol": "simple",
+  "actor_id": "U001",
+  "caller": {
+    "service_code": "l2.workflow_execution",
+    "service_name": "流程执行引擎"
+  },
+  "task_type": "multimedia_poster",
+  "capability_id": "text_to_image",
+  "output_type": "poster_plan",
+  "requirement": "请根据智能监测设备资料生成一份海报画面方案和提示词。",
+  "top_k": 10,
+  "use_llm": false,
+  "input": {
+    "requirement": "请根据智能监测设备资料生成一份海报画面方案和提示词。",
+    "product_profile": "智能监测设备支持温度、湿度和二氧化碳浓度监测。",
+    "brand_style": "专业、克制、清楚"
+  },
+  "expected_return": {
+    "output_type": "poster_plan"
+  }
+}

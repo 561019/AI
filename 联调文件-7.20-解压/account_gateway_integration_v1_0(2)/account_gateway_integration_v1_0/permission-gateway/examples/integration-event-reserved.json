@@ -1,0 +1,13 @@
+{
+  "event_id": "event_workflow_000001",
+  "event_type": "workflow.instance.completed",
+  "occurred_at": "2026-07-15T00:00:00Z",
+  "source_service": "workflow_control",
+  "tenant_id": "hanhe",
+  "actor_id": "user_001",
+  "resource_type": "workflow",
+  "resource_id": "workflow_001",
+  "payload": {
+    "state": "completed"
+  }
+}

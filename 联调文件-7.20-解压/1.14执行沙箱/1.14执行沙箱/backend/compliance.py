@@ -1,0 +1,61 @@
+from __future__ import annotations
+
+from typing import Any
+
+
+CURRENT_SCOPE_ITEMS: list[dict[str, Any]] = [
+    {"requirement": "独立隔离执行环境", "status": "done", "evidence": "任务由 DockerTemplateExecutor 在独立 Docker 容器中执行。"},
+    {"requirement": "用完即焚生命周期", "status": "done", "evidence": "每次任务/验证创建临时容器和网络，结束后清理；任务日志记录 request/create/result/destroy。"},
+    {"requirement": "代码沙箱", "status": "done", "evidence": "Python 场景模板通过 Docker 容器执行，支持结果文件回收和运行时元数据。"},
+    {"requirement": "浏览器沙箱", "status": "done", "evidence": "Headless Chromium 在只读 Docker 浏览器容器中运行，并通过 egress-proxy 验证出站控制。"},
+    {"requirement": "CPU/内存/时长限制", "status": "done", "evidence": "Docker 运行参数限制 CPU/内存，超时容器会被停止并清理。"},
+    {"requirement": "越权防护/宿主机隔离", "status": "done", "evidence": "容器无法读取未挂载宿主机文件，且 /app 只读不可写。"},
+    {"requirement": "默认禁止出站", "status": "done", "evidence": "任务容器默认使用 --network none 或内部网络，直连外网失败。"},
+    {"requirement": "出站白名单", "status": "done", "evidence": "Docker 内部网络 + egress-proxy 允许受控白名单测试域名，拒绝非白名单域名，并阻止绕过代理直连。"},
+    {"requirement": "出站/执行留痕", "status": "done", "evidence": "任务生命周期、代理访问、权限检查、凭据 broker 使用均有可展示证据。"},
+    {"requirement": "凭据注入", "status": "done", "evidence": "任务容器只拿短期句柄，通过 credential broker 使用凭据能力，明文密钥不进入任务 env/cmdline/files/output。"},
+    {"requirement": "E2B-like 兼容适配器", "status": "done", "evidence": "已提供 Docker-backed create/run/query/destroy 沙箱会话接口，便于 L2/Agent 框架后续调用。"},
+    {"requirement": "完整汉和岗位场景证明", "status": "done", "evidence": "已用销售/供应链跨部门超库存预警跑通端到端链路，证明角色、权限、ERP 数据、Docker 执行、结果、成本和审计证据。"},
+    {"requirement": "管理监控与验收演示", "status": "done", "evidence": "Web UI 提供任务记录、监控、合规清单和验收演示页；/api/verification 可运行 live proof。"},
+    {"requirement": "客观验收测试", "status": "done", "evidence": "/api/acceptance 当前交付范围 10 项通过，0 失败。"},
+]
+
+INTEGRATION_ITEMS: list[dict[str, Any]] = [
+    {"requirement": "成本计量接 1.12", "status": "ready_for_integration", "evidence": "已实现 mock 成本记录；真实 1.12 接口待平台提供后对接。"},
+    {"requirement": "安全合规接 1.9", "status": "ready_for_integration", "evidence": "已实现权限预检、白名单和凭据 broker 验证；真实 1.9 策略/密钥服务待联调。"},
+    {"requirement": "设备系统接口接 1.10", "status": "ready_for_integration", "evidence": "已实现 mock ERP/OA 数据注入；真实 ERP/OA/CRM/数据库适配器待 1.10 提供。"},
+    {"requirement": "大模型调度接 1.5", "status": "ready_for_integration", "evidence": "模块边界已定义；沙箱内模型调用应经 1.5，不直连模型服务。"},
+    {"requirement": "驾驭机制接 1.4", "status": "ready_for_integration", "evidence": "当前执行前有权限预检；是否允许跑、最大步数和人工审批归 1.4 联调。"},
+]
+
+FUTURE_ENHANCEMENTS: list[dict[str, Any]] = [
+    {"requirement": "Cube Sandbox", "status": "future", "evidence": "不作为当前 Docker 交付阻塞；未来可作为更强 KVM/microVM 隔离运行时。当前服务器 Cube 受内核 BTF 问题限制。"},
+    {"requirement": "完整 E2B SDK 兼容", "status": "future", "evidence": "当前已提供 E2B-like HTTP 适配器；完整 E2B SDK 协议兼容可作为后续增强。"},
+    {"requirement": "CubeEgress", "status": "future", "evidence": "当前用 Docker egress-proxy 验证白名单机制；未来接 Cube 时可替换为 CubeEgress。"},
+    {"requirement": "Firecracker/Kata 兜底", "status": "future", "evidence": "当前不作为交付项；未来需要更强隔离或国产化适配时再验证。"},
+    {"requirement": "二合一沙箱", "status": "future", "evidence": "当前已分别证明代码沙箱和浏览器沙箱；复杂 code+browser 同任务编排可作为后续增强。"},
+]
+
+
+def compliance_report() -> dict[str, Any]:
+    current_counts = {"done": 0, "partial": 0, "missing": 0}
+    for item in CURRENT_SCOPE_ITEMS:
+        current_counts[item["status"]] += 1
+    return {
+        "summary": {
+            "current_scope": current_counts,
+            "integration_ready": len(INTEGRATION_ITEMS),
+            "future_enhancements": len(FUTURE_ENHANCEMENTS),
+        },
+        "overall": "docker_based_l1_capability_package_ready_for_current_delivery",
+        "runtime_decision": "Docker is accepted as the current L1 1.14 sandbox runtime; Cube is a future stronger isolation option, not a current delivery blocker.",
+        "items": CURRENT_SCOPE_ITEMS,
+        "integration_items": INTEGRATION_ITEMS,
+        "future_enhancements": FUTURE_ENHANCEMENTS,
+        "next_required": [
+            "Update final delivery documents and screenshots around the Docker-based acceptance evidence.",
+            "Prepare one complete Hanhe role scenario as the main end-to-end demo.",
+            "Keep Cube/E2B/microVM as future enhancement notes instead of current blockers.",
+            "Wait for real 1.4/1.5/1.9/1.10/1.12 interfaces before production platform integration.",
+        ],
+    }

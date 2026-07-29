@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第1.9号模块 · 安全合规 · 研发方案 v0.1</title>
+<style>
+  :root{
+    --bg:#F4F6F8; --surface:#FFFFFF; --surface-2:#F0F3F6;
+    --ink:#17222F; --muted:#5C6B7A; --faint:#8A97A4;
+    --border:#E1E7ED; --border-2:#D2DAE2;
+    --deep:#163A57; --deep-soft:#1F4E74;
+    --teal:#0E7C7B; --teal-soft:#E1F0EF;
+    --amber:#B7770C; --amber-soft:#FBF1DD;
+    --danger:#B23A2E; --danger-soft:#F8E5E2;
+    --green:#2E7D52; --green-soft:#E4F1EA;
+    --shadow:0 1px 2px rgba(20,40,60,.04),0 6px 18px rgba(20,40,60,.06);
+  }
+  html[data-theme="dark"]{
+    --bg:#0E141B; --surface:#161F29; --surface-2:#1B2731;
+    --ink:#E7EDF2; --muted:#9EACB8; --faint:#6E7E8B;
+    --border:#27343F; --border-2:#33424E;
+    --deep:#7FB2D6; --deep-soft:#A9CCE4;
+    --teal:#3FB6B0; --teal-soft:#143433;
+    --amber:#D9A441; --amber-soft:#322713;
+    --danger:#E07A6E; --danger-soft:#33201D;
+    --green:#5FB585; --green-soft:#152A1F;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 22px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:"PingFang SC","Microsoft YaHei","Hiragino Sans GB",-apple-system,"Segoe UI",sans-serif;
+    line-height:1.7; font-size:15px; letter-spacing:.1px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:980px;margin:0 auto;padding:0 28px 80px;}
+
+  /* 顶部 */
+  header.top{
+    position:sticky; top:0; z-index:30;
+    background:color-mix(in srgb,var(--bg) 88%,transparent);
+    backdrop-filter:saturate(160%) blur(8px);
+    border-bottom:1px solid var(--border);
+  }
+  .top-inner{max-width:980px;margin:0 auto;padding:12px 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;}
+  .top-id{display:flex;align-items:center;gap:11px;}
+  .badge-num{
+    width:38px;height:38px;border-radius:10px;flex:0 0 auto;
+    background:linear-gradient(150deg,var(--deep),var(--teal));
+    color:#fff;display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:14px;letter-spacing:.5px;
+  }
+  .top-id b{font-size:15px;font-weight:700;}
+  .top-id span{display:block;font-size:12px;color:var(--muted);font-weight:400;}
+  .theme-btn{
+    border:1px solid var(--border-2);background:var(--surface);color:var(--muted);
+    border-radius:9px;padding:7px 13px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:7px;
+    font-family:inherit;transition:.18s;
+  }
+  .theme-btn:hover{color:var(--ink);border-color:var(--teal);}
+  .theme-btn svg{width:15px;height:15px;}
+
+  /* 封面 */
+  .hero{padding:48px 0 30px;border-bottom:1px solid var(--border);}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--teal);font-weight:600;letter-spacing:.6px;margin-bottom:16px;}
+  .eyebrow::before{content:"";width:22px;height:2px;background:var(--teal);border-radius:2px;}
+  h1{font-size:34px;line-height:1.25;font-weight:700;letter-spacing:-.4px;margin-bottom:14px;}
+  h1 .sub{color:var(--teal);}
+  .lede{font-size:16px;color:var(--muted);max-width:760px;}
+  .meta-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px;}
+  .chip{
+    background:var(--surface);border:1px solid var(--border);border-radius:8px;
+    padding:8px 13px;font-size:12.5px;display:flex;align-items:center;gap:7px;box-shadow:var(--shadow);
+  }
+  .chip .k{color:var(--faint);}
+  .chip .v{color:var(--ink);font-weight:600;}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--teal);}
+
+  /* 章节 */
+  section{padding:40px 0;border-bottom:1px solid var(--border);}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:22px;}
+  .sec-no{
+    font-size:13px;font-weight:700;color:#fff;background:var(--deep);
+    border-radius:7px;padding:3px 9px;flex:0 0 auto;letter-spacing:.5px;
+  }
+  h2{font-size:23px;font-weight:700;letter-spacing:-.2px;}
+  .sec-sub{font-size:14px;color:var(--muted);margin:-12px 0 22px;}
+
+  p{margin-bottom:12px;}
+  .ink-soft{color:var(--muted);}
+
+  /* 定位卡 */
+  .pos-line{
+    background:linear-gradient(120deg,var(--teal-soft),transparent);
+    border:1px solid var(--border);border-left:4px solid var(--teal);
+    border-radius:12px;padding:18px 22px;margin-bottom:22px;font-size:16px;font-weight:600;
+  }
+  .four-jobs{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  .job{
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    padding:16px 15px;box-shadow:var(--shadow);
+  }
+  .job .ico{width:30px;height:30px;border-radius:8px;background:var(--teal-soft);color:var(--teal);
+    display:flex;align-items:center;justify-content:center;margin-bottom:10px;}
+  .job .ico svg{width:17px;height:17px;}
+  .job b{display:block;font-size:14.5px;margin-bottom:4px;}
+  .job span{font-size:12.5px;color:var(--muted);line-height:1.55;}
+
+  /* 表格 */
+  .tbl-wrap{border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  thead th{
+    background:var(--surface-2);text-align:left;padding:12px 15px;font-weight:600;color:var(--ink);
+    border-bottom:1px solid var(--border-2);font-size:12.5px;letter-spacing:.3px;
+  }
+  tbody td{padding:12px 15px;border-bottom:1px solid var(--border);vertical-align:top;background:var(--surface);}
+  tbody tr:last-child td{border-bottom:none;}
+  td b{color:var(--ink);}
+  .req-tag{
+    display:inline-block;background:var(--amber-soft);color:var(--amber);
+    border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:600;white-space:nowrap;margin:1px 2px 1px 0;
+  }
+  .eng-tag{background:var(--teal-soft);color:var(--teal);display:inline-block;border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:600;white-space:nowrap;}
+
+  /* 选型 */
+  .route-banner{
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:22px;box-shadow:var(--shadow);
+  }
+  .route-banner .pill{font-size:13.5px;font-weight:600;padding:7px 14px;border-radius:8px;}
+  .route-banner .pill.a{background:var(--green-soft);color:var(--green);}
+  .route-banner .pill.b{background:var(--teal-soft);color:var(--teal);}
+  .route-banner .pill.c{background:var(--amber-soft);color:var(--amber);}
+  .route-banner .plus{color:var(--faint);font-weight:700;font-size:16px;}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:6px;}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;box-shadow:var(--shadow);}
+  .panel h4{font-size:14.5px;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+  .panel h4 .tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;}
+  .tag.green{background:var(--green-soft);color:var(--green);}
+  .tag.amber{background:var(--amber-soft);color:var(--amber);}
+  ul.clean{list-style:none;}
+  ul.clean li{position:relative;padding-left:18px;margin-bottom:9px;font-size:13.5px;color:var(--muted);}
+  ul.clean li::before{content:"";position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:2px;background:var(--teal);}
+  ul.clean li b{color:var(--ink);font-weight:600;}
+
+  /* 全程底线 */
+  .baseline-note{
+    background:var(--danger-soft);border:1px solid var(--border);border-left:4px solid var(--danger);
+    border-radius:12px;padding:16px 20px;margin-bottom:20px;font-size:14.5px;
+  }
+  .baseline-note b{color:var(--danger);}
+  .eng-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+  .eng-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:15px 17px;box-shadow:var(--shadow);}
+  .eng-card .top-line{display:flex;align-items:center;gap:9px;margin-bottom:7px;}
+  .eng-no{width:26px;height:26px;border-radius:7px;background:var(--deep);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex:0 0 auto;}
+  .eng-card b{font-size:14px;}
+  .eng-card p{font-size:12.5px;color:var(--muted);margin:0;}
+
+  /* 完整应用示例 */
+  .flow-hint{
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);
+    background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:11px 15px;margin-bottom:20px;
+  }
+  .flow-hint .node{background:var(--surface);border:1px solid var(--border-2);border-radius:7px;padding:4px 10px;font-weight:600;color:var(--ink);font-size:12px;}
+  .flow-hint .arr{color:var(--teal);font-weight:700;}
+  .ex{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow);}
+  .ex-head{display:flex;align-items:center;gap:11px;margin-bottom:14px;}
+  .ex-no{width:28px;height:28px;border-radius:8px;background:linear-gradient(150deg,var(--deep),var(--teal));color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex:0 0 auto;}
+  .ex-head b{font-size:15px;}
+  .ex-head .req{margin-left:auto;}
+  .chain{display:flex;align-items:stretch;flex-wrap:wrap;gap:0;}
+  .chain .step{flex:1 1 0;min-width:130px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:11px 13px;position:relative;}
+  .chain .step .lbl{font-size:10.5px;color:var(--faint);font-weight:600;letter-spacing:.4px;margin-bottom:3px;display:block;}
+  .chain .step .val{font-size:12.5px;color:var(--ink);font-weight:600;line-height:1.45;}
+  .chain .sep{display:flex;align-items:center;justify-content:center;color:var(--teal);font-weight:700;font-size:17px;padding:0 4px;flex:0 0 auto;}
+
+  /* 边界 */
+  .border-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:4px;}
+  .bd{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:15px 17px;box-shadow:var(--shadow);}
+  .bd .who{font-size:12px;font-weight:700;color:var(--deep-soft);margin-bottom:5px;letter-spacing:.3px;}
+  .bd .what{font-size:13px;color:var(--muted);}
+  .bd.self{border:1.5px solid var(--teal);background:var(--teal-soft);}
+  .bd.self .who{color:var(--teal);}
+  .bd.self .what{color:var(--ink);}
+
+  /* 承载界面 */
+  .ui-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .ui-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;box-shadow:var(--shadow);}
+  .ui-card .name{font-size:15px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
+  .ui-card .name .d{width:9px;height:9px;border-radius:3px;background:var(--teal);}
+  .ui-card p{font-size:13px;color:var(--muted);margin:0;}
+
+  footer{padding:30px 0 0;color:var(--faint);font-size:12.5px;text-align:center;}
+
+  @media(max-width:760px){
+    .wrap,.top-inner{padding-left:18px;padding-right:18px;}
+    h1{font-size:27px;}
+    .four-jobs,.two-col,.eng-grid,.border-grid,.ui-grid{grid-template-columns:1fr;}
+    .chain .step{flex:1 1 100%;}
+    .chain .sep{transform:rotate(90deg);padding:4px 0;}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="top-id">
+      <div class="badge-num">1.9</div>
+      <div>
+        <b>安全合规 · 研发方案</b>
+        <span>L1 通用基础平台 · 第 1.9 号模块 · v0.1</span>
+      </div>
+    </div>
+    <button class="theme-btn" id="themeBtn" type="button">
+      <svg id="themeIco" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+      <span id="themeTxt">深色</span>
+    </button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- 封面 -->
+  <div class="hero">
+    <div class="eyebrow">企业 AI 基础平台 · 治理保障组</div>
+    <h1>安全合规模块 <span class="sub">研发方案</span></h1>
+    <p class="lede">让汉和集团用 AI 时,敏感数据遮得住、每一步操作查得到、输入输出守得住红线。这是整个平台的安全底线模块,所有业务动作都从它这里过一道安全关。</p>
+    <div class="meta-row">
+      <div class="chip"><span class="dot"></span><span class="k">所属层</span><span class="v">L1 通用基础平台</span></div>
+      <div class="chip"><span class="k">分组</span><span class="v">治理保障组</span></div>
+      <div class="chip"><span class="k">模块编号</span><span class="v">第 1.9 号</span></div>
+      <div class="chip"><span class="k">版本</span><span class="v">v0.1</span></div>
+      <div class="chip"><span class="k">日期</span><span class="v">2026-06-21</span></div>
+    </div>
+  </div>
+
+  <!-- 1 模块定位 -->
+  <section id="s1">
+    <div class="sec-head"><span class="sec-no">01</span><h2>模块定位</h2></div>
+    <div class="pos-line">安全合规模块管四件事:把敏感数据遮起来、把每一步操作记下来、给输入输出划红线、让所有动作可追溯。</div>
+    <p class="ink-soft">它在平台最底层的"治理保障组"里,不直接产生业务结果,而是为上面所有业务动作兜住安全底线。任何一个 AI 动作要取数、要产出、要自动办事,都要先从这道关过一遍,确认不泄密、不越权、不踩红线、有记录。</p>
+    <div class="four-jobs">
+      <div class="job">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"></path><line x1="4" y1="4" x2="20" y2="20"></line></svg></div>
+        <b>数据脱敏</b>
+        <span>敏感字段在使用、展示、外发之前自动遮挡</span>
+      </div>
+      <div class="job">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6M9 13h6M9 17h6"></path></svg></div>
+        <b>审计日志</b>
+        <span>谁、何时、用哪个账号、做了什么,全程不可篡改</span>
+      </div>
+      <div class="job">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M9 12l2 2 4-4"></path></svg></div>
+        <b>合规边界</b>
+        <span>给输入和输出划红线,踩线就拦下或提示</span>
+      </div>
+      <div class="job">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></div>
+        <b>操作留痕</b>
+        <span>每次调用、取数、产出都留下可追溯的痕迹</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 六项核心功能 -->
+  <section id="s2">
+    <div class="sec-head"><span class="sec-no">02</span><h2>六项核心功能</h2></div>
+    <p class="sec-sub">每一项功能都对得上汉和集团的真实需求,不是凭空设计。</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th style="width:18%">功能</th><th style="width:46%">干什么</th><th style="width:36%">对应汉和真实需求</th></tr></thead>
+        <tbody>
+          <tr><td><b>数据脱敏</b></td><td>敏感字段在使用、展示、外发前自动遮挡</td><td><span class="req-tag">需求39 配方成本测算</span></td></tr>
+          <tr><td><b>审计日志</b></td><td>谁何时用哪个账号做了什么,全程不可篡改</td><td><span class="req-tag">需求319 数据安全没保障</span></td></tr>
+          <tr><td><b>操作留痕</b></td><td>每次调用、取数、产出都留下可追溯的痕迹</td><td><span class="req-tag">需求98 答复可追溯原始文献</span></td></tr>
+          <tr><td><b>合规边界</b></td><td>给输入输出划红线,踩线就拦截或提示</td><td><span class="req-tag">需求138 平台违规词识别规避</span></td></tr>
+          <tr><td><b>越权留痕告警</b></td><td>权限本身归账号网关管;这里管越权的留痕和报警</td><td><span class="req-tag">需求246 分级授权</span></td></tr>
+          <tr><td><b>敏感数据不出域</b></td><td>核心机密不上公网、不进海外大模型</td><td><span class="req-tag">需求246 数据不出域</span><span class="req-tag">需求265 安全投喂</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 3 选型路线 -->
+  <section id="s3">
+    <div class="sec-head"><span class="sec-no">03</span><h2>怎么建:选型与路线</h2></div>
+    <p class="sec-sub">和数据模块同一条路线:能用成熟开源的就用开源,只在该自己做的地方自己做,全部装在汉和自己的机房里。</p>
+    <div class="route-banner">
+      <span class="pill a">成熟开源做底座</span>
+      <span class="plus">+</span>
+      <span class="pill b">自研补差异</span>
+      <span class="plus">+</span>
+      <span class="pill c">全部私有化部署</span>
+    </div>
+    <div class="two-col">
+      <div class="panel">
+        <h4>开源底座 <span class="tag green">拿来即用 · 都能本地部署</span></h4>
+        <ul class="clean">
+          <li><b>数据脱敏 · Presidio</b>:识别 30 多类敏感信息,支持替换、掩码、加密等多种遮挡方式,可加中文和行业自定义识别规则。</li>
+          <li><b>输入输出护栏 · LLM Guard</b>:自己部署、数据不出域,内置十几种输入扫描 + 二十种输出扫描;对话流复杂时可加 NeMo Guardrails。</li>
+          <li><b>审计留痕 · Langfuse</b>:开源、可私有化,记录每一次大模型、工具、检索的调用,还能监控花了多少钱。</li>
+          <li><b>统一网关挂护栏 · LiteLLM</b>:把上面这些护栏统一挂在一个入口上。</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h4>自研只投两块 <span class="tag amber">开源给不了</span></h4>
+        <ul class="clean">
+          <li><b>业务绑定</b>:跟汉和业务绑死的数据分级矩阵、合规红线规则——什么数据算机密、哪些词句算踩线,只有结合汉和业务才能定。</li>
+          <li><b>治理特色</b>:分层数据安全官的审批流程、配权的人看不到被治理的内容、唯一的应急监察账号——这套治理机制是我们的特色,开源里没有。</li>
+          <li><b>集成层</b>:把上面几个开源件接进平台四层架构、统一起来用。</li>
+        </ul>
+      </div>
+    </div>
+    <p style="margin-top:18px" class="ink-soft">总路线一句话:<b style="color:var(--ink)">敏感数据不出门,机密场景里海外大模型直接出局</b>(这一点和大模型调度模块保持一致)。</p>
+  </section>
+
+  <!-- 4 与业务引擎的挂钩 -->
+  <section id="s4">
+    <div class="sec-head"><span class="sec-no">04</span><h2>和业务引擎的关系</h2></div>
+    <div class="baseline-note">安全合规<b>不挂在某一个引擎下面</b>,它是"全程底线类"的依赖——下面这五个引擎在干活的时候,全程都要叫它来兜住安全底线(留痕、脱敏、不越权、可审计)。</div>
+    <div class="eng-grid">
+      <div class="eng-card"><div class="top-line"><span class="eng-no">②</span><b>外部系统对接引擎</b></div><p>跨系统取数、回写都要留痕,数据不出域。</p></div>
+      <div class="eng-card"><div class="top-line"><span class="eng-no">①</span><b>文档表格解析引擎</b></div><p>解析过程要留痕,敏感内容不外泄。</p></div>
+      <div class="eng-card"><div class="top-line"><span class="eng-no">④</span><b>规则计算引擎</b></div><p>核算、审核的结果要留痕、可查。</p></div>
+      <div class="eng-card"><div class="top-line"><span class="eng-no">⑨</span><b>流程自动操作引擎</b></div><p>自动办事全程留痕,不许越权。</p></div>
+      <div class="eng-card" style="grid-column:1/-1"><div class="top-line"><span class="eng-no">⑧</span><b>多媒体生成引擎</b></div><p>生成的内容要合规、可审计——出图出视频前先过一遍红线。</p></div>
+    </div>
+    <p style="margin-top:16px" class="ink-soft">其余几个引擎(数据归集③、分析预测⑤、知识库问答⑥、内容产出⑦、监控提醒⑩)主要靠"数据分级"这条底线兜着,那条线归数据模块管。</p>
+  </section>
+
+  <!-- 5 完整应用示例 -->
+  <section id="s5">
+    <div class="sec-head"><span class="sec-no">05</span><h2>完整应用示例</h2></div>
+    <p class="sec-sub">下面四个例子,把一条真实需求从底层安全模块一直用到员工眼前的界面,完整走一遍,让人看清安全合规到底是怎么落地的。</p>
+    <div class="flow-hint">
+      <span>每个例子都按这条线走:</span>
+      <span class="node">底层安全模块</span><span class="arr">→</span>
+      <span class="node">业务引擎</span><span class="arr">→</span>
+      <span class="node">业务系统</span><span class="arr">→</span>
+      <span class="node">员工界面</span>
+    </div>
+
+    <div class="ex">
+      <div class="ex-head"><span class="ex-no">1</span><b>取数留痕</b><span class="req req-tag" style="margin-left:auto">需求319</span></div>
+      <div class="chain">
+        <div class="step"><span class="lbl">底层安全模块</span><span class="val">安全合规 · 取数留痕</span></div>
+        <div class="sep">→</div>
+        <div class="step"><span class="lbl">业务引擎</span><span class="val">外部系统对接引擎②</span></div>
+        <div class="sep">→</div>
+        <div class="step"><span class="lbl">业务系统</span><span class="val">数字系统 / 风控系统</span></div>
+        <div class="sep">→</div>
+        <div class="step"><span class="lbl">员工界面</span><span class="val">徐敏看板:每笔取数都留痕 · 数据安全治理台</span></div>
+      </div>
+    </div>
+
+    <div class="ex">
+      <div class="ex-head"><span class="ex-no">2</span><b>解析脱敏</b><span class="req req-tag" style="margin-left:auto">需求39 / 246</span></div>
+      <div class="chain">
+        <div class="step"><span class="lbl">底层安全模块</span><span class="val">安全合规 + 数据分级</span></div>
+        <div class="sep">→</div>
+        <div class="step"><span class="lbl">业务引擎</span><span class="val">文档表格解析引擎①</span></div>
+        <div class="sep">→</div>
+        <div class="step"><span class="lbl">业务系统</span><span class="val">各类取数场景</span></div>
+        <div class="sep">→</div>
+        <div class="step"><span class="lbl">员工界面</span><span class="val">配方等敏感字段自动脱敏后才显示</span></div>
+      </div>
+    </div>
+
+    <div class="ex">
+      <div class="ex-head"><span class="ex-no">3</span><b>自动操作不越权</b><span class="req req-tag" style="margin-left:auto">差旅 / 续约审批</span></div>
+      <div class="chain">
+        <div class="step"><span class="lbl">底层安全模块</span><span class="val">安全合规 · 越权留痕告警</span></div>
+        <div class="sep">→</div>
+        <div class="step"><span class="lbl">业务引擎</span><span class="val">流程自动操作引擎⑨</span></div>
+        <div class="sep">→</div>
+        <div class="step"><span class="lbl">业务系统</span><span class="val">执行系统</span></div>
+        <div class="sep">→</div>
+        <div class="step"><span class="lbl">员工界面</span><span class="val">AI 代办每步留痕、越权即拦 · 调用链路追踪台</span></div>
+      </div>
+    </div>
+
+    <div class="ex">
+      <div class="ex-head"><span class="ex-no">4</span><b>产出合规</b><span class="req req-tag" style="margin-left:auto">需求138 / 171</span></div>
+      <div class="chain">
+        <div class="step"><span class="lbl">底层安全模块</span><span class="val">安全合规 · 合规边界</span></div>
+        <div class="sep">→</div>
+        <div class="step"><span class="lbl">业务引擎</span><span class="val">多媒体生成引擎⑧</span></div>
+        <div class="sep">→</div>
+        <div class="step"><span class="lbl">业务系统</span><span class="val">营销 / 新媒体系统</span></div>
+        <div class="sep">→</div>
+        <div class="step"><span class="lbl">员工界面</span><span class="val">出图、出视频前先过一遍红线</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 与相邻模块的边界 -->
+  <section id="s6">
+    <div class="sec-head"><span class="sec-no">06</span><h2>和邻居模块的分工边界</h2></div>
+    <p class="sec-sub">安全合规只管自己那一摊,别的交给隔壁模块,不抢活也不漏活。</p>
+    <div class="border-grid">
+      <div class="bd self">
+        <div class="who">本模块 1.9 安全合规 · 只管</div>
+        <div class="what">数据脱敏 + 审计 + 合规红线 + 越权留痕</div>
+      </div>
+      <div class="bd">
+        <div class="who">1.8 账号网关</div>
+        <div class="what">权限本身怎么授(谁有权做这件事)归它管;本模块只在越权时留痕、报警。</div>
+      </div>
+      <div class="bd">
+        <div class="who">1.7 数据模块</div>
+        <div class="what">数据分级这条底线归它定;本模块按它的分级结果来脱敏、来判断能不能出域。</div>
+      </div>
+      <div class="bd">
+        <div class="who">1.11 人机协同 / 1.12 成本管控</div>
+        <div class="what">系统层面的操作留痕(谁审批、花了多少钱)归它们;本模块管的是安全相关的留痕。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 承载界面 -->
+  <section id="s7" style="border-bottom:none;">
+    <div class="sec-head"><span class="sec-no">07</span><h2>落在哪两个界面上</h2></div>
+    <p class="sec-sub">安全合规不是看不见的后台,它已经落在两个真实界面上,员工和管理者能直接看到、用到。</p>
+    <div class="ui-grid">
+      <div class="ui-card">
+        <div class="name"><span class="d"></span>数据安全治理台</div>
+        <p>看脱敏规则、看谁访问了哪些数据、看合规红线有没有被触碰。数据安全官在这里管事,而且本人看数据也照样脱敏。</p>
+      </div>
+      <div class="ui-card">
+        <div class="name"><span class="d"></span>调用链路追踪台</div>
+        <p>把 AI 一次办事的每一跳都串起来看,每一跳的业务内容默认遮蔽,越权的地方一眼能查到。</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    第 1.9 号模块 · 安全合规 · 研发方案 v0.1 · 2026-06-21
+  </footer>
+
+</div>
+
+<script>
+  (function () {
+    var btn = document.getElementById('themeBtn');
+    var txt = document.getElementById('themeTxt');
+    var ico = document.getElementById('themeIco');
+    var sunPath = '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>';
+    var moonPath = '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>';
+    function apply(mode) {
+      document.documentElement.setAttribute('data-theme', mode);
+      if (mode === 'dark') { txt.textContent = '浅色'; ico.innerHTML = moonPath; }
+      else { txt.textContent = '深色'; ico.innerHTML = sunPath; }
+    }
+    apply('light');
+    btn.addEventListener('click', function () {
+      var cur = document.documentElement.getAttribute('data-theme');
+      apply(cur === 'dark' ? 'light' : 'dark');
+    });
+  })();
+</script>
+
+</body>
+</html>

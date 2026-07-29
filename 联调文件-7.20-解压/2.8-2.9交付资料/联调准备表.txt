@@ -1,0 +1,204 @@
+模块名称：
+内容产出引擎 v0.2 任务适配版 + 多媒体生成引擎 v1.1 任务适配版
+
+负责人：
+龙世翔
+
+一、我提供给其他模块的能力：
+1. 内容产出能力：接收流程执行引擎派发的文字类子任务，生成营销文案、报告初稿、文章初稿、会议纪要、爆款复用文字初稿、专家方案初稿，并返回文字成果引用占位。
+2. 多媒体生成能力：接收流程执行引擎派发的图片、视频、音频类子任务，按 capability_id 校验能力接口位，调用知识库取材，并生成海报方案、视频剪接方案、短视频方案、语音方案、媒体处理方案、提示词和素材引用。
+3. 任务适配能力：内容产出只承办文字成果，多媒体只承办媒体成果；如果任务字段不完整，会在本引擎边界内做归一、缺项提示和可承办性校验。
+4. 爆款复用承接能力：内容产出支持 content_hot_case_reuse 生成爆款复用文字草稿；多媒体支持 hot_case_reuse 取用爆款原件、拆解记录、风格参考和技能引用，生成画面方案/提示词。
+5. 七项+预留能力接口位：多媒体已对齐 text_to_image、text_to_video、video_editing、fixed_short_video、digital_human、text_to_speech、media_processing、music_sound、multilingual_version；已实现的返回方案，未实现的保留接口位。
+6. 异步回调能力：内容产出和多媒体都支持先返回 accepted，再后台执行，并向流程执行引擎 callback 返回 in_progress、completed、waiting_human 或 failed。
+7. 查询与能力清单能力：内容产出和多媒体都提供任务查询接口、能力清单接口、结果引用、权限/审计占位和真实/模拟边界说明。
+
+二、我提供的接口：
+接口1：
+- 路径：POST /api/content-production/subtasks
+- 方法：POST
+- 输入：
+  trace_id、message_id、workflow_instance_id、node_id、task_id、idempotency_key、caller、actor、capability、input、expected_return、policy。
+  可选 callback_url、callback_envelope_url、callback_protocol、callback_timeout_seconds、callback_headers。
+  内容能力通过 capability.capability_id 指定，例如 content_marketing_copy、content_report_draft、content_article_draft、content_hot_case_reuse、content_agronomy_fertilization_plan。
+- 输出：
+  ok、content_task_id、task_id、trace_id、status、accepted_receipt、callback、task_adapter_result、result_refs、permission_result、audit_ref。
+- 错误情况：
+  缺少任务描述、真人无法识别、内容类型不支持、模板不存在、任务越过内容产出边界、权限模拟不通过、后台执行失败、callback 发送失败。
+
+接口2：
+- 路径：GET /api/content-production/tasks/{content_task_id}
+- 方法：GET
+- 输入：
+  content_task_id。
+- 输出：
+  内容产出任务详情，包括任务状态、草稿、result_refs、hot_case_reuse、expert_plan、permission_result、audit_ref、flow_callback_preview、callback_delivery。
+- 错误情况：
+  任务不存在、任务不可见、状态异常。
+
+接口3：
+- 路径：GET /api/content-production/capabilities
+- 方法：GET
+- 输入：
+  无。
+- 输出：
+  内容产出能力清单、能力版本、输入输出说明、实现状态和边界说明。
+- 错误情况：
+  服务未启动、端口未开放。
+
+接口4：
+- 路径：POST /api/multimedia/subtasks
+- 方法：POST
+- 输入：
+  trace_id、message_id、workflow_instance_id、node_id、task_id、idempotency_key、caller、actor、capability、input、expected_return、policy。
+  可选 callback_url、callback_envelope_url、callback_protocol、callback_timeout_seconds、callback_headers。
+  多媒体能力通过 capability_id 指定，例如 text_to_image、video_editing、fixed_short_video、text_to_speech、media_processing；爆款复用可传 task_type=hot_case_reuse。
+- 输出：
+  同步模式返回多媒体任务结果；异步模式先返回 accepted。任务结果包括 task_id、status、accepted_receipt、capability_id、output_type、material_package、references、llm_result、artifact_refs、media_outputs、hot_case_reuse、digital_asset_skill_usage、permission_result、audit_ref、callback_delivery。
+- 错误情况：
+  缺少任务描述、能力接口位不存在、任务越过多媒体边界、知识库任务画像不存在、知识库连接失败、LLM 配置错误、LLM 调用失败、真实图片/视频/音频生成接口未接入。
+
+接口5：
+- 路径：GET /api/multimedia/tasks/{task_id}
+- 方法：GET
+- 输入：
+  task_id。
+- 输出：
+  多媒体任务详情，包括子任务派发信息、执行事件、知识库素材、LLM/Mock 返回、引用来源、media_outputs、hot_case_reuse、digital_asset_skill_usage、permission_result、audit_ref 和 callback_delivery。
+- 错误情况：
+  任务不存在、任务不可见。
+
+接口6：
+- 路径：GET /api/multimedia/capabilities
+- 方法：GET
+- 输入：
+  无。
+- 输出：
+  多媒体“七项+预留”能力接口位清单、实现状态、默认输出类型、外部接口位和边界说明。
+- 错误情况：
+  服务未启动、端口未开放。
+
+接口7：
+- 路径：POST /api/kb/task-materials
+- 方法：POST
+- 输入：
+  actor_id、task_type、capability_id、query、top_k、include_templates。
+- 输出：
+  可用素材、模板、风格参考、爆款原件、拆解记录、出处和 readiness。
+- 错误情况：
+  任务类型不存在、没有匹配素材、知识库服务未启动。
+
+接口8：
+- 路径：POST /api/flow/callback
+- 方法：POST
+- 输入：
+  trace_id、workflow_instance_id、node_id、task_id、idempotency_key、source_service、status、result、error、audit_ref、completed_at。
+- 输出：
+  流程实例节点状态更新结果。
+- 错误情况：
+  流程实例不存在、节点不存在、回调状态非法、重复回调。
+
+说明：
+POST /api/llm/test、POST /api/integration/run、POST /api/reset、GET /api/health 属于本地自测、旧页面或健康检查接口，不作为正式联调主接口提交。
+本地流程执行引擎的 /api/flow/start 主要用于本地验证；正式联调时以流程执行引擎方提供的派发接口为准。
+
+三、我需要调用哪些模块：
+1. 需要调用模块：流程执行引擎
+   - 调用目的：
+     接收流程派发的内容产出/多媒体子任务；提供 workflow_instance_id、node_id、task_id、trace_id、idempotency_key；接收两个引擎的异步 callback；处理 completed、waiting_human、failed 后续节点。
+   - 需要对方提供什么接口：
+     子任务派发规范、callback 接收地址、流程实例/节点编号规则、人工确认规则、失败依赖处理规则。建议至少提供 POST /api/v1/callbacks 或等价 callback 接收接口。
+   - 当前是否已 mock：
+     交付包中已有本地简化流程执行引擎可验证，但正式联调应以流程执行引擎方接口为准。
+
+2. 需要调用模块：意图分析引擎
+   - 调用目的：
+     从自然语言任务初步识别任务类型、能力候选、缺项和建议流程。
+   - 需要对方提供什么接口：
+     POST /api/intent/analyze，返回 intent_id、capability_candidates、missing_fields、normalized_parameters、trace_id。
+   - 当前是否已 mock：
+     未接入。当前由页面或请求字段手动传 task_type、content_type、capability_id。
+
+3. 需要对齐模块：能力字典/能力登记
+   - 对齐目的：
+     由流程执行引擎或平台接口层查能力登记表，固化 capability_id 对应的承办引擎、接口路径、schema_version、输入输出契约和路由规则；内容产出和多媒体不直接选择承办引擎，只接收已派发子任务并做本引擎边界内校验。
+   - 需要对方提供什么接口：
+     建议由流程执行引擎或平台接口层提供能力登记查询结果；如需独立查询接口，可使用 POST /api/capability-registry/resolve，返回 capability_id、target_engine、service_code、action、schema_version、input_schema、output_schema、dependency_rule。
+   - 当前是否已 mock：
+     内容产出和多媒体仅内置本引擎边界内的简化能力表，用于校验和兜底；正式路由应以能力登记表为准。
+
+4. 需要调用模块：知识库/素材库/爆款库
+   - 调用目的：
+     多媒体生成前获取素材、模板、风格参考、爆款原件、拆解记录、出处和引用信息。
+   - 需要对方提供什么接口：
+     按 task_type、capability_id、requirement、top_k 检索资料的接口；返回 context_id、document_id、title、citation、content、image_url、image_caption、image_ocr、readiness 等字段。
+   - 当前是否已 mock：
+     交付包中已有本地知识库 v0.1，支持多媒体普通取材和 hot_case_reuse 取材。
+
+5. 需要调用模块：大模型调度模块
+   - 调用目的：
+     内容产出生成文字初稿；多媒体生成画面方案、提示词和合规提示。
+   - 需要对方提供什么接口：
+     统一模型调用接口，支持 messages、模型名、超时、最大输出长度、错误码、调用摘要、token 统计和模型任务编号。
+   - 当前是否已 mock：
+     内容产出主要是本地 Mock/规则化生成；多媒体已预留 model_dispatch_interface_slot 和 model_dispatch_usage，当前本地用 LiteLLM/Kimi 直连或 Mock 方案代替正式大模型调度。
+
+6. 需要调用模块：数字资产引擎
+   - 调用目的：
+     取用专家分身、读取/解析/登记技能、取用爆款模式与制作标准。
+   - 需要对方提供什么接口：
+     专家分身 resolve、技能 resolve、技能详情读取、技能登记/更新、技能开放范围查询。
+   - 当前是否已 mock：
+     仅预留 expert_agent_ref、skill_refs、skill_requirements、digital_asset_interface_slot、digital_asset_skill_usage。
+
+7. 需要调用模块：权限管理与安全审计
+   - 调用目的：
+     对真人、岗位、资源、动作做四要素权限判定；对共享池资产取用、技能开放范围、AI 生成标识、安全策略进行审计留痕。
+   - 需要对方提供什么接口：
+     四要素权限判定接口、安全策略校验接口、审计引用返回接口、AI 生成标识处理接口、共享范围更新接口。
+   - 当前是否已 mock：
+     当前为本地模拟，结果中只返回 decision_id、audit_ref、security_check_status、permission_result。
+
+8. 需要调用模块：数据/文件/产物存储
+   - 调用目的：
+     保存或引用文字成果、专家方案文档、图片、视频、音频、爆款原件、拆解记录和生成产物。
+   - 需要对方提供什么接口：
+     artifact_ref 生成、文件上传/读取、文档导出、产物登记、结构化目录登记、统计读取接口。
+   - 当前是否已 mock：
+     当前使用本地 JSON 和占位引用，artifact_ref 不是真实产物库凭证。
+
+四、当前 mock 的内容：
+1. 内容产出文字生成仍主要是本地模板/Mock，不代表正式大模型调度效果。
+2. 多媒体可以真实调用本地知识库，也预留了大模型调度接口位；当前文本方案生成仍使用临时直连 LLM 或 Mock，真实图片、视频、音频生成接口未接入。
+3. 权限、安全、审计、真人确认待办均为本地模拟。
+4. 数字资产引擎、专家分身、技能登记、技能版本、共享层级都只是接口位。
+5. 规则计算、数据操作、产物存储、文件导出、监控提醒、业务应用消息分发都未真实接入。
+6. 爆款原件、拆解记录、风格参考当前来自本地知识库 mock 数据，不是真实入库文件，也没有真实复用授权校验。
+7. callback 机制已经真实发 HTTP 请求，但正式 callback 地址、状态枚举和错误码仍需跟流程执行引擎最终口径对齐。
+
+五、后续联调风险：
+1. 如果流程执行引擎不提供 callback 接收地址或节点编号规则，异步闭环只能停留在本地验证。
+2. 如果能力登记表未确定，task_type、content_type、capability_id 后续仍可能调整。
+3. 如果知识库没有爆款原件/拆解记录/风格参考资料类型，多媒体 hot_case_reuse 会退化成普通资料取材。
+4. 如果大模型调度接口未提供，多媒体虽能保留 model_dispatch_interface_slot，但仍只能用临时直连 LLM 或 Mock；内容产出仍只能用本地 Mock。
+5. 如果数字资产引擎未提供，专家分身与技能取用只能作为字段占位，不能验证真实共享池逻辑。
+6. 如果权限、安全、审计不接入，当前结果不能代表真实平台授权结论。
+7. 如果数据/产物库不接入，artifact_ref、downloadable_document_ref 不能当作真实文件凭证。
+8. 如果真实媒体生成接口不接入，多媒体输出只能是方案、提示词和引用，不能返回真实图片/视频/音频文件。
+
+六、联调前我能保证什么：
+1. 本模块能独立启动；
+   - 内容产出 v0.2 默认端口：http://127.0.0.1:8011
+   - 多媒体 v1.1 默认端口：http://127.0.0.1:8013
+   - 本地知识库 v0.1 默认端口：http://127.0.0.1:8012
+   - 本地流程执行引擎默认端口：http://127.0.0.1:8020
+2. 本模块有测试数据；
+   - 包括产品资料、品牌规范、Logo/产品图引用、爆款原件元数据、爆款拆解记录、专家分身引用、技能引用、内容产出模板和本地演示用户。
+3. 本模块有测试结果截图；
+   - 交付包内保留了流程页面相关截图文件，内容产出和多媒体也已完成本地接口烟测。
+4. 本模块有接口文档；
+   - 交付包根目录已提供《内容产出与多媒体接口交付清单.md》《接口与字段总说明.md》《callback字段说明.md》。
+5. 本模块有 mock 数据；
+   - 内容产出、多媒体、知识库、爆款取材、专家分身/技能引用、权限审计占位均有本地数据或接口位。
+6. 本模块有 README。
+   - 交付包根目录和四个引擎目录均有 README 或说明文件。

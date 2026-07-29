@@ -1,0 +1,38 @@
+{
+  "version": "v1",
+  "description": "De-identified enterprise-style blind benchmark seed dataset for Intent Analysis Engine.",
+  "total": 300,
+  "splits": {
+    "train": 180,
+    "validation": 60,
+    "blind_test": 60
+  },
+  "categories": {
+    "short_instruction": 30,
+    "long_text_requirement": 30,
+    "colloquial_expression": 30,
+    "omitted_expression": 30,
+    "multi_task_request": 30,
+    "negation_expression": 30,
+    "future_scope": 30,
+    "context_dependency": 30,
+    "insufficient_information": 30,
+    "ambiguous_request": 30
+  },
+  "blind_test_policy": "Do not inspect or use blind_test cases for rule, prompt, threshold, or model development. Runner requires --allow-blind-test.",
+  "sample_required_fields": [
+    "id",
+    "text",
+    "intent_category",
+    "expected_tasks",
+    "expected_task_types",
+    "required_clarification",
+    "missing_inputs",
+    "forbidden_tasks"
+  ],
+  "optional_fields": [
+    "history",
+    "context",
+    "notes"
+  ]
+}

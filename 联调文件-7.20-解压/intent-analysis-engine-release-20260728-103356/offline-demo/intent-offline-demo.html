@@ -1,0 +1,1052 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>自然语言意图分析平台 - 离线演示</title>
+    <style>
+      :root {
+        color: #172026;
+        background: #eef2f4;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          "Microsoft YaHei", sans-serif;
+        line-height: 1.5;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        min-width: 320px;
+      }
+
+      body {
+        min-width: 320px;
+        margin: 0;
+      }
+
+      button,
+      textarea {
+        font: inherit;
+      }
+
+      button {
+        border: 0;
+      }
+
+      .platform-page {
+        min-height: 100vh;
+        padding: 22px;
+      }
+
+      .platform-topbar,
+      .platform-workbench,
+      .task-layout,
+      .detail-layout {
+        width: min(1440px, 100%);
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .platform-topbar {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 14px;
+        border-bottom: 1px solid #ccd6dc;
+        padding-bottom: 14px;
+      }
+
+      .eyebrow,
+      .panel-heading p {
+        margin: 0 0 4px;
+        color: #60707a;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      .platform-topbar h1,
+      .panel-heading h2 {
+        margin: 0;
+        color: #172026;
+        letter-spacing: 0;
+      }
+
+      .platform-topbar h1 {
+        font-size: 28px;
+        line-height: 1.2;
+      }
+
+      .panel-heading h2 {
+        font-size: 18px;
+        line-height: 1.25;
+      }
+
+      .topbar-status {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .topbar-status span,
+      .request-chip,
+      .status-pill {
+        min-height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #c9d4da;
+        border-radius: 6px;
+        background: #ffffff;
+        color: #43525c;
+        padding: 5px 10px;
+        font-size: 13px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .status-pill {
+        background: #edf8f1;
+        color: #176342;
+        border-color: #b9dbc8;
+      }
+
+      .status-pill--warning {
+        background: #fff6df;
+        color: #835208;
+        border-color: #ead18d;
+      }
+
+      .platform-workbench,
+      .task-layout,
+      .detail-layout {
+        display: grid;
+        gap: 14px;
+      }
+
+      .platform-workbench {
+        grid-template-columns: minmax(360px, 0.9fr) minmax(520px, 1.1fr);
+        align-items: stretch;
+      }
+
+      .task-layout {
+        grid-template-columns: minmax(0, 1fr) 390px;
+        margin-top: 14px;
+      }
+
+      .detail-layout {
+        grid-template-columns: 1fr;
+        margin-top: 14px;
+      }
+
+      .input-panel,
+      .insight-panel,
+      .route-panel,
+      .engine-panel,
+      .clarification-panel {
+        min-width: 0;
+        border: 1px solid #d3dde3;
+        border-radius: 8px;
+        background: #ffffff;
+      }
+
+      .input-panel,
+      .route-panel,
+      .engine-panel,
+      .clarification-panel {
+        padding: 16px;
+      }
+
+      .insight-panel {
+        display: block;
+        padding: 16px;
+      }
+
+      .panel-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .analysis-form {
+        display: grid;
+        gap: 12px;
+      }
+
+      .analysis-form textarea {
+        width: 100%;
+        min-height: 174px;
+        resize: vertical;
+        border: 1px solid #b8c5cc;
+        border-radius: 8px;
+        background: #f9fbfc;
+        color: #172026;
+        padding: 12px;
+        outline: none;
+      }
+
+      .analysis-form textarea:focus {
+        border-color: #257b91;
+        box-shadow: 0 0 0 3px rgba(37, 123, 145, 0.18);
+      }
+
+      .analysis-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .primary-action,
+      .secondary-action,
+      .example-strip button {
+        min-height: 40px;
+        border-radius: 6px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .primary-action {
+        background: #19788a;
+        color: #ffffff;
+      }
+
+      .primary-action:hover {
+        background: #126879;
+      }
+
+      .secondary-action,
+      .example-strip button {
+        border: 1px solid #c8d4db;
+        background: #ffffff;
+        color: #33424b;
+      }
+
+      .secondary-action:hover,
+      .example-strip button:hover {
+        border-color: #8aa0aa;
+      }
+
+      .example-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 14px;
+      }
+
+      .example-strip button {
+        min-height: 34px;
+        padding: 6px 10px;
+        font-size: 13px;
+      }
+
+      .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .metric-tile {
+        min-height: 124px;
+        border: 1px solid #d3dde3;
+        border-radius: 8px;
+        background: #f8fafb;
+        padding: 16px;
+      }
+
+      .metric-tile span {
+        display: block;
+        color: #4b5a64;
+        font-size: 14px;
+        font-weight: 800;
+      }
+
+      .metric-tile strong {
+        display: block;
+        margin-top: 22px;
+        color: #07131c;
+        font-size: 36px;
+        line-height: 1;
+      }
+
+      .metric-tile--warning {
+        border-color: #d4aa45;
+        background: #fff8e7;
+      }
+
+
+      .task-timeline {
+        display: grid;
+        gap: 10px;
+      }
+
+      .task-row {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr);
+        gap: 12px;
+        border: 1px solid #d7e0e5;
+        border-radius: 8px;
+        background: #f9fbfc;
+        padding: 12px;
+      }
+
+      .task-order {
+        width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: #192832;
+        color: #ffffff;
+        font-weight: 900;
+      }
+
+      .task-main h3 {
+        margin: 0 0 6px;
+        font-size: 18px;
+      }
+
+      .task-meta,
+      .task-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .task-meta span,
+      .task-tags span,
+      .missing-list span {
+        border: 1px solid #ccd7de;
+        border-radius: 6px;
+        background: #ffffff;
+        padding: 4px 8px;
+        color: #394852;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .task-tags {
+        margin-top: 10px;
+      }
+
+      .task-tags .missing {
+        border-color: #d4aa45;
+        background: #fff8e7;
+        color: #77500c;
+      }
+
+      .empty-state {
+        min-height: 96px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px dashed #c1cdd4;
+        border-radius: 8px;
+        color: #667681;
+        font-weight: 800;
+      }
+
+      .engine-grid {
+        display: grid;
+        gap: 8px;
+      }
+
+      .engine-cell {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        min-height: 38px;
+        border: 1px solid #d5dfe5;
+        border-radius: 6px;
+        background: #f9fbfc;
+        padding: 8px 10px;
+        color: #43525c;
+        font-weight: 800;
+      }
+
+      .engine-cell::after {
+        content: "";
+        width: 10px;
+        height: 10px;
+        flex: 0 0 auto;
+        border-radius: 50%;
+        background: #aab7bf;
+      }
+
+      .engine-cell--active {
+        border-color: #1d8c65;
+        background: #edf8f1;
+        color: #176342;
+      }
+
+      .engine-cell--active::after {
+        background: #208f68;
+      }
+
+      .clarification-list,
+      .missing-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .clarification-list p {
+        margin: 0;
+        border: 1px solid #ead18d;
+        border-radius: 6px;
+        background: #fff8e7;
+        padding: 10px;
+        color: #77500c;
+        font-weight: 800;
+      }
+
+      .missing-list {
+        margin-bottom: 12px;
+      }
+
+      @media (max-width: 1080px) {
+        .platform-workbench,
+        .task-layout,
+        .detail-layout {
+          grid-template-columns: 1fr;
+        }
+
+        .metric-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 680px) {
+        .platform-page {
+          padding: 14px;
+        }
+
+        .platform-topbar {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .metric-grid,
+        .analysis-actions {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="platform-page">
+      <header class="platform-topbar">
+        <div>
+          <p class="eyebrow">Intent Analysis Engine</p>
+          <h1>自然语言意图分析平台</h1>
+        </div>
+        <div class="topbar-status" aria-label="运行状态">
+          <span id="runtimeStatus">离线演示</span>
+          <span id="clarifyStatus">待分析</span>
+          <span>业务执行未调用</span>
+        </div>
+      </header>
+
+      <section class="platform-workbench" aria-label="意图分析工作台">
+        <div class="input-panel">
+          <div class="panel-heading">
+            <div>
+              <p>请求输入</p>
+              <h2>用户自然语言</h2>
+            </div>
+            <span class="request-chip">offline_demo</span>
+          </div>
+
+          <form class="analysis-form" id="analysisForm">
+            <textarea id="requestText" rows="7" placeholder="输入用户请求"></textarea>
+            <div class="analysis-actions">
+              <button class="primary-action" type="submit">分析</button>
+            </div>
+          </form>
+
+          <div class="example-strip" id="examples" aria-label="示例请求"></div>
+        </div>
+
+        <div class="insight-panel">
+          <div class="metric-grid" aria-label="分析指标">
+            <div class="metric-tile">
+              <span>命中层级</span>
+              <strong id="metricLevel">-</strong>
+            </div>
+            <div class="metric-tile">
+              <span>任务数量</span>
+              <strong id="metricTaskCount">0</strong>
+            </div>
+            <div class="metric-tile">
+              <span>置信度</span>
+              <strong id="metricConfidence">0%</strong>
+            </div>
+            <div class="metric-tile" id="clarifyMetric">
+              <span>澄清状态</span>
+              <strong id="metricClarify">待分析</strong>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <section class="task-layout" aria-label="标准任务清单">
+        <section class="route-panel">
+          <div class="panel-heading">
+            <div>
+              <p>Intent Analysis Result</p>
+              <h2>标准任务清单</h2>
+            </div>
+          </div>
+          <div id="taskTimeline" class="task-timeline"></div>
+        </section>
+
+        <section class="engine-panel">
+          <div class="panel-heading">
+            <div>
+              <p>Target Engine</p>
+              <h2>目标引擎匹配</h2>
+            </div>
+          </div>
+          <div class="engine-grid" id="engineGrid"></div>
+        </section>
+      </section>
+
+      <section class="detail-layout" aria-label="分析明细">
+        <section class="clarification-panel">
+          <div class="panel-heading">
+            <div>
+              <p>Input Validator</p>
+              <h2>缺失输入与澄清</h2>
+            </div>
+            <span id="clarifyPill" class="status-pill">待分析</span>
+          </div>
+          <div id="missingInputs" class="missing-list"></div>
+          <div id="clarificationQuestions" class="clarification-list"></div>
+        </section>
+      </section>
+    </main>
+
+    <script>
+      const engineOrder = [
+        "ENG_DOCUMENT_TABLE_PARSING",
+        "ENG_EXTERNAL_SYSTEM_CONNECTOR",
+        "ENG_DATA_COLLECTION_AGGREGATION",
+        "ENG_RULE_CALCULATION",
+        "ENG_ANALYTICS_FORECASTING",
+        "ENG_KNOWLEDGE_QA",
+        "ENG_CONTENT_OUTPUT",
+        "ENG_MULTIMEDIA_GENERATION",
+        "ENG_WORKFLOW_EXECUTION",
+        "ENG_MONITORING_REMINDER",
+        "ENG_DIGITAL_ASSET",
+      ];
+
+      const engineNames = {
+        ENG_DOCUMENT_TABLE_PARSING: "文档表格解析",
+        ENG_EXTERNAL_SYSTEM_CONNECTOR: "外部系统对接",
+        ENG_DATA_COLLECTION_AGGREGATION: "数据归集聚合",
+        ENG_RULE_CALCULATION: "规则计算",
+        ENG_ANALYTICS_FORECASTING: "分析预测",
+        ENG_KNOWLEDGE_QA: "知识库问答",
+        ENG_CONTENT_OUTPUT: "内容产出",
+        ENG_MULTIMEDIA_GENERATION: "多媒体生成",
+        ENG_WORKFLOW_EXECUTION: "流程执行",
+        ENG_MONITORING_REMINDER: "监控提醒",
+        ENG_DIGITAL_ASSET: "数字资产",
+      };
+
+      const targetEngineNames = {
+        ENG_DOCUMENT_TABLE_PARSING: "文档表格解析引擎",
+        ENG_EXTERNAL_SYSTEM_CONNECTOR: "外部系统对接引擎",
+        ENG_DATA_COLLECTION_AGGREGATION: "数据归集聚合引擎",
+        ENG_RULE_CALCULATION: "规则计算引擎",
+        ENG_ANALYTICS_FORECASTING: "分析预测引擎",
+        ENG_KNOWLEDGE_QA: "知识库问答引擎",
+        ENG_CONTENT_OUTPUT: "内容产出引擎",
+        ENG_MULTIMEDIA_GENERATION: "多媒体生成引擎",
+        ENG_WORKFLOW_EXECUTION: "流程执行引擎",
+        ENG_MONITORING_REMINDER: "监控提醒引擎",
+        ENG_DIGITAL_ASSET: "数字资产引擎",
+      };
+
+      const requiredInputs = {
+        RULE_CALCULATION_COMMISSION: ["calculation_policy", "sales_data_source", "statistical_range"],
+        DATA_AGGREGATION_SUMMARY: ["classification_field", "statistical_range", "summary_field"],
+        MONITORING_REMINDER: ["monitoring_object", "trigger_condition"],
+        DOCUMENT_GENERATE: ["content_type", "topic"],
+        DATA_QUERY_FETCH: ["data_source", "operation"],
+        DATA_ANALYSIS_PROBLEM: ["analysis_object", "analysis_method"],
+        DATA_ANALYSIS_FORECAST: ["analysis_object"],
+        QUESTION_ANSWER: ["question"],
+        DOCUMENT_TABLE_PARSE: ["file"],
+        FILE_STRUCTURE_EXTRACT: ["file"],
+        EXTERNAL_DATA_FETCH: ["external_system", "operation"],
+        DIGITAL_ASSET_ACCRUAL_VOUCHER: ["asset_type", "source_result"],
+      };
+
+      const questions = {
+        calculation_policy: "请提供计算规则或适用政策。",
+        sales_data_source: "请提供销售数据来源（例如数据库、文件或业务系统）。",
+        statistical_range: "请确认统计范围（例如时间范围、组织范围）。",
+        classification_field: "请确认统计维度（例如区域、产品、客户）。",
+        summary_field: "请确认汇总字段（例如金额、数量、利润）。",
+        monitoring_object: "请确认监控对象。",
+        trigger_condition: "请确认触发提醒的条件。",
+        content_type: "请确认需要生成的内容类型。",
+        topic: "请确认内容主题。",
+        data_source: "请提供数据来源（例如数据库、文件或业务系统）。",
+        operation: "请确认需要执行的系统操作。",
+        analysis_object: "请确认分析对象。",
+        analysis_method: "请确认分析方法。",
+        question: "请提供需要回答的问题。",
+        file: "请提供需要解析的文件或附件。",
+        external_system: "请确认目标外部系统。",
+        asset_type: "请确认数字资产或凭证类型。",
+        source_result: "请提供生成数字资产所依据的来源结果。",
+      };
+
+      const examples = [
+        "销售提成",
+        "帮我看看销售人员奖金怎么算",
+        "库存低于 提醒我",
+        "库存低于100时提醒我",
+        "把上个月各区域销售数据整理出来，算提成，再生成凭证",
+        "生成经营分析报告",
+        "统计销售金额",
+        "最近经营情况怎么样",
+        "客户名单给我看一下",
+        "解析上传的销售明细Excel表格",
+        "从CRM系统获取客户资料",
+        "整理客户投诉并生成改进方案",
+      ];
+
+      function includesAny(text, keywords) {
+        return keywords.some((keyword) => text.includes(keyword));
+      }
+
+      function createTask({ taskName, taskType, engineCode, required = [], dependencies = [], order = 1, confidence = 0.9 }) {
+        return {
+          task_id: `offline-task-${order}`,
+          task_name: taskName,
+          task_type: taskType,
+          target_engine: targetEngineNames[engineCode],
+          engine_code: engineCode,
+          required_inputs: required,
+          missing_inputs: [],
+          dependencies,
+          execution_order: order,
+          confidence,
+        };
+      }
+
+      function providedKeys(inputs) {
+        return new Set(inputs.map((value) => String(value).split(":", 1)[0]));
+      }
+
+      function validateTasks(tasks) {
+        for (const task of tasks) {
+          const required = requiredInputs[task.task_type] || [];
+          const provided = providedKeys(task.required_inputs);
+          task.missing_inputs = required.filter((input) => !provided.has(input));
+        }
+        const missing = [];
+        for (const task of tasks) {
+          for (const input of task.missing_inputs) {
+            if (!missing.includes(input)) {
+              missing.push(input);
+            }
+          }
+        }
+        return missing;
+      }
+
+      function hasMonitoringTrigger(text) {
+        if (includesAny(text, ["到期", "逾期", "超时", "超预算", "明天", "今天", "每周", "每天", "每月", "定时"])) {
+          return true;
+        }
+        return /(超过|低于|少于|高于|大于|小于|不低于|不高于)\s*.{0,8}?(\d+(?:\.\d+)?|[一二三四五六七八九十百千万]+|阈值|目标|预算|安全值|账期)/.test(text);
+      }
+
+      function analyzeOffline(rawText) {
+        const text = rawText.trim();
+        const debug = {
+          fast_path: null,
+          level1_result: null,
+          level2_result: null,
+          level3_result: null,
+          level1_rule_result: { matched: false, rule: null },
+          level2_semantic_result: { matched: false, top_candidates: [], threshold: 0.5 },
+          final_decision: null,
+          business_execution: "not_called",
+        };
+
+        let tasks = [];
+        let intentCategory = "智能问答型";
+        let level = 1;
+        let confidence = 0.86;
+
+        if (!text) {
+          return wrapResult(text, [], "智能问答型", 3, 0, debug, ["请补充要处理的具体目标、数据来源或输出形式。"]);
+        }
+
+        if (includesAny(text, ["是什么", "什么是", "如何", "为什么", "解释"]) && includesAny(text, ["政策", "制度", "规则", "报销"])) {
+          tasks = [
+            createTask({
+              taskName: "智能问答",
+              taskType: "QUESTION_ANSWER",
+              engineCode: "ENG_KNOWLEDGE_QA",
+              required: [`question:${text}`],
+              confidence: 0.96,
+            }),
+          ];
+          intentCategory = "智能问答型";
+          level = 1;
+          confidence = 0.96;
+          debug.fast_path = { matched: true, type: "question_fast_path" };
+          debug.level1_rule_result = { matched: true, rule: "question_fast_path" };
+          debug.final_decision = { selected_by: "rule", reason: "Question fast path matched." };
+        } else if (text.includes("销售") && includesAny(text, ["提成", "佣金", "奖金"]) && text.includes("凭证")) {
+          tasks = [
+            createTask({
+              taskName: "获取销售明细",
+              taskType: "DATA_QUERY_FETCH",
+              engineCode: "ENG_DATA_COLLECTION_AGGREGATION",
+              required: ["data_source:销售明细", "operation:查询获取", text.includes("上月") || text.includes("上个月") ? "statistical_range:上个月" : "", text.includes("区域") ? "classification_field:区域" : ""].filter(Boolean),
+              order: 1,
+              confidence: 0.93,
+            }),
+            createTask({
+              taskName: "根据政策计算销售提成",
+              taskType: "RULE_CALCULATION_COMMISSION",
+              engineCode: "ENG_RULE_CALCULATION",
+              required: ["calculation_policy:销售提成政策", "sales_data_source:销售明细", text.includes("上月") || text.includes("上个月") ? "statistical_range:上个月" : ""].filter(Boolean),
+              dependencies: ["offline-task-1"],
+              order: 2,
+              confidence: 0.91,
+            }),
+            createTask({
+              taskName: "生成计提凭证",
+              taskType: "DIGITAL_ASSET_ACCRUAL_VOUCHER",
+              engineCode: "ENG_DIGITAL_ASSET",
+              required: ["asset_type:计提凭证", "source_result:销售提成计算结果"],
+              dependencies: ["offline-task-2"],
+              order: 3,
+              confidence: 0.9,
+            }),
+          ];
+          intentCategory = "规则计算型";
+          level = 3;
+          confidence = 0.9;
+          debug.level1_rule_result = { matched: true, rule: "task_decomposer" };
+          debug.level3_result = { matched: true, source: "TaskDecomposer" };
+          debug.final_decision = { selected_by: "rule", reason: "TaskDecomposer matched a deterministic multi-task pattern." };
+        } else if (text.includes("客户投诉") && includesAny(text, ["改进方案", "方案"])) {
+          tasks = [
+            createTask({ taskName: "投诉信息整理", taskType: "COMPLAINT_INFORMATION_ORGANIZE", engineCode: "ENG_DATA_COLLECTION_AGGREGATION", required: ["data_object:客户投诉"], order: 1, confidence: 0.9 }),
+            createTask({ taskName: "问题分析", taskType: "DATA_ANALYSIS_PROBLEM", engineCode: "ENG_ANALYTICS_FORECASTING", required: ["analysis_object:客户投诉", "analysis_method:问题分析"], dependencies: ["offline-task-1"], order: 2, confidence: 0.88 }),
+            createTask({ taskName: "方案生成", taskType: "IMPROVEMENT_PLAN_GENERATE", engineCode: "ENG_CONTENT_OUTPUT", required: ["topic:客户投诉改进方案"], dependencies: ["offline-task-2"], order: 3, confidence: 0.87 }),
+          ];
+          intentCategory = "内容生成型";
+          level = 3;
+          confidence = 0.87;
+          debug.level1_rule_result = { matched: true, rule: "task_decomposer" };
+          debug.level3_result = { matched: true, source: "TaskDecomposer" };
+          debug.final_decision = { selected_by: "rule", reason: "TaskDecomposer matched a deterministic multi-task pattern." };
+        } else if (includesAny(text, ["提醒", "监控", "预警", "告警", "通知我", "到期", "超过", "低于", "少于", "高于"])) {
+          const required = [];
+          const object = ["库存", "销售额", "回款", "订单", "合同", "余额", "风险"].find((keyword) => text.includes(keyword));
+          if (object) required.push(`monitoring_object:${object}`);
+          if (hasMonitoringTrigger(text)) required.push("trigger_condition:已识别");
+          tasks = [createTask({ taskName: "创建监控提醒", taskType: "MONITORING_REMINDER", engineCode: "ENG_MONITORING_REMINDER", required, confidence: 0.91 })];
+          intentCategory = "流程办理型";
+          level = 1;
+          confidence = 0.91;
+          debug.level1_rule_result = { matched: true, rule: "monitoring_reminder", rule_priority: 91 };
+          debug.level1_result = { matched: true, source: "OperationRuleMatcher", rule_name: "monitoring_reminder" };
+          debug.final_decision = { selected_by: "rule", reason: "Level1 rule 'monitoring_reminder' matched." };
+        } else if (includesAny(text, ["销售提成", "提成", "佣金", "销售人员奖金", "奖金怎么算"])) {
+          const semanticLike = includesAny(text, ["帮我看看", "怎么看", "怎么算", "奖金"]);
+          tasks = [createTask({ taskName: "计算销售提成", taskType: "RULE_CALCULATION_COMMISSION", engineCode: "ENG_RULE_CALCULATION", required: detectCommissionInputs(text), confidence: semanticLike ? 0.88 : 0.86 })];
+          intentCategory = "规则计算型";
+          level = semanticLike ? 2 : 1;
+          confidence = semanticLike ? 0.88 : 0.86;
+          if (semanticLike) {
+            debug.level2_result = { matched: true, source: "SemanticMatcher" };
+            debug.level2_semantic_result = {
+              matched: true,
+              top_candidates: [{ engine_code: "ENG_RULE_CALCULATION", task_type: "RULE_CALCULATION_COMMISSION", confidence: 0.88 }],
+              threshold: 0.5,
+            };
+            debug.final_decision = { selected_by: "semantic", reason: "Level2 semantic matcher selected commission calculation." };
+          } else {
+            debug.level1_rule_result = { matched: true, rule: "rule_calculation", rule_priority: 70 };
+            debug.level1_result = { matched: true, source: "OperationRuleMatcher", rule_name: "rule_calculation" };
+            debug.final_decision = { selected_by: "rule", reason: "Level1 recognized a business topic and delegated missing inputs to validator." };
+          }
+        } else if (includesAny(text, ["统计", "汇总"])) {
+          const required = ["operation:统计汇总"];
+          if (includesAny(text, ["金额", "数量", "利润", "销售额"])) required.push("summary_field:已识别");
+          if (includesAny(text, ["本月", "上月", "上个月", "季度", "今年"])) required.push("statistical_range:已识别");
+          if (includesAny(text, ["区域", "产品", "客户", "部门", "渠道"])) required.push("classification_field:已识别");
+          tasks = [createTask({ taskName: "数据统计汇总", taskType: "DATA_AGGREGATION_SUMMARY", engineCode: "ENG_DATA_COLLECTION_AGGREGATION", required, confidence: 0.9 })];
+          intentCategory = "数据分析型";
+          level = 1;
+          confidence = 0.9;
+          debug.level1_result = { matched: true, source: "OperationRuleMatcher", rule_name: "summary" };
+          debug.level1_rule_result = { matched: true, rule: "summary", rule_priority: 82 };
+          debug.final_decision = { selected_by: "rule", reason: "Level1 summary rule matched." };
+        } else if (includesAny(text, ["经营情况", "经营分析", "业务表现", "波动", "原因"])) {
+          tasks = [createTask({ taskName: "经营分析", taskType: "DATA_ANALYSIS_PROBLEM", engineCode: "ENG_ANALYTICS_FORECASTING", required: detectAnalysisInputs(text), confidence: 0.86 })];
+          intentCategory = "数据分析型";
+          level = 2;
+          confidence = 0.86;
+          debug.level2_result = { matched: true, source: "SemanticMatcher" };
+          debug.level2_semantic_result = {
+            matched: true,
+            top_candidates: [{ engine_code: "ENG_ANALYTICS_FORECASTING", task_type: "DATA_ANALYSIS_PROBLEM", confidence: 0.86 }],
+            threshold: 0.5,
+          };
+          debug.final_decision = { selected_by: "semantic", reason: "Level2 semantic matcher selected business analysis." };
+        } else if (includesAny(text, ["客户名单", "客户信息", "客户列表"])) {
+          tasks = [createTask({ taskName: "获取业务数据", taskType: "DATA_QUERY_FETCH", engineCode: "ENG_DATA_COLLECTION_AGGREGATION", required: ["data_source:客户数据", "operation:查询获取"], confidence: 0.84 })];
+          intentCategory = "数据查询型";
+          level = 2;
+          confidence = 0.84;
+          debug.level2_result = { matched: true, source: "SemanticMatcher" };
+          debug.final_decision = { selected_by: "semantic", reason: "Level2 semantic matcher selected data query." };
+        } else if (includesAny(text, ["生成经营分析报告", "报告", "文档", "材料"])) {
+          tasks = [createTask({ taskName: "生成业务文档", taskType: "DOCUMENT_GENERATE", engineCode: "ENG_CONTENT_OUTPUT", required: ["content_type:文档", includesAny(text, ["经营"]) ? "topic:经营" : ""].filter(Boolean), confidence: 0.9 })];
+          intentCategory = "文档生成型";
+          level = 1;
+          confidence = 0.9;
+          debug.level1_result = { matched: true, source: "OperationRuleMatcher", rule_name: "content_output" };
+          debug.level1_rule_result = { matched: true, rule: "content_output", rule_priority: 95 };
+          debug.final_decision = { selected_by: "rule", reason: "Level1 content generation rule matched." };
+        } else if (includesAny(text, ["Excel", "表格", "附件", "文件", "发票", "合同"])) {
+          tasks = [createTask({ taskName: "解析文档表格", taskType: "DOCUMENT_TABLE_PARSE", engineCode: "ENG_DOCUMENT_TABLE_PARSING", required: ["file:已识别"], confidence: 0.94 })];
+          intentCategory = "数据查询型";
+          level = 1;
+          confidence = 0.94;
+          debug.level1_result = { matched: true, source: "OperationRuleMatcher", rule_name: "document_table_parsing" };
+          debug.final_decision = { selected_by: "rule", reason: "Level1 document parsing rule matched." };
+        } else if (includesAny(text.toLowerCase(), ["crm", "erp", "oa", "sap"])) {
+          tasks = [createTask({ taskName: "获取外部系统数据", taskType: "EXTERNAL_DATA_FETCH", engineCode: "ENG_EXTERNAL_SYSTEM_CONNECTOR", required: ["external_system:已识别", "operation:fetch"], confidence: 0.93 })];
+          intentCategory = "数据查询型";
+          level = 1;
+          confidence = 0.93;
+          debug.level1_result = { matched: true, source: "OperationRuleMatcher", rule_name: "external_system_connector" };
+          debug.final_decision = { selected_by: "rule", reason: "Level1 external system rule matched." };
+        } else {
+          debug.level3_result = { matched: false, source: "fallback" };
+          debug.final_decision = { selected_by: "fallback", reason: "No matcher produced a task; returning clarification fallback." };
+          return wrapResult(text, [], "智能问答型", 3, 0, debug, ["请补充要处理的具体目标、数据来源或输出形式。"]);
+        }
+
+        return wrapResult(text, tasks, intentCategory, level, confidence, debug);
+      }
+
+      function detectCommissionInputs(text) {
+        const inputs = [];
+        if (includesAny(text, ["政策", "规则", "公式"])) inputs.push("calculation_policy:已识别");
+        if (includesAny(text, ["销售数据", "销售明细", "数据", "明细"])) inputs.push("sales_data_source:销售数据");
+        if (includesAny(text, ["本月", "上月", "上个月", "季度", "今年"])) inputs.push("statistical_range:已识别");
+        return inputs;
+      }
+
+      function detectAnalysisInputs(text) {
+        const inputs = [];
+        const object = ["经营", "销售", "客户投诉", "库存", "利润", "收入", "成本", "风险", "订单"].find((keyword) => text.includes(keyword));
+        if (object) inputs.push(`analysis_object:${object}`);
+        if (includesAny(text, ["分析", "看看", "情况", "原因", "诊断"])) inputs.push("analysis_method:问题分析");
+        return inputs;
+      }
+
+      function wrapResult(text, tasks, intentCategory, level, confidence, debug, fallbackQuestions) {
+        const missing = validateTasks(tasks);
+        const clarificationQuestions = fallbackQuestions || missing.map((input) => questions[input] || `请补充 ${input}。`);
+        const result = {
+          success: true,
+          data: {
+            request_id: `offline-${Date.now()}`,
+            original_text: text,
+            intent_category: intentCategory,
+            tasks,
+            clarification_required: clarificationQuestions.length > 0,
+            clarification_questions: clarificationQuestions,
+            analysis_level: level,
+            overall_confidence: confidence,
+            created_at: new Date().toISOString(),
+          },
+          error: null,
+          debug: {
+            ...debug,
+            input_validator: {
+              missing_inputs: missing,
+              rules: tasks.flatMap((task) =>
+                task.missing_inputs.map((input) => ({
+                  task_type: task.task_type,
+                  input_name: input,
+                  validator_rule: "required_input_missing",
+                  source: "offline.required_inputs",
+                })),
+              ),
+            },
+            final_tasklist: null,
+          },
+        };
+        result.debug.final_tasklist = result.data;
+        return result;
+      }
+
+      function render(result) {
+        const data = result.data;
+        const tasks = [...data.tasks].sort((left, right) => left.execution_order - right.execution_order);
+        const usedEngines = new Set(tasks.map((task) => task.engine_code));
+        const confidence = Math.round((data.overall_confidence || 0) * 100);
+
+        document.getElementById("runtimeStatus").textContent = "离线演示";
+        document.getElementById("clarifyStatus").textContent = data.clarification_required ? "需要澄清" : "标准输出";
+        document.getElementById("metricLevel").textContent = data.analysis_level ? `L${data.analysis_level}` : "-";
+        document.getElementById("metricTaskCount").textContent = String(tasks.length);
+        document.getElementById("metricConfidence").textContent = `${confidence}%`;
+        document.getElementById("metricClarify").textContent = data.clarification_required ? "需要" : "无需";
+        document.getElementById("clarifyMetric").classList.toggle("metric-tile--warning", data.clarification_required);
+        renderTasks(tasks);
+        renderEngines(usedEngines);
+        renderClarification(data, tasks);
+      }
+
+      function renderInitialState() {
+        document.getElementById("runtimeStatus").textContent = "离线演示";
+        document.getElementById("clarifyStatus").textContent = "待分析";
+        document.getElementById("metricLevel").textContent = "-";
+        document.getElementById("metricTaskCount").textContent = "0";
+        document.getElementById("metricConfidence").textContent = "0%";
+        document.getElementById("metricClarify").textContent = "待分析";
+        document.getElementById("clarifyMetric").classList.remove("metric-tile--warning");
+        renderTasks([]);
+        renderEngines(new Set());
+        document.getElementById("clarifyPill").textContent = "待分析";
+        document.getElementById("clarifyPill").className = "status-pill";
+        document.getElementById("missingInputs").innerHTML = "";
+        document.getElementById("clarificationQuestions").innerHTML = '<div class="empty-state">等待输入后检查缺失信息</div>';
+      }
+
+      function renderTasks(tasks) {
+        const timeline = document.getElementById("taskTimeline");
+        timeline.innerHTML = "";
+        if (!tasks.length) {
+          timeline.innerHTML = '<div class="empty-state">等待可执行标准任务</div>';
+          return;
+        }
+        for (const task of tasks) {
+          const row = document.createElement("article");
+          row.className = "task-row";
+          const tags = [
+            ...task.required_inputs.map((input) => `<span>${escapeHtml(input)}</span>`),
+            ...task.missing_inputs.map((input) => `<span class="missing">缺失 ${escapeHtml(input)}</span>`),
+          ].join("");
+          row.innerHTML = `
+            <div class="task-order">${task.execution_order}</div>
+            <div class="task-main">
+              <h3>${escapeHtml(task.task_name)}</h3>
+              <div class="task-meta">
+                <span>${escapeHtml(task.engine_code)}</span>
+                <span>${escapeHtml(task.task_type)}</span>
+                <span>${Math.round(task.confidence * 100)}%</span>
+              </div>
+              <div class="task-tags">${tags || "<span>无已提供输入</span>"}</div>
+            </div>
+          `;
+          timeline.appendChild(row);
+        }
+      }
+
+      function renderEngines(usedEngines) {
+        const grid = document.getElementById("engineGrid");
+        grid.innerHTML = "";
+        for (const engineCode of engineOrder) {
+          const item = document.createElement("div");
+          item.className = `engine-cell ${usedEngines.has(engineCode) ? "engine-cell--active" : ""}`;
+          item.textContent = engineNames[engineCode];
+          grid.appendChild(item);
+        }
+      }
+
+      function renderClarification(data, tasks) {
+        const pill = document.getElementById("clarifyPill");
+        pill.textContent = data.clarification_required ? "需要澄清" : "无需澄清";
+        pill.className = `status-pill ${data.clarification_required ? "status-pill--warning" : ""}`;
+
+        const missingPanel = document.getElementById("missingInputs");
+        const allMissing = [];
+        for (const task of tasks) {
+          for (const input of task.missing_inputs) {
+            if (!allMissing.includes(input)) allMissing.push(input);
+          }
+        }
+        missingPanel.innerHTML = allMissing.map((input) => `<span>${escapeHtml(input)}</span>`).join("");
+
+        const questionPanel = document.getElementById("clarificationQuestions");
+        if (!data.clarification_questions.length) {
+          questionPanel.innerHTML = '<div class="empty-state">无缺失输入</div>';
+          return;
+        }
+        questionPanel.innerHTML = data.clarification_questions.map((question) => `<p>${escapeHtml(question)}</p>`).join("");
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function bindExamples() {
+        const examplesContainer = document.getElementById("examples");
+        examplesContainer.innerHTML = "";
+        for (const example of examples) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.textContent = example;
+          button.addEventListener("click", () => {
+            document.getElementById("requestText").value = example;
+            render(analyzeOffline(example));
+          });
+          examplesContainer.appendChild(button);
+        }
+      }
+
+      document.getElementById("analysisForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const text = document.getElementById("requestText").value.trim();
+        if (!text) {
+          renderInitialState();
+          return;
+        }
+        render(analyzeOffline(text));
+      });
+
+      bindExamples();
+      renderInitialState();
+    </script>
+  </body>
+</html>

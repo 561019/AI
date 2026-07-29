@@ -1,0 +1,163 @@
+{
+  "schema_version": "v1",
+  "trace_id": "2024-利润表",
+  "analysis_type": "financial_statement",
+  "records": [
+    {
+      "period": "2024-01",
+      "source_record_id": "2024-01",
+      "metrics": {
+        "revenue": "9200000.00",
+        "operating_cost": "6260000.00",
+        "selling_expense": "920000.00",
+        "admin_expense": "740000.00",
+        "rd_expense": "180000.00",
+        "finance_expense": "46000.00",
+        "net_income": "790500.00"
+      }
+    },
+    {
+      "period": "2024-02",
+      "source_record_id": "2024-02",
+      "metrics": {
+        "revenue": "8400000.00",
+        "operating_cost": "5710000.00",
+        "selling_expense": "840000.00",
+        "admin_expense": "670000.00",
+        "rd_expense": "170000.00",
+        "finance_expense": "42000.00",
+        "net_income": "726000.00"
+      }
+    },
+    {
+      "period": "2024-03",
+      "source_record_id": "2024-03",
+      "metrics": {
+        "revenue": "10200000.00",
+        "operating_cost": "6940000.00",
+        "selling_expense": "1020000.00",
+        "admin_expense": "820000.00",
+        "rd_expense": "200000.00",
+        "finance_expense": "51000.00",
+        "net_income": "876750.00"
+      }
+    },
+    {
+      "period": "2024-04",
+      "source_record_id": "2024-04",
+      "metrics": {
+        "revenue": "10600000.00",
+        "operating_cost": "7210000.00",
+        "selling_expense": "1060000.00",
+        "admin_expense": "850000.00",
+        "rd_expense": "210000.00",
+        "finance_expense": "53000.00",
+        "net_income": "912750.00"
+      }
+    },
+    {
+      "period": "2024-05",
+      "source_record_id": "2024-05",
+      "metrics": {
+        "revenue": "11000000.00",
+        "operating_cost": "7480000.00",
+        "selling_expense": "1100000.00",
+        "admin_expense": "880000.00",
+        "rd_expense": "220000.00",
+        "finance_expense": "55000.00",
+        "net_income": "948750.00"
+      }
+    },
+    {
+      "period": "2024-06",
+      "source_record_id": "2024-06",
+      "metrics": {
+        "revenue": "11800000.00",
+        "operating_cost": "8020000.00",
+        "selling_expense": "1180000.00",
+        "admin_expense": "940000.00",
+        "rd_expense": "240000.00",
+        "finance_expense": "59000.00",
+        "net_income": "1020750.00"
+      }
+    },
+    {
+      "period": "2024-07",
+      "source_record_id": "2024-07",
+      "metrics": {
+        "revenue": "12000000.00",
+        "operating_cost": "8160000.00",
+        "selling_expense": "1200000.00",
+        "admin_expense": "960000.00",
+        "rd_expense": "240000.00",
+        "finance_expense": "60000.00",
+        "net_income": "1035000.00"
+      }
+    },
+    {
+      "period": "2024-08",
+      "source_record_id": "2024-08",
+      "metrics": {
+        "revenue": "11200000.00",
+        "operating_cost": "7620000.00",
+        "selling_expense": "1120000.00",
+        "admin_expense": "900000.00",
+        "rd_expense": "220000.00",
+        "finance_expense": "56000.00",
+        "net_income": "963000.00"
+      }
+    },
+    {
+      "period": "2024-09",
+      "source_record_id": "2024-09",
+      "metrics": {
+        "revenue": "12500000.00",
+        "operating_cost": "8500000.00",
+        "selling_expense": "1250000.00",
+        "admin_expense": "1000000.00",
+        "rd_expense": "250000.00",
+        "finance_expense": "62500.00",
+        "net_income": "1078125.00"
+      }
+    },
+    {
+      "period": "2024-10",
+      "source_record_id": "2024-10",
+      "metrics": {
+        "revenue": "13000000.00",
+        "operating_cost": "8840000.00",
+        "selling_expense": "1300000.00",
+        "admin_expense": "1040000.00",
+        "rd_expense": "260000.00",
+        "finance_expense": "65000.00",
+        "net_income": "1121250.00"
+      }
+    },
+    {
+      "period": "2024-11",
+      "source_record_id": "2024-11",
+      "metrics": {
+        "revenue": "13800000.00",
+        "operating_cost": "9380000.00",
+        "selling_expense": "1380000.00",
+        "admin_expense": "1100000.00",
+        "rd_expense": "280000.00",
+        "finance_expense": "69000.00",
+        "net_income": "1193250.00"
+      }
+    },
+    {
+      "period": "2024-12",
+      "source_record_id": "2024-12",
+      "metrics": {
+        "revenue": "15800000.00",
+        "operating_cost": "10740000.00",
+        "selling_expense": "1580000.00",
+        "admin_expense": "1260000.00",
+        "rd_expense": "320000.00",
+        "finance_expense": "79000.00",
+        "net_income": "1365750.00"
+      }
+    }
+  ]
+}

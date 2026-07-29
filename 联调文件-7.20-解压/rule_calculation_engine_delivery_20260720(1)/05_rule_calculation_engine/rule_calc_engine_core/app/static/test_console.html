@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>规则计算引擎测试台</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d8dee9;
+      --soft: #f5f7fa;
+      --panel: #ffffff;
+      --brand: #155eef;
+      --brand-soft: #eef4ff;
+      --success: #067647;
+      --success-soft: #ecfdf3;
+      --warning: #b54708;
+      --warning-soft: #fffaeb;
+      --danger: #b42318;
+      --danger-soft: #fef3f2;
+      --code: #182230;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: #eef1f5;
+      color: var(--ink);
+      font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+    button { font: inherit; }
+    .topbar {
+      min-height: 68px;
+      padding: 14px clamp(18px, 3vw, 40px);
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .brand h1 { margin: 0; font-size: 20px; line-height: 1.35; }
+    .brand p { margin: 3px 0 0; color: var(--muted); font-size: 13px; }
+    .health {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .health-dot { width: 9px; height: 9px; border-radius: 50%; background: #98a2b3; }
+    .health.online .health-dot { background: #12b76a; }
+    .health.offline .health-dot { background: #f04438; }
+    .layout {
+      width: min(1500px, 100%);
+      margin: 0 auto;
+      padding: 22px clamp(14px, 2.5vw, 34px) 36px;
+      display: grid;
+      grid-template-columns: minmax(230px, 300px) minmax(0, 1fr);
+      gap: 18px;
+    }
+    .sidebar, .workspace {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    .sidebar { padding: 18px; align-self: start; }
+    .sidebar h2, .section-title { margin: 0; font-size: 15px; }
+    .sidebar-intro { margin: 7px 0 15px; color: var(--muted); font-size: 13px; line-height: 1.65; }
+    .scenario-list { display: grid; gap: 8px; }
+    .scenario {
+      width: 100%;
+      min-height: 76px;
+      padding: 11px 12px;
+      text-align: left;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .scenario:hover { border-color: #84adff; background: #f9fbff; }
+    .scenario.active { border-color: var(--brand); background: var(--brand-soft); }
+    .scenario strong { display: block; font-size: 14px; margin-bottom: 5px; }
+    .scenario span { color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .run-button {
+      width: 100%;
+      min-height: 42px;
+      margin-top: 14px;
+      border: 0;
+      border-radius: 6px;
+      background: var(--brand);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .run-button:hover { background: #004eeb; }
+    .run-button:disabled { cursor: wait; opacity: .65; }
+    .workspace { min-width: 0; overflow: hidden; }
+    .result-head {
+      min-height: 112px;
+      padding: 20px 22px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+    }
+    .eyebrow { color: var(--muted); font-size: 12px; margin-bottom: 7px; }
+    .result-head h2 { margin: 0; font-size: 22px; line-height: 1.4; }
+    .result-head p { margin: 7px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .state-badge {
+      flex: 0 0 auto;
+      padding: 7px 10px;
+      border-radius: 6px;
+      background: var(--soft);
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .state-badge.success { color: var(--success); background: var(--success-soft); }
+    .state-badge.warning { color: var(--warning); background: var(--warning-soft); }
+    .state-badge.danger { color: var(--danger); background: var(--danger-soft); }
+    .content { padding: 20px 22px 26px; }
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(120px, 1fr));
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 22px;
+    }
+    .step { min-height: 86px; padding: 12px; background: #fff; border-right: 1px solid var(--line); }
+    .step:last-child { border-right: 0; }
+    .step-number { color: var(--brand); font-size: 12px; font-weight: 700; }
+    .step strong { display: block; margin: 6px 0 4px; font-size: 13px; }
+    .step span { color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .step.done { background: var(--success-soft); }
+    .step.stopped { background: var(--danger-soft); }
+    .detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, .7fr); gap: 20px; }
+    .section { min-width: 0; margin-bottom: 22px; }
+    .section-title { padding-bottom: 9px; border-bottom: 1px solid var(--line); }
+    .fact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; }
+    .fact { padding: 11px 0; border-bottom: 1px solid #eaecf0; min-width: 0; }
+    .fact label { display: block; color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+    .fact strong { display: block; font-size: 13px; overflow-wrap: anywhere; }
+    .metric {
+      margin: 12px 0 0;
+      padding: 16px;
+      border-left: 4px solid var(--brand);
+      background: var(--brand-soft);
+    }
+    .metric label { color: var(--muted); font-size: 12px; }
+    .metric strong { display: block; margin-top: 5px; font-size: 26px; }
+    .checks { display: grid; gap: 8px; margin-top: 12px; }
+    .check { display: flex; gap: 10px; padding: 10px 11px; background: var(--soft); border-radius: 5px; }
+    .check-mark { color: var(--success); font-weight: 800; }
+    .check.fail .check-mark { color: var(--danger); }
+    .check strong { display: block; font-size: 12px; }
+    .check span { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .trace {
+      margin-top: 12px;
+      padding: 12px;
+      background: var(--code);
+      color: #d0d5dd;
+      border-radius: 5px;
+      font: 12px/1.65 Consolas, monospace;
+      overflow-wrap: anywhere;
+    }
+    .empty {
+      min-height: 360px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.8;
+    }
+    .result-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12px; }
+    .result-table th, .result-table td { padding: 9px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    .result-table th { color: var(--muted); background: var(--soft); font-weight: 600; }
+    .result-table td { overflow-wrap: anywhere; }
+    @media (max-width: 1050px) {
+      .pipeline { grid-template-columns: repeat(3, 1fr); }
+      .step:nth-child(3) { border-right: 0; }
+      .step:nth-child(-n+3) { border-bottom: 1px solid var(--line); }
+      .detail-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 760px) {
+      .topbar { align-items: flex-start; }
+      .layout { grid-template-columns: 1fr; }
+      .scenario-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .result-head { flex-direction: column; }
+      .pipeline { grid-template-columns: repeat(2, 1fr); }
+      .step:nth-child(2n) { border-right: 0; }
+      .step:nth-child(-n+4) { border-bottom: 1px solid var(--line); }
+      .step:nth-child(3) { border-right: 1px solid var(--line); }
+    }
+    @media (max-width: 480px) {
+      .scenario-list, .fact-grid { grid-template-columns: 1fr; }
+      .pipeline { grid-template-columns: 1fr; }
+      .step { border-right: 0; border-bottom: 1px solid var(--line); }
+      .step:last-child { border-bottom: 0; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>规则计算引擎测试台</h1>
+      <p>直接调用真实后端，用结果、版本和追踪记录判断引擎是否成功运行</p>
+    </div>
+    <div class="health" id="health"><span class="health-dot"></span><span>正在检查后端</span></div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <h2>选择测试</h2>
+      <p class="sidebar-intro">先选一种情况，再点击运行。测试使用本地模拟的正式能力、规则和业务数据。</p>
+      <div class="scenario-list" id="scenarioList"></div>
+      <button class="run-button" id="runButton">运行当前测试</button>
+    </aside>
+
+    <section class="workspace">
+      <div class="result-head">
+        <div>
+          <div class="eyebrow">当前测试结果</div>
+          <h2 id="resultTitle">尚未运行</h2>
+          <p id="resultMessage">选择左侧场景并运行，页面将展示完整执行证据。</p>
+        </div>
+        <div class="state-badge" id="stateBadge">等待测试</div>
+      </div>
+      <div class="content" id="content">
+        <div class="empty">这里不会只显示“计算完成”。<br>运行后会展示能力、规则、数据、计算结果、校验和追踪编号。</div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const scenarios = [
+      {
+        id: "bad_debt",
+        name: "坏账准备计算",
+        note: "验证正式能力、金额计算和关键结果待确认",
+        businessType: "bad_debt_provision",
+        dataReference: "DS-RECEIVABLES-2026Q2",
+        identity: "ctx-business-operator",
+        objectId: "ORG-001",
+        period: "2026-Q2"
+      },
+      {
+        id: "order_audit",
+        name: "订单区间审核",
+        note: "验证逐笔区间判断和异常订单分流",
+        businessType: "order_range_audit",
+        dataReference: "DS-ORDERS-2026Q2",
+        identity: "ctx-business-operator",
+        objectId: "ORG-001",
+        period: "2026-Q2"
+      },
+      {
+        id: "permission_block",
+        name: "权限阻断",
+        note: "验证无权人员不能读取数据或执行计算",
+        businessType: "bad_debt_provision",
+        dataReference: "DS-RECEIVABLES-2026Q2",
+        identity: "ctx-unauthorized-user",
+        objectId: "ORG-001",
+        period: "2026-Q2"
+      },
+      {
+        id: "missing_capability",
+        name: "无正式能力",
+        note: "验证不能随意计算，先等待用户授权 AI 生成",
+        businessType: "temporary_margin_simulation",
+        dataReference: "DS-RECEIVABLES-2026Q2",
+        identity: "ctx-business-operator",
+        objectId: "ORG-001",
+        period: "2026-Q2"
+      }
+    ];
+
+    let selected = scenarios[0];
+    const scenarioList = document.getElementById("scenarioList");
+    const runButton = document.getElementById("runButton");
+
+    function escapeHtml(value) {
+      return String(value ?? "-").replace(/[&<>'"]/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"})[char]);
+    }
+
+    function renderScenarios() {
+      scenarioList.innerHTML = scenarios.map(item => `
+        <button class="scenario ${item.id === selected.id ? "active" : ""}" data-id="${item.id}">
+          <strong>${item.name}</strong><span>${item.note}</span>
+        </button>`).join("");
+      scenarioList.querySelectorAll(".scenario").forEach(button => {
+        button.addEventListener("click", () => {
+          selected = scenarios.find(item => item.id === button.dataset.id);
+          renderScenarios();
+          document.getElementById("resultTitle").textContent = selected.name;
+          document.getElementById("resultMessage").textContent = "已选择测试，点击左侧按钮开始真实调用。";
+          document.getElementById("stateBadge").className = "state-badge";
+          document.getElementById("stateBadge").textContent = "等待运行";
+        });
+      });
+    }
+
+    async function checkHealth() {
+      const element = document.getElementById("health");
+      try {
+        const response = await fetch("/health");
+        if (!response.ok) throw new Error("health failed");
+        element.className = "health online";
+        element.lastElementChild.textContent = "后端已连接";
+      } catch (_) {
+        element.className = "health offline";
+        element.lastElementChild.textContent = "后端未连接";
+      }
+    }
+
+    function stateInfo(result) {
+      if (result.state === "automatic_pass") return {label: "自动通过", className: "success"};
+      if (result.state === "waiting_human") return {label: "计算完成，等待真人处理", className: "warning"};
+      return {label: "已阻断", className: "danger"};
+    }
+
+    function pipeline(result) {
+      const hasVersions = Boolean(result.versions);
+      const hasData = result.data_references?.length > 0;
+      const hasResult = Boolean(result.result);
+      const checksPassed = result.validation?.length > 0 && result.validation.every(item => item.passed);
+      const items = [
+        ["01", "接收任务", "结构校验完成", true],
+        ["02", "匹配能力", hasVersions ? result.versions.capability_code : "未匹配正式能力", hasVersions],
+        ["03", "锁定版本", hasVersions ? result.versions.rule_version : "未进入正式计算", hasVersions],
+        ["04", "取得数据", hasData ? `${result.data_references[0].row_count} 条获准数据` : "未读取业务数据", hasData],
+        ["05", "执行并校验", checksPassed ? "全部校验通过" : hasResult ? "存在校验问题" : "未执行计算", checksPassed],
+        ["06", "返回并留痕", result.execution_record_id || "已返回原因", true]
+      ];
+      return `<div class="pipeline">${items.map(item => `
+        <div class="step ${item[3] ? "done" : "stopped"}">
+          <span class="step-number">${item[0]}</span><strong>${item[1]}</strong><span>${escapeHtml(item[2])}</span>
+        </div>`).join("")}</div>`;
+    }
+
+    function versions(result) {
+      if (!result.versions) return `<div class="metric"><label>本次没有进入正式计算</label><strong>${escapeHtml(result.reason_code)}</strong></div>`;
+      const v = result.versions;
+      return `<div class="fact-grid">
+        <div class="fact"><label>计算能力</label><strong>${escapeHtml(v.capability_code)}</strong></div>
+        <div class="fact"><label>能力版本</label><strong>${escapeHtml(v.capability_version)}</strong></div>
+        <div class="fact"><label>规则版本</label><strong>${escapeHtml(v.rule_version)}</strong></div>
+        <div class="fact"><label>参数版本</label><strong>${escapeHtml(v.parameter_version)}</strong></div>
+      </div>`;
+    }
+
+    function resultView(result) {
+      if (!result.result) return `<div class="metric"><label>引擎处理结论</label><strong style="font-size:18px">${escapeHtml(result.message)}</strong></div>`;
+      if (selected.id === "bad_debt") {
+        const rows = result.result.lines || [];
+        return `<div class="metric"><label>坏账准备合计</label><strong>${escapeHtml(result.result.total_provision)}</strong></div>
+          <table class="result-table"><thead><tr><th>客户</th><th>账龄</th><th>应收金额</th><th>比例</th><th>计提额</th></tr></thead><tbody>
+          ${rows.map(row => `<tr><td>${escapeHtml(row.customer_name)}</td><td>${escapeHtml(row.age_months)} 个月 / ${escapeHtml(row.band)}</td><td>${escapeHtml(row.amount)}</td><td>${escapeHtml(row.rate)}</td><td>${escapeHtml(row.provision)}</td></tr>`).join("")}
+          </tbody></table>`;
+      }
+      const rows = result.result.lines || [];
+      return `<div class="metric"><label>审核汇总</label><strong>${escapeHtml(result.result.passed_count)} 单通过 / ${escapeHtml(result.result.requires_handling_count)} 单待处理</strong></div>
+        <table class="result-table"><thead><tr><th>订单</th><th>类型</th><th>单价</th><th>数量</th><th>结论</th></tr></thead><tbody>
+        ${rows.map(row => `<tr><td>${escapeHtml(row.order_id)}</td><td>${escapeHtml(row.product_type)}</td><td>${escapeHtml(row.unit_price)}</td><td>${escapeHtml(row.quantity)}</td><td>${row.decision === "passed" ? "通过" : escapeHtml((row.reason_codes || []).join("、"))}</td></tr>`).join("")}
+        </tbody></table>`;
+    }
+
+    function validationView(result) {
+      if (!result.validation?.length) return `<div class="checks"><div class="check fail"><span class="check-mark">!</span><div><strong>未进入结果校验</strong><span>${escapeHtml(result.message)}</span></div></div></div>`;
+      return `<div class="checks">${result.validation.map(item => `
+        <div class="check ${item.passed ? "" : "fail"}"><span class="check-mark">${item.passed ? "OK" : "!"}</span><div><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.detail)}</span></div></div>`).join("")}</div>`;
+    }
+
+    function renderResult(result) {
+      const state = stateInfo(result);
+      document.getElementById("resultTitle").textContent = selected.name;
+      document.getElementById("resultMessage").textContent = result.message;
+      const badge = document.getElementById("stateBadge");
+      badge.className = `state-badge ${state.className}`;
+      badge.textContent = state.label;
+      document.getElementById("content").innerHTML = `${pipeline(result)}
+        <div class="detail-grid">
+          <div>
+            <section class="section"><h3 class="section-title">本次执行依据</h3>${versions(result)}</section>
+            <section class="section"><h3 class="section-title">实际计算结果</h3>${resultView(result)}</section>
+          </div>
+          <div>
+            <section class="section"><h3 class="section-title">结果校验</h3>${validationView(result)}</section>
+            <section class="section"><h3 class="section-title">成功凭证</h3><div class="trace">状态：${escapeHtml(result.state)}<br>原因码：${escapeHtml(result.reason_code)}<br>追踪编号：${escapeHtml(result.trace_id)}<br>执行记录：${escapeHtml(result.execution_record_id)}</div></section>
+          </div>
+        </div>`;
+    }
+
+    async function runScenario() {
+      runButton.disabled = true;
+      runButton.textContent = "正在运行";
+      const suffix = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const payload = {
+        trace_id: `TRC-CONSOLE-${suffix}`,
+        request_id: `REQ-CONSOLE-${suffix}`,
+        identity_context_ref: selected.identity,
+        business_type: selected.businessType,
+        business_object_id: selected.objectId,
+        period: selected.period,
+        data_reference: selected.dataReference
+      };
+      try {
+        const response = await fetch("/v1/executions", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.detail || `HTTP ${response.status}`);
+        renderResult(result);
+      } catch (error) {
+        document.getElementById("resultTitle").textContent = "测试请求失败";
+        document.getElementById("resultMessage").textContent = error.message;
+        const badge = document.getElementById("stateBadge");
+        badge.className = "state-badge danger";
+        badge.textContent = "接口错误";
+      } finally {
+        runButton.disabled = false;
+        runButton.textContent = "再次运行当前测试";
+      }
+    }
+
+    runButton.addEventListener("click", runScenario);
+    renderScenarios();
+    checkHealth();
+  </script>
+</body>
+</html>

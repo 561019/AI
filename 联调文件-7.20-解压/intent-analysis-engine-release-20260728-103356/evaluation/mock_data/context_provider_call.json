@@ -1,0 +1,67 @@
+{
+  "description": "Mock external Context Provider call used to verify omitted-expression resolution.",
+  "engine_request": {
+    "text": "帮我再算一遍",
+    "user_id": "user-001",
+    "conversation_id": "conversation-001",
+    "project_id": "project-001",
+    "debug": true
+  },
+  "provider_call": {
+    "method": "get_context",
+    "arguments": {
+      "user_id": "user-001",
+      "conversation_id": "conversation-001",
+      "project_id": "project-001"
+    }
+  },
+  "provider_response": {
+    "conversation_context": [
+      {
+        "task_type": "RULE_CALCULATION_COMMISSION",
+        "task_description": "计算销售提成",
+        "source_text": "计算2025年销售提成",
+        "action": "计算",
+        "object": "销售提成"
+      }
+    ],
+    "project_context": [],
+    "user_project_context": []
+  },
+  "expected_contextual_input": {
+    "user_input": "重新计算2025年销售提成",
+    "context": {
+      "current_conversation": {
+        "items": [
+          {
+            "task_type": "RULE_CALCULATION_COMMISSION",
+            "task_description": "计算销售提成",
+            "source_text": "计算2025年销售提成",
+            "action": "计算",
+            "object": "销售提成"
+          }
+        ]
+      },
+      "current_project": {
+        "items": []
+      },
+      "historical_projects": {
+        "items": []
+      }
+    }
+  },
+  "expected_context_resolution": {
+    "original_text": "帮我再算一遍",
+    "resolved_text": "重新计算2025年销售提成",
+    "requires_context": true,
+    "resolved": true,
+    "family": "calculate",
+    "scope": "conversation"
+  },
+  "expected_task": {
+    "task_type": "RULE_CALCULATION_COMMISSION",
+    "action": "计算",
+    "object": "2025年销售提成"
+  }
+}
+

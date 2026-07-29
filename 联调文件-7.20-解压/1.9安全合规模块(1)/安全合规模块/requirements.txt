@@ -1,0 +1,21 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+python-dotenv==1.0.1
+requests==2.32.3
+pytest==8.3.4
+httpx==0.28.1
+pydantic-settings==2.7.1
+
+# Optional: LLM Guard — ML-based security scanners (fully local, no external API)
+# Install with: pip install llm-guard
+# llm-guard
+
+# Optional: NeMo Guardrails — policy-level dialog safety (requires LLM backend)
+# Install with: pip install nemoguardrails
+# Requires C++ build tools on Windows for the annoy dependency
+# nemoguardrails
+
+# Optional: Embedding-based semantic similarity scanner for banned words
+# Install with: pip install sentence-transformers
+# sentence-transformers

@@ -1,0 +1,39 @@
+{
+  "before_report": "evaluation\\benchmark\\validation_report_context_recovery_ellipsis_before.json",
+  "after_report": "evaluation\\benchmark\\validation_report_context_recovery_ellipsis_after.json",
+  "dataset_policy": "validation only; blind_test was not used for development",
+  "metrics": {
+    "total": {
+      "before": 80,
+      "after": 84
+    },
+    "passed": {
+      "before": 58,
+      "after": 70
+    },
+    "task_type_exact_accuracy": {
+      "before": 0.875,
+      "after": 0.9404761904761905
+    },
+    "clarification_accuracy": {
+      "before": 0.825,
+      "after": 0.9047619047619048
+    },
+    "context_recovery_accuracy": {
+      "before": 0.7777777777777778,
+      "after": 1.0
+    },
+    "false_positive_rate": {
+      "before": 0.0,
+      "after": 0.0
+    },
+    "future_scope_false_positive_rate": {
+      "before": 0.0,
+      "after": 0.0
+    },
+    "negation_false_positive_rate": {
+      "before": 0.0,
+      "after": 0.0
+    }
+  }
+}

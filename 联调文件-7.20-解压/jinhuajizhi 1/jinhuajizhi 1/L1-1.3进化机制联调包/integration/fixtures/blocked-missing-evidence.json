@@ -1,0 +1,28 @@
+{
+  "context": {
+    "requestId": "REQ-INTEGRATION-BLOCKED-001",
+    "actorId": "USER-INTEGRATION-002",
+    "actorType": "human",
+    "tenantId": "TENANT-INTEGRATION",
+    "subjectUserId": "USER-INTEGRATION-002",
+    "roles": ["BUSINESS_OWNER"],
+    "sourceApp": "integration-test",
+    "idempotencyKey": "IDEMP-BLOCKED-001"
+  },
+  "candidate": {
+    "evolutionPath": "SKILL_EVOLUTION",
+    "scenarioId": "SCN-08",
+    "subjectUserId": "USER-INTEGRATION-002",
+    "scope": "PERSONAL",
+    "sourceRefs": ["MSG-INTEGRATION-002"],
+    "evidence": [],
+    "candidateVersion": {
+      "versionId": "VER-INTEGRATION-BLOCKED-001",
+      "scenarioId": "SCN-08",
+      "skill": "招聘简历筛选与结构化初面",
+      "risk": "HIGH",
+      "evidenceReady": false,
+      "sensitiveEmployeeData": true
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "id": "hanhe_sales_over_stock_e2e",
+  "title": "销售/供应链跨部门同时下单超库存预警",
+  "source_scenario": "s19_over_stock_warning",
+  "role": {
+    "actor": "sales-user",
+    "department": "销售部",
+    "job": "销售员",
+    "permissions_required": [
+      "inventory:read",
+      "order:read"
+    ]
+  },
+  "business_problem": "雅拉御品 K2O_52%_25kg 库存 50 吨，三个部门同时下单合计 90 吨，若不能及时发现会造成找车、报计划、改单和沟通成本。",
+  "input": {
+    "scenario_id": "s19_over_stock_warning",
+    "actor": "sales-user",
+    "agent": "hanhe-supply-chain-agent",
+    "timeout_seconds": 10,
+    "memory_mb": 512,
+    "cpu_cores": 1,
+    "input": {}
+  },
+  "mock_business_data": {
+    "inventory": 50,
+    "orders": [
+      {
+        "department": "销售一部",
+        "qty": 30
+      },
+      {
+        "department": "销售二部",
+        "qty": 30
+      },
+      {
+        "department": "销售三部",
+        "qty": 30
+      }
+    ]
+  },
+  "expected_result": {
+    "total_order_qty": 90,
+    "over_qty": 40,
+    "status": "warning"
+  },
+  "proves": [
+    "账号/岗位解析",
+    "权限预检查",
+    "mock ERP 库存和订单注入",
+    "Docker 沙箱隔离执行",
+    "结果收集",
+    "成本记录",
+    "审计留痕",
+    "UI/API 可验证"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "trace_id": "trace_20260714_000003",
+  "request_id": "req_20260714_000003",
+  "decision_id": null,
+  "allowed": false,
+  "result": "error",
+  "reason_code": "PERMISSION_DB_ERROR",
+  "reason": "权限数据库异常",
+  "four_factors": null,
+  "error": {
+    "code": "PERMISSION_DB_ERROR",
+    "message": "权限数据库暂时不可用",
+    "details": {}
+  },
+  "decided_at": "2026-07-14T10:00:00+08:00"
+}

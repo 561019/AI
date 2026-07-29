@@ -1,0 +1,49 @@
+{
+  "before_report": "evaluation\\benchmark\\validation_report_before.json",
+  "after_report": "evaluation\\benchmark\\validation_report_after.json",
+  "added_rule_count": 0,
+  "added_semantic_examples_count": 2,
+  "metrics": {
+    "task_type_accuracy": {
+      "before": 0.5833333333333334,
+      "after": 0.6166666666666667
+    },
+    "task_type_accuracy_delta": 0.033333333333333326,
+    "task_recall": {
+      "before": 0.7277777777777777,
+      "after": 0.7611111111111111
+    },
+    "task_recall_delta": 0.033333333333333326,
+    "forbidden_task_rate": {
+      "before": 0.18333333333333335,
+      "after": 0.18333333333333335
+    },
+    "forbidden_task_rate_delta": 0.0,
+    "future_scope_false_positive": {
+      "before": 0.6666666666666667,
+      "after": 0.6666666666666667
+    },
+    "future_scope_false_positive_delta": 0.0,
+    "negation_accuracy": {
+      "before": 0.0,
+      "after": 0.0
+    },
+    "negation_accuracy_delta": 0.0,
+    "clarification_accuracy": {
+      "before": 0.6166666666666667,
+      "after": 0.6333333333333333
+    },
+    "clarification_accuracy_delta": 0.016666666666666607
+  },
+  "improved_cases": [
+    "BENCH-VALIDATION-017"
+  ],
+  "regressed_cases": [],
+  "task_type_improved_cases": [
+    "BENCH-VALIDATION-013",
+    "BENCH-VALIDATION-017"
+  ],
+  "task_type_regressed_cases": [],
+  "rollback_required": false,
+  "final_recommendation": "Keep changes. Remaining failures are not safe L1/L2 expansion candidates; prioritize input validation, context resolution, negation/future-scope filtering, or L3/clarification."
+}

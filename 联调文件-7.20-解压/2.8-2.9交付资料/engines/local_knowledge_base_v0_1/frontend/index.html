@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>本地知识库 v0.1 临时接口版</title>
+<style>
+:root{--bg:#f5f7f8;--panel:#fff;--ink:#1c2936;--muted:#667586;--line:#d9e2ea;--blue:#1f5f8b;--green:#2f7a4c;--red:#a63c35;--amber:#9b6500;--shadow:0 10px 24px rgba(24,38,52,.08)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",Arial,sans-serif}
+header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line);padding:14px 20px;display:flex;justify-content:space-between;gap:16px;align-items:center}
+.brand{display:flex;align-items:center;gap:12px}.logo{width:48px;height:48px;border-radius:8px;background:var(--blue);color:#fff;display:grid;place-items:center;font-weight:900}
+h1{margin:0;font-size:22px}.sub{font-size:12px;color:var(--muted);line-height:1.5;margin-top:4px}
+.status{border:1px solid var(--line);border-radius:999px;padding:7px 10px;font-size:12px;font-weight:900;background:#eef4f8}.ok{background:#e8f6ee;color:var(--green);border-color:#b9dfca}.bad{background:#fff0ef;color:var(--red);border-color:#e7b9b5}
+.layout{max-width:1680px;margin:0 auto;padding:18px;display:grid;grid-template-columns:360px 1fr;gap:16px}
+.side,.section{background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:16px}.side{position:sticky;top:86px;align-self:start}.main{display:grid;gap:16px}
+.title{font-weight:900;color:#173c59;margin-bottom:12px;display:flex;justify-content:space-between;gap:10px}
+label{display:block;font-size:12px;color:#536579;font-weight:900;margin:12px 0 6px}
+select,input,textarea{width:100%;border:1px solid #cbd7e1;border-radius:8px;background:#fbfdff;color:var(--ink);padding:10px 11px;font:inherit}
+textarea{min-height:96px;resize:vertical;line-height:1.55}
+.buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}button{border:0;border-radius:8px;padding:10px 12px;font-weight:900;cursor:pointer;background:var(--blue);color:#fff;box-shadow:0 8px 16px rgba(31,95,139,.16)}button.secondary{background:#edf3f7;color:#17364f;box-shadow:none}
+.hint{font-size:12px;color:var(--muted);line-height:1.65}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.metric{border:1px solid #dce6ee;background:#f9fbfd;border-radius:8px;padding:12px;min-height:80px}.metric .cap{font-size:12px;color:var(--muted);font-weight:800}.metric .num{font-size:24px;font-weight:900;color:var(--blue);margin-top:6px}
+.card{border:1px solid #dbe6ee;background:#fbfdff;border-radius:8px;padding:12px}.card h3{margin:0 0 6px;font-size:17px;color:#173c59}.chips{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}.chip{border:1px solid #cbd7e2;background:#fff;border-radius:999px;padding:5px 8px;font-size:12px;font-weight:800;color:#304b63}.chip.green{border-color:#a8d3ba;color:#2f7148;background:#f3fbf6}.chip.red{border-color:#d6aaa5;color:#8f3028;background:#fff8f7}
+.results{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.json,.prompt{height:340px;overflow:auto;border-radius:8px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.55;white-space:pre-wrap;background:#f8fbfd;border:1px solid #dbe6ee;color:#23384c}
+table{width:100%;border-collapse:collapse;background:#fff;font-size:12px}th,td{border:1px solid #dbe6ee;padding:8px;text-align:left;vertical-align:top}th{background:#edf4f8;color:#173c59}.table{overflow:auto;border-radius:8px}
+.toast{position:fixed;right:20px;bottom:20px;background:#102f45;color:#fff;padding:12px 14px;border-radius:8px;box-shadow:var(--shadow);opacity:0;transform:translateY(10px);transition:.2s;z-index:20}.toast.show{opacity:1;transform:translateY(0)}
+@media(max-width:1180px){.layout{grid-template-columns:1fr}.side{position:static}.results,.grid2,.grid3,.grid4{grid-template-columns:1fr}}@media(max-width:720px){header{display:block}.layout{padding:10px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">KB</div>
+    <div>
+      <h1>本地知识库 v0.1 临时接口版</h1>
+      <div class="sub">L1 · 1.13 本地 mock · 检索素材/模板/依据资料 · 权限过滤 · 出处引用 · 给内容产出/多媒体引擎联调用</div>
+    </div>
+  </div>
+  <span class="status" id="backendStatus">连接中</span>
+</header>
+<div class="layout">
+  <aside class="side">
+    <div class="title">检索输入</div>
+    <label>当前操作真人</label>
+    <select id="actor"></select>
+    <label>任务取材类型</label>
+    <select id="taskType"></select>
+    <label>问题/任务描述</label>
+    <textarea id="query">智能监测设备 营销文案 品牌规范 模板</textarea>
+    <label>限定资料类型</label>
+    <select id="typeFilter"><option value="">不限</option></select>
+    <div class="buttons">
+      <button id="searchBtn">普通检索</button>
+      <button id="taskBtn">按任务取材</button>
+      <button class="secondary" id="logsBtn">查看日志</button>
+    </div>
+    <p class="hint">这只是临时接口版：字段和正式 1.13 可能不同，但先验证“能按接口取素材、模板、出处，并按真人权限过滤”。</p>
+  </aside>
+  <main class="main">
+    <section class="section">
+      <div class="title">模块概览</div>
+      <div class="grid4">
+        <div class="metric"><div class="cap">资料条数</div><div class="num" id="itemCount">-</div></div>
+        <div class="metric"><div class="cap">资料类型</div><div class="num" id="typeCount">-</div></div>
+        <div class="metric"><div class="cap">任务类型</div><div class="num" id="taskCount">-</div></div>
+        <div class="metric"><div class="cap">服务端口</div><div class="num">8012</div></div>
+      </div>
+    </section>
+    <section class="section">
+      <div class="title">接口</div>
+      <div class="table"><table id="interfaces"></table></div>
+    </section>
+    <section class="grid2">
+      <div class="section">
+        <div class="title">检索/取材结果 <span class="hint" id="resultMeta"></span></div>
+        <div class="results" id="results"></div>
+      </div>
+      <div class="section">
+        <div class="title">可直接喂给 AI 的上下文</div>
+        <div class="prompt" id="promptBox">按任务取材后显示。</div>
+      </div>
+    </section>
+    <section class="section">
+      <div class="title">原始返回 JSON</div>
+      <div class="json" id="jsonBox">暂无。</div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const API = location.origin.startsWith('http') ? location.origin : 'http://127.0.0.1:8012';
+let boot = null;
+const $ = (id) => document.getElementById(id);
+function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function toast(msg){$('toast').textContent=msg;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),2400)}
+async function api(path, opts={}){const res=await fetch(API+path,{headers:{'Content-Type':'application/json'},...opts});if(!res.ok)throw new Error(await res.text());return res.json()}
+async function init(){try{boot=await api('/api/bootstrap');$('backendStatus').textContent='后端已连接';$('backendStatus').className='status ok';fill();renderOverview()}catch(e){$('backendStatus').textContent='后端未启动';$('backendStatus').className='status bad';toast('请运行 start_backend.bat')}}
+function fill(){
+  $('actor').innerHTML=Object.entries(boot.users).map(([id,u])=>`<option value="${id}">${id} · ${u.name} · ${u.position}</option>`).join('');
+  $('taskType').innerHTML=Object.entries(boot.task_profiles).map(([id,p])=>`<option value="${id}">${id} · ${p.name}</option>`).join('');
+  $('typeFilter').innerHTML='<option value="">不限</option>'+boot.types.map(t=>`<option value="${t}">${t}</option>`).join('');
+}
+function renderOverview(){
+  $('itemCount').textContent=boot.item_count;$('typeCount').textContent=boot.types.length;$('taskCount').textContent=Object.keys(boot.task_profiles).length;
+  $('interfaces').innerHTML='<tr><th>方法</th><th>路径</th><th>用途</th></tr>'+boot.interfaces.map(x=>`<tr><td>${x.method}</td><td>${x.path}</td><td>${x.purpose}</td></tr>`).join('');
+}
+function renderResults(data){
+  const items=data.results||data.materials||[];
+  $('resultMeta').textContent=data.trace?`返回 ${data.trace.returned_count} 条，权限过滤 ${data.trace.permission_filtered_count} 条`:data.readiness?`状态 ${data.readiness}，返回 ${items.length} 条`:'';
+  $('results').innerHTML=items.length?items.map(item=>`<div class="card"><h3>${escapeHtml(item.title)}</h3><div class="chips"><span class="chip">${escapeHtml(item.material_id)}</span><span class="chip green">${escapeHtml(item.type)}</span><span class="chip">${escapeHtml(item.match_score??'-')}</span></div><p class="hint">${escapeHtml(item.summary)}</p><p class="hint"><b>出处：</b>${escapeHtml(item.citation)}<br><b>来源：</b>${escapeHtml(item.source)} · ${escapeHtml(item.version)}</p><div class="chips">${(item.tags||[]).map(t=>`<span class="chip">${escapeHtml(t)}</span>`).join('')}</div></div>`).join(''):'<div class="hint">没有返回可读取资料，可能是权限不足或检索条件过窄。</div>';
+  $('promptBox').textContent=data.prompt_context_hint||'普通检索不会自动拼完整上下文；按任务取材会显示可喂给 AI 的资料包。';
+  $('jsonBox').textContent=JSON.stringify(data,null,2);
+}
+async function search(){
+  const type=$('typeFilter').value;
+  const data=await api('/api/kb/search',{method:'POST',body:JSON.stringify({actor_id:$('actor').value,query:$('query').value,top_k:8,types:type?[type]:[]})});
+  renderResults(data);
+}
+async function taskMaterials(){
+  const data=await api('/api/kb/task-materials',{method:'POST',body:JSON.stringify({actor_id:$('actor').value,task_type:$('taskType').value,query:$('query').value,top_k:10,include_templates:true})});
+  renderResults(data);
+}
+async function logs(){
+  const data=await api('/api/kb/logs');
+  $('resultMeta').textContent=`日志 ${data.length} 条`;
+  $('results').innerHTML='<div class="hint">查询日志已显示在 JSON 区。</div>';
+  $('promptBox').textContent='日志只记录 query、返回数量、权限过滤数量等，不展示被权限过滤的资料正文。';
+  $('jsonBox').textContent=JSON.stringify(data,null,2);
+}
+$('searchBtn').onclick=()=>search().catch(e=>toast(e.message));
+$('taskBtn').onclick=()=>taskMaterials().catch(e=>toast(e.message));
+$('logsBtn').onclick=()=>logs().catch(e=>toast(e.message));
+$('taskType').onchange=()=>{$('query').value=boot.task_profiles[$('taskType').value].query_hint};
+init();
+</script>
+</body>
+</html>

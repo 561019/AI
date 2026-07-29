@@ -1,0 +1,624 @@
+{
+  "semantic_mode": "local",
+  "llm_mode": "off",
+  "blind_test_used": false,
+  "cases": [
+    {
+      "id": "LONG-TEXT-EXPLICIT-001",
+      "category": "explicit_request_sentences",
+      "text_characters": 1051,
+      "long_context_extraction": {
+        "present": true,
+        "length_category": "medium",
+        "chunk_count": 1,
+        "unit_count": 32,
+        "segment_count": 66,
+        "raw_candidate_count": 8,
+        "merged_candidate_count": 8,
+        "negated_candidate_count": 0
+      },
+      "implicit_task_fallback": {
+        "attempted": false,
+        "accepted_candidates": [],
+        "rejection_reasons": [
+          "implicit_task_extractor_not_configured"
+        ]
+      },
+      "segment_count": 8,
+      "segments": [
+        {
+          "index": 0,
+          "text": "查询本季度华东和华南区域的订单、回款和客户投诉数据",
+          "selected_by": "rule",
+          "l1": {
+            "matched": true,
+            "rule": "data_query_fetch"
+          },
+          "l2": {
+            "matched": false,
+            "skipped_reason": "level1_rule_matched",
+            "top_candidates": []
+          },
+          "l3": "not_triggered",
+          "partial_coverage": {
+            "coverage_rate": 1.0,
+            "uncovered_segment_count": 0,
+            "llm_called": false,
+            "l3_compensation_success": false
+          }
+        },
+        {
+          "index": 1,
+          "text": "汇总订单数量、回款金额和投诉数量",
+          "selected_by": "rule",
+          "l1": {
+            "matched": true,
+            "rule": "summary"
+          },
+          "l2": {
+            "matched": false,
+            "skipped_reason": "level1_rule_matched",
+            "top_candidates": []
+          },
+          "l3": "not_triggered",
+          "partial_coverage": {
+            "coverage_rate": 1.0,
+            "uncovered_segment_count": 0,
+            "llm_called": false,
+            "l3_compensation_success": false
+          }
+        },
+        {
+          "index": 2,
+          "text": "筛选逾期超过45天且尚未回款的客户",
+          "selected_by": "rule",
+          "l1": {
+            "matched": true,
+            "rule": "filter"
+          },
+          "l2": {
+            "matched": false,
+            "skipped_reason": "level1_rule_matched",
+            "top_candidates": []
+          },
+          "l3": "not_triggered",
+          "partial_coverage": {
+            "coverage_rate": 1.0,
+            "uncovered_segment_count": 0,
+            "llm_called": false,
+            "l3_compensation_success": false
+          }
+        },
+        {
+          "index": 3,
+          "text": "排序筛选结果",
+          "selected_by": "rule",
+          "l1": {
+            "matched": true,
+            "rule": "sort"
+          },
+          "l2": {
+            "matched": false,
+            "skipped_reason": "level1_rule_matched",
+            "top_candidates": []
+          },
+          "l3": "not_triggered",
+          "partial_coverage": {
+            "coverage_rate": 1.0,
+            "uncovered_segment_count": 0,
+            "llm_called": false,
+            "l3_compensation_success": false
+          }
+        },
+        {
+          "index": 4,
+          "text": "分析华南区域投诉上升的主要原因",
+          "selected_by": "rule",
+          "l1": {
+            "matched": true,
+            "rule": "problem_analysis"
+          },
+          "l2": {
+            "matched": false,
+            "skipped_reason": "level1_rule_matched",
+            "top_candidates": []
+          },
+          "l3": "not_triggered",
+          "partial_coverage": {
+            "coverage_rate": 1.0,
+            "uncovered_segment_count": 0,
+            "llm_called": false,
+            "l3_compensation_success": false
+          }
+        },
+        {
+          "index": 5,
+          "text": "比较本季度与上季度的收入变化",
+          "selected_by": "rule",
+          "l1": {
+            "matched": true,
+            "rule": "period_comparison"
+          },
+          "l2": {
+            "matched": false,
+            "skipped_reason": "level1_rule_matched",
+            "top_candidates": []
+          },
+          "l3": "not_triggered",
+          "partial_coverage": {
+            "coverage_rate": 1.0,
+            "uncovered_segment_count": 0,
+            "llm_called": false,
+            "l3_compensation_success": false
+          }
+        },
+        {
+          "index": 6,
+          "text": "预测下季度收入和利润",
+          "selected_by": "rule",
+          "l1": {
+            "matched": true,
+            "rule": "forecast"
+          },
+          "l2": {
+            "matched": false,
+            "skipped_reason": "level1_rule_matched",
+            "top_candidates": []
+          },
+          "l3": "not_triggered",
+          "partial_coverage": {
+            "coverage_rate": 1.0,
+            "uncovered_segment_count": 0,
+            "llm_called": false,
+            "l3_compensation_success": false
+          }
+        },
+        {
+          "index": 7,
+          "text": "生成经营分析报告",
+          "selected_by": "rule",
+          "l1": {
+            "matched": true,
+            "rule": "content_output"
+          },
+          "l2": {
+            "matched": false,
+            "skipped_reason": "level1_rule_matched",
+            "top_candidates": []
+          },
+          "l3": "not_triggered",
+          "partial_coverage": {
+            "coverage_rate": 1.0,
+            "uncovered_segment_count": 0,
+            "llm_called": false,
+            "l3_compensation_success": false
+          }
+        }
+      ],
+      "final": {
+        "task_count": 8,
+        "task_types": [
+          "DATA_QUERY_FETCH",
+          "DATA_AGGREGATION_SUMMARY",
+          "DATA_FILTER",
+          "DATA_SORT",
+          "DATA_ANALYSIS_PROBLEM",
+          "DATA_ANALYSIS_MOM",
+          "DATA_ANALYSIS_FORECAST",
+          "DOCUMENT_GENERATE"
+        ],
+        "task_descriptions": [
+          "查询本季度华东和华南区域的订单、回款和客户投诉数据",
+          "汇总订单数量、回款金额和投诉数量",
+          "筛选逾期超过45天且尚未回款的客户",
+          "排序筛选结果",
+          "分析华南区域投诉上升的主要原因",
+          "比较本季度与上季度的收入变化",
+          "预测下季度收入和利润",
+          "生成经营分析报告"
+        ],
+        "clarification_required": false,
+        "clarification_questions": [],
+        "missing_inputs": [],
+        "analysis_level": 1,
+        "overall_confidence": 0.89
+      }
+    },
+    {
+      "id": "LONG-TEXT-NARRATIVE-002",
+      "category": "natural_narrative",
+      "text_characters": 1096,
+      "long_context_extraction": {
+        "present": true,
+        "length_category": "medium",
+        "chunk_count": 1,
+        "unit_count": 27,
+        "segment_count": 68,
+        "raw_candidate_count": 7,
+        "merged_candidate_count": 7,
+        "negated_candidate_count": 0
+      },
+      "implicit_task_fallback": {
+        "attempted": false,
+        "accepted_candidates": [],
+        "rejection_reasons": [
+          "implicit_task_extractor_not_configured"
+        ]
+      },
+      "segment_count": 7,
+      "segments": [
+        {
+          "index": 0,
+          "text": "查询从ERP获取订单、回款和客户投诉明细",
+          "selected_by": "rule",
+          "l1": {
+            "matched": true,
+            "rule": "external_system_connector"
+          },
+          "l2": {
+            "matched": false,
+            "skipped_reason": "level1_rule_matched",
+            "top_candidates": []
+          },
+          "l3": "not_triggered",
+          "partial_coverage": {
+            "coverage_rate": 1.0,
+            "uncovered_segment_count": 0,
+            "llm_called": false,
+            "l3_compensation_success": false
+          }
+        },
+        {
+          "index": 1,
+          "text": "汇总订单数量、回款金额以及投诉数量",
+          "selected_by": "rule",
+          "l1": {
+            "matched": true,
+            "rule": "summary"
+          },
+          "l2": {
+            "matched": false,
+            "skipped_reason": "level1_rule_matched",
+            "top_candidates": []
+          },
+          "l3": "not_triggered",
+          "partial_coverage": {
+            "coverage_rate": 1.0,
+            "uncovered_segment_count": 0,
+            "llm_called": false,
+            "l3_compensation_success": false
+          }
+        },
+        {
+          "index": 2,
+          "text": "筛选逾期超过45天且尚未回款的客户",
+          "selected_by": "rule",
+          "l1": {
+            "matched": true,
+            "rule": "filter"
+          },
+          "l2": {
+            "matched": false,
+            "skipped_reason": "level1_rule_matched",
+            "top_candidates": []
+          },
+          "l3": "not_triggered",
+          "partial_coverage": {
+            "coverage_rate": 1.0,
+            "uncovered_segment_count": 0,
+            "llm_called": false,
+            "l3_compensation_success": false
+          }
+        },
+        {
+          "index": 3,
+          "text": "分析华南区域投诉上升的主要原因",
+          "selected_by": "rule",
+          "l1": {
+            "matched": true,
+            "rule": "problem_analysis"
+          },
+          "l2": {
+            "matched": false,
+            "skipped_reason": "level1_rule_matched",
+            "top_candidates": []
+          },
+          "l3": "not_triggered",
+          "partial_coverage": {
+            "coverage_rate": 1.0,
+            "uncovered_segment_count": 0,
+            "llm_called": false,
+            "l3_compensation_success": false
+          }
+        },
+        {
+          "index": 4,
+          "text": "比较本季度与上季度的收入变化",
+          "selected_by": "rule",
+          "l1": {
+            "matched": true,
+            "rule": "period_comparison"
+          },
+          "l2": {
+            "matched": false,
+            "skipped_reason": "level1_rule_matched",
+            "top_candidates": []
+          },
+          "l3": "not_triggered",
+          "partial_coverage": {
+            "coverage_rate": 1.0,
+            "uncovered_segment_count": 0,
+            "llm_called": false,
+            "l3_compensation_success": false
+          }
+        },
+        {
+          "index": 5,
+          "text": "预测下季度收入和利润",
+          "selected_by": "rule",
+          "l1": {
+            "matched": true,
+            "rule": "forecast"
+          },
+          "l2": {
+            "matched": false,
+            "skipped_reason": "level1_rule_matched",
+            "top_candidates": []
+          },
+          "l3": "not_triggered",
+          "partial_coverage": {
+            "coverage_rate": 1.0,
+            "uncovered_segment_count": 0,
+            "llm_called": false,
+            "l3_compensation_success": false
+          }
+        },
+        {
+          "index": 6,
+          "text": "生成经营分析报告",
+          "selected_by": "rule",
+          "l1": {
+            "matched": true,
+            "rule": "content_output"
+          },
+          "l2": {
+            "matched": false,
+            "skipped_reason": "level1_rule_matched",
+            "top_candidates": []
+          },
+          "l3": "not_triggered",
+          "partial_coverage": {
+            "coverage_rate": 1.0,
+            "uncovered_segment_count": 0,
+            "llm_called": false,
+            "l3_compensation_success": false
+          }
+        }
+      ],
+      "final": {
+        "task_count": 7,
+        "task_types": [
+          "EXTERNAL_DATA_FETCH",
+          "DATA_AGGREGATION_SUMMARY",
+          "DATA_FILTER",
+          "DATA_ANALYSIS_PROBLEM",
+          "DATA_ANALYSIS_MOM",
+          "DATA_ANALYSIS_FORECAST",
+          "DOCUMENT_GENERATE"
+        ],
+        "task_descriptions": [
+          "查询从ERP获取订单、回款和客户投诉明细",
+          "汇总订单数量、回款金额以及投诉数量",
+          "筛选逾期超过45天且尚未回款的客户",
+          "分析华南区域投诉上升的主要原因",
+          "比较本季度与上季度的收入变化",
+          "预测下季度收入和利润",
+          "生成经营分析报告"
+        ],
+        "clarification_required": false,
+        "clarification_questions": [],
+        "missing_inputs": [],
+        "analysis_level": 1,
+        "overall_confidence": 0.9
+      }
+    },
+    {
+      "id": "LONG-TEXT-VERY-LONG-003",
+      "category": "very_long_chunked_text",
+      "text_characters": 11253,
+      "long_context_extraction": {
+        "present": true,
+        "length_category": "long",
+        "chunk_count": 7,
+        "unit_count": 289,
+        "segment_count": 710,
+        "raw_candidate_count": 7,
+        "merged_candidate_count": 7,
+        "negated_candidate_count": 0
+      },
+      "implicit_task_fallback": {
+        "attempted": false,
+        "accepted_candidates": [],
+        "rejection_reasons": [
+          "implicit_task_extractor_not_configured"
+        ]
+      },
+      "segment_count": 7,
+      "segments": [
+        {
+          "index": 0,
+          "text": "查询本季度华东和华南区域的订单、回款和客户投诉数据",
+          "selected_by": "rule",
+          "l1": {
+            "matched": true,
+            "rule": "data_query_fetch"
+          },
+          "l2": {
+            "matched": false,
+            "skipped_reason": "level1_rule_matched",
+            "top_candidates": []
+          },
+          "l3": "not_triggered",
+          "partial_coverage": {
+            "coverage_rate": 1.0,
+            "uncovered_segment_count": 0,
+            "llm_called": false,
+            "l3_compensation_success": false
+          }
+        },
+        {
+          "index": 1,
+          "text": "汇总订单数量、回款金额和投诉数量",
+          "selected_by": "rule",
+          "l1": {
+            "matched": true,
+            "rule": "summary"
+          },
+          "l2": {
+            "matched": false,
+            "skipped_reason": "level1_rule_matched",
+            "top_candidates": []
+          },
+          "l3": "not_triggered",
+          "partial_coverage": {
+            "coverage_rate": 1.0,
+            "uncovered_segment_count": 0,
+            "llm_called": false,
+            "l3_compensation_success": false
+          }
+        },
+        {
+          "index": 2,
+          "text": "筛选逾期超过45天且尚未回款的客户",
+          "selected_by": "rule",
+          "l1": {
+            "matched": true,
+            "rule": "filter"
+          },
+          "l2": {
+            "matched": false,
+            "skipped_reason": "level1_rule_matched",
+            "top_candidates": []
+          },
+          "l3": "not_triggered",
+          "partial_coverage": {
+            "coverage_rate": 1.0,
+            "uncovered_segment_count": 0,
+            "llm_called": false,
+            "l3_compensation_success": false
+          }
+        },
+        {
+          "index": 3,
+          "text": "排序筛选结果",
+          "selected_by": "rule",
+          "l1": {
+            "matched": true,
+            "rule": "sort"
+          },
+          "l2": {
+            "matched": false,
+            "skipped_reason": "level1_rule_matched",
+            "top_candidates": []
+          },
+          "l3": "not_triggered",
+          "partial_coverage": {
+            "coverage_rate": 1.0,
+            "uncovered_segment_count": 0,
+            "llm_called": false,
+            "l3_compensation_success": false
+          }
+        },
+        {
+          "index": 4,
+          "text": "分析华南区域投诉上升的主要原因",
+          "selected_by": "rule",
+          "l1": {
+            "matched": true,
+            "rule": "problem_analysis"
+          },
+          "l2": {
+            "matched": false,
+            "skipped_reason": "level1_rule_matched",
+            "top_candidates": []
+          },
+          "l3": "not_triggered",
+          "partial_coverage": {
+            "coverage_rate": 1.0,
+            "uncovered_segment_count": 0,
+            "llm_called": false,
+            "l3_compensation_success": false
+          }
+        },
+        {
+          "index": 5,
+          "text": "预测下季度收入和利润",
+          "selected_by": "rule",
+          "l1": {
+            "matched": true,
+            "rule": "forecast"
+          },
+          "l2": {
+            "matched": false,
+            "skipped_reason": "level1_rule_matched",
+            "top_candidates": []
+          },
+          "l3": "not_triggered",
+          "partial_coverage": {
+            "coverage_rate": 1.0,
+            "uncovered_segment_count": 0,
+            "llm_called": false,
+            "l3_compensation_success": false
+          }
+        },
+        {
+          "index": 6,
+          "text": "生成经营分析报告",
+          "selected_by": "rule",
+          "l1": {
+            "matched": true,
+            "rule": "content_output"
+          },
+          "l2": {
+            "matched": false,
+            "skipped_reason": "level1_rule_matched",
+            "top_candidates": []
+          },
+          "l3": "not_triggered",
+          "partial_coverage": {
+            "coverage_rate": 1.0,
+            "uncovered_segment_count": 0,
+            "llm_called": false,
+            "l3_compensation_success": false
+          }
+        }
+      ],
+      "final": {
+        "task_count": 7,
+        "task_types": [
+          "DATA_QUERY_FETCH",
+          "DATA_AGGREGATION_SUMMARY",
+          "DATA_FILTER",
+          "DATA_SORT",
+          "DATA_ANALYSIS_PROBLEM",
+          "DATA_ANALYSIS_FORECAST",
+          "DOCUMENT_GENERATE"
+        ],
+        "task_descriptions": [
+          "查询本季度华东和华南区域的订单、回款和客户投诉数据",
+          "汇总订单数量、回款金额和投诉数量",
+          "筛选逾期超过45天且尚未回款的客户",
+          "排序筛选结果",
+          "分析华南区域投诉上升的主要原因",
+          "预测下季度收入和利润",
+          "生成经营分析报告"
+        ],
+        "clarification_required": false,
+        "clarification_questions": [],
+        "missing_inputs": [],
+        "analysis_level": 1,
+        "overall_confidence": 0.89
+      }
+    }
+  ]
+}

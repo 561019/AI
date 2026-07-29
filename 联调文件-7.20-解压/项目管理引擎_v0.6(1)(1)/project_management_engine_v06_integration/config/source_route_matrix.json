@@ -1,0 +1,37 @@
+{
+  "protocol_version": "1.0",
+  "target_layer": "L2",
+  "target_service_code": "l2.project_management",
+  "channel": "l2_internal",
+  "capability_dictionary_version": "2026.07.v06",
+  "registry_version": "registry_2026.07.v06",
+  "rules": [
+    {
+      "source_layer": "L2",
+      "source_service_code": "l2.interface_control",
+      "route_types": ["deterministic.request", "query.request"],
+      "actions": [
+        "project.register.simple",
+        "project.register.major",
+        "project.member.add",
+        "project.member.update",
+        "project.member.remove",
+        "project.member.query",
+        "project.grade.change.request",
+        "project.archive.authorization.record",
+        "project.archive.authorization.query",
+        "project.archive.authorized.query",
+        "project.query",
+        "project.list.query",
+        "project.trace.query",
+        "project.task.query"
+      ]
+    },
+    {
+      "source_layer": "L2",
+      "source_service_code": "l2.workflow_execution",
+      "route_types": ["task.dispatch", "flow.callback", "query.request"],
+      "actions": ["*"]
+    }
+  ]
+}

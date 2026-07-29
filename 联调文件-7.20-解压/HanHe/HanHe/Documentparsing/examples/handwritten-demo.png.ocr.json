@@ -1,0 +1,9 @@
+{
+  "provider": "sidecar-demo",
+  "blocks": [
+    {"page": 1, "bbox": [80, 90, 430, 135], "text": "实验编号：EXP-2026-0714", "confidence": 0.98},
+    {"page": 1, "bbox": [80, 150, 430, 195], "text": "温度：37.2", "confidence": 0.93},
+    {"page": 1, "bbox": [80, 210, 430, 255], "text": "观察结果：字迹不确定", "confidence": 0.61}
+  ]
+}
+

@@ -1,0 +1,63 @@
+{
+  "runtime": {
+    "executor": "docker",
+    "default_executor": "LocalTemplateExecutor",
+    "docker_image": "agent-sandbox-python:3.10-local",
+    "browser_image": "agent-sandbox-browser:chromium-local",
+    "production_executor_options": [
+      "DockerExecutor",
+      "CubeSandboxExecutor",
+      "E2BCompatibleExecutor",
+      "FirecrackerExecutor",
+      "KataExecutor"
+    ],
+    "default_timeout_seconds": 10,
+    "default_memory_mb": 512,
+    "default_cpu_cores": 1
+  },
+  "egress_policy": {
+    "default": "deny",
+    "allowed_domains": [
+      "example.com",
+      "sandbox-allow.test",
+      "public-price-source.example",
+      "internal-oa.example",
+      "internal-erp.example"
+    ],
+    "blocked_networks": [
+      "127.0.0.0/8",
+      "10.0.0.0/8",
+      "172.16.0.0/12",
+      "192.168.0.0/16"
+    ],
+    "audit_all_requests": true
+  },
+  "platform_interface": {
+    "allowed_caller_layer": "business_engine",
+    "allowed_engines": [
+      "intent-analysis-engine",
+      "flow-execution-engine",
+      "document-table-parser-engine",
+      "external-system-connector-engine",
+      "data-aggregation-engine",
+      "rule-computation-engine",
+      "analysis-forecast-engine",
+      "knowledge-qa-engine",
+      "content-generation-engine",
+      "multimedia-generation-engine",
+      "monitoring-alert-engine",
+      "digital-asset-engine",
+      "project-management-engine"
+    ],
+    "demo_api_token": "hanhe-basic-layer-demo-token-change-before-production",
+    "max_request_records": 200
+  },
+  "integration_placeholders": {
+    "l14_control_mechanism": "Checks whether task is allowed before sandbox creation.",
+    "l15_model_dispatch": "Sandbox scripts call model services through this module, never directly.",
+    "l18_account_gateway": "Provides actor, agent, role, and tenant identity.",
+    "l19_security_compliance": "Owns egress rules, credential injection, redaction, and audit policy.",
+    "l110_device_system_interface": "Provides controlled adapters to ERP, OA, CRM, databases, and external systems.",
+    "l112_cost_control": "Receives CPU, memory, duration, and task count metrics."
+  }
+}

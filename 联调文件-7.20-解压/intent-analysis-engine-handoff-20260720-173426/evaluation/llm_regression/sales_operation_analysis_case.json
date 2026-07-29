@@ -1,0 +1,143 @@
+{
+  "id": "llm-long-sales-operation-analysis-001",
+  "category": "经营分析长文本LLM回归",
+  "text": "最近这段时间公司正在推进数字化经营管理升级，业务部门和管理层都希望能够更加及时地了解公司的经营状况。过去我们主要依靠人工整理各种报表，每个月月底由财务、销售、市场几个部门分别提供数据，然后由运营部门汇总形成经营分析材料。但是实际执行过程中发现问题比较多，比如不同部门提供的数据口径不一致，有些指标计算方式不同，有些数据更新不及时，导致最后形成的分析报告经常需要反复修改。\n\n上周经营管理会议上，老板重点提到了几个问题。他认为现在公司已经积累了大量业务数据，但是没有真正发挥价值，希望后续能够建立更加智能化的数据分析能力，让管理人员可以通过自然语言直接了解经营情况。不过这个事情不用现在马上做智能化平台开发，当前阶段先把本季度经营分析工作做好，后续再考虑自动化能力建设。\n\n目前销售部门希望先分析一下今年以来整体销售表现，尤其关注几个重点区域的变化情况。因为最近华东区域反馈市场压力比较大，有几个重点客户订单减少，但是现在还不能确定到底是市场因素、客户流失，还是销售策略调整导致的。所以希望能够先整理今年和去年同期的销售数据，按照区域、产品类别、客户类型几个维度进行对比，看看哪些地方变化最明显。\n\n另外，管理层比较关心销售下降之后到底是什么原因造成的。比如是不是某些产品竞争力下降，是不是客户满意度降低，或者是不是销售人员跟进不到位。如果能够结合客户反馈记录、订单变化情况以及销售人员拜访记录一起分析，应该可以帮助判断原因。但是目前客户反馈数据在哪里、销售拜访记录是否完整，这些信息还需要确认一下，不能直接假设已经有这些数据。\n\n除了销售分析之外，财务部门最近也提出了一个需求，希望计算本年度销售人员奖金和提成。这个事情比较紧急，因为月底需要进行奖金核算。但是目前有几个问题没有明确。第一，今年到底使用去年制定的提成计算规则，还是使用今年年初调整后的新规则，需要财务确认。第二，计算范围是全部销售人员，还是只计算正式员工，不包含试用期员工，也需要确认。第三，销售业绩数据到底使用CRM系统的数据，还是财务系统确认后的收入数据，目前两个系统的数据存在一定差异，需要确定最终采用哪个来源。\n\n还有一个事情，市场部门之前整理过一份客户满意度调查报告，希望可以结合销售变化情况一起分析。如果发现某些区域客户满意度下降，同时销售额也下降，可能需要进一步关注。但是这部分分析不是当前经营报告必须完成的内容，如果时间不足可以放到后续专项分析里面。\n\n关于最终输出形式，领导希望能够看到一份比较清晰的经营分析材料，不需要特别复杂，重点展示几个内容：今年整体销售变化趋势、重点区域变化情况、主要影响因素分析、下一步经营建议。如果可以的话，希望能够自动整理成适合管理层阅读的报告格式，但是暂时不用生成正式PPT，也不用考虑自动发送邮件或者自动提醒相关人员。\n\n另外，之前有人提出希望系统以后能够自动发现异常，例如某个区域销售突然下降、某个产品销量明显变化，然后主动提醒负责人。不过这个属于未来规划，目前这次任务范围里面不包含异常监控和主动提醒功能，不需要生成相关任务。\n\n还有一些历史数据整理工作，比如整理过去三年的销售订单、客户档案、合同信息，这些事情以后可能会做，但是目前没有明确安排，也不是本次经营分析的主要目标。如果后续需要，可以单独安排数据治理项目。",
+  "expected": {
+    "task_count": 5,
+    "required_tasks": [
+      {
+        "name": "整理销售数据",
+        "task_type": "DATA_QUERY_FETCH",
+        "action": "整理",
+        "object_keywords": ["销售", "数据"]
+      },
+      {
+        "name": "分析销售表现",
+        "allowed_task_types": ["DATA_ANALYSIS_YOY", "DATA_ANALYSIS_PROBLEM"],
+        "action": "分析",
+        "object_keywords": ["销售", "表现"]
+      },
+      {
+        "name": "分析销售下降原因",
+        "task_type": "DATA_ANALYSIS_PROBLEM",
+        "action": "分析",
+        "object_keywords": ["销售", "下降", "原因"]
+      },
+      {
+        "name": "计算销售人员奖金和提成",
+        "task_type": "RULE_CALCULATION_COMMISSION",
+        "action": "计算",
+        "object_keywords": ["奖金", "提成"]
+      },
+      {
+        "name": "生成经营分析材料",
+        "task_type": "DOCUMENT_GENERATE",
+        "action": "生成",
+        "object_keywords": ["经营", "材料"]
+      }
+    ],
+    "forbidden_task_keywords": [
+      "智能化平台开发",
+      "异常监控",
+      "主动提醒",
+      "自动发送邮件",
+      "正式PPT",
+      "三年历史数据治理"
+    ],
+    "required_clarification_topics": [
+      {
+        "name": "提成规则版本",
+        "keywords": ["提成", "版本"]
+      },
+      {
+        "name": "计算范围",
+        "keywords": ["计算", "对象"]
+      },
+      {
+        "name": "数据来源",
+        "keywords": ["数据", "来源"]
+      },
+      {
+        "name": "时间范围",
+        "keywords": ["时间", "范围"]
+      }
+    ],
+    "dependency_rules": [
+      {
+        "task": "分析销售表现",
+        "depends_on": ["整理销售数据"]
+      },
+      {
+        "task": "生成经营分析材料",
+        "depends_on": ["分析销售表现", "分析销售下降原因"]
+      }
+    ]
+  },
+  "mock_llm_response": {
+    "result": {
+      "tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_YOY",
+          "task_description": "分析销售表现",
+          "action": "分析",
+          "object": "销售表现",
+          "required_inputs": ["analysis_object:销售表现", "analysis_method:同比对比"],
+          "missing_inputs": [],
+          "dependencies": [],
+          "confidence": 0.95
+        },
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM",
+          "task_description": "分析销售下降原因",
+          "action": "分析",
+          "object": "销售下降原因",
+          "required_inputs": ["analysis_object:销售下降原因", "analysis_method:原因分析"],
+          "missing_inputs": [],
+          "dependencies": [],
+          "confidence": 0.95
+        },
+        {
+          "task_type": "RULE_CALCULATION_COMMISSION",
+          "task_description": "计算销售人员奖金和提成",
+          "action": "计算",
+          "object": "销售人员奖金和提成",
+          "required_inputs": [],
+          "missing_inputs": ["calculation_policy", "calculation_object", "sales_data_source", "statistical_range"],
+          "dependencies": [],
+          "confidence": 0.95
+        },
+        {
+          "task_type": "DOCUMENT_GENERATE",
+          "task_description": "生成经营分析材料",
+          "action": "生成",
+          "object": "经营分析材料",
+          "required_inputs": ["topic:经营分析", "content_type:材料"],
+          "missing_inputs": [],
+          "dependencies": [],
+          "confidence": 0.95
+        }
+      ],
+      "clarification_required": false,
+      "clarification_questions": [],
+      "overall_confidence": 0.95
+    },
+    "evidence_spans": [
+      {
+        "task_index": 0,
+        "evidence_span": "分析一下今年以来整体销售表现"
+      },
+      {
+        "task_index": 1,
+        "evidence_span": "销售下降之后到底是什么原因造成的"
+      },
+      {
+        "task_index": 2,
+        "evidence_span": "计算本年度销售人员奖金和提成"
+      },
+      {
+        "task_index": 3,
+        "evidence_span": "领导希望能够看到一份比较清晰的经营分析材料"
+      }
+    ]
+  }
+}

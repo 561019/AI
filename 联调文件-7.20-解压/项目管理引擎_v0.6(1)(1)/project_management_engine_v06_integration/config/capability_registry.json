@@ -1,0 +1,126 @@
+{
+  "registry_version": "registry_2026.07.v06",
+  "warning": "本地联调暂定编号，正式联调以平台能力字典为准",
+  "capabilities": [
+    {
+      "action": "project.register.simple",
+      "capability_id": "CAP.PROJECT.REGISTER.SIMPLE",
+      "enabled": true,
+      "stage": 1
+    },
+    {
+      "action": "project.register.major",
+      "capability_id": "CAP.PROJECT.REGISTER.MAJOR",
+      "enabled": true,
+      "stage": 1
+    },
+    {
+      "action": "project.approval.result.record",
+      "capability_id": "CAP.PROJECT.APPROVAL.RESULT.RECORD",
+      "enabled": true,
+      "stage": 1
+    },
+    {
+      "action": "project.member.add",
+      "capability_id": "CAP.PROJECT.MEMBER.ADD",
+      "enabled": true,
+      "stage": 2
+    },
+    {
+      "action": "project.member.remove",
+      "capability_id": "CAP.PROJECT.MEMBER.REMOVE",
+      "enabled": true,
+      "stage": 2
+    },
+    {
+      "action": "project.member.query",
+      "capability_id": "CAP.PROJECT.MEMBER.QUERY",
+      "enabled": true,
+      "stage": 2
+    },
+    {
+      "action": "project.query",
+      "capability_id": "CAP.PROJECT.QUERY",
+      "enabled": true,
+      "stage": 1
+    },
+    {
+      "action": "project.trace.query",
+      "capability_id": "CAP.PROJECT.TRACE.QUERY",
+      "enabled": true,
+      "stage": 1
+    },
+    {
+      "action": "project.closure.execute",
+      "capability_id": "CAP.PROJECT.CLOSURE.EXECUTE",
+      "enabled": true,
+      "stage": 3
+    },
+    {
+      "action": "project.archive.catalog.query",
+      "capability_id": "CAP.PROJECT.ARCHIVE.CATALOG.QUERY",
+      "enabled": true,
+      "stage": 3
+    },
+    {
+      "action": "project.archive.authorization.record",
+      "capability_id": "CAP.PROJECT.ARCHIVE.AUTHORIZATION.RECORD",
+      "enabled": true,
+      "stage": 4
+    },
+    {
+      "action": "project.archive.authorized.query",
+      "capability_id": "CAP.PROJECT.ARCHIVE.AUTHORIZED.QUERY",
+      "enabled": true,
+      "stage": 4
+    },
+    {
+      "action": "project.archive.authorization.query",
+      "capability_id": "CAP.PROJECT.ARCHIVE.AUTHORIZATION.QUERY",
+      "enabled": true,
+      "stage": 4
+    },
+    {
+      "action": "project.grade.change.request",
+      "capability_id": "CAP.PROJECT.GRADE.CHANGE.REQUEST",
+      "enabled": true,
+      "stage": 6
+    },
+    {
+      "action": "project.grade.change.result.record",
+      "capability_id": "CAP.PROJECT.GRADE.CHANGE.RESULT.RECORD",
+      "enabled": true,
+      "stage": 6
+    },
+    {
+      "action": "project.member.update",
+      "capability_id": "CAP.PROJECT.MEMBER.UPDATE",
+      "enabled": true,
+      "stage": 6
+    },
+    {
+      "action": "project.task.progress.record",
+      "capability_id": "CAP.PROJECT.TASK.PROGRESS.RECORD",
+      "enabled": true,
+      "stage": 6
+    },
+    {
+      "action": "project.task.final.callback",
+      "capability_id": "CAP.PROJECT.TASK.FINAL.CALLBACK",
+      "enabled": true,
+      "stage": 6
+    },
+    {
+      "action": "project.task.query",
+      "capability_id": "CAP.PROJECT.TASK.QUERY",
+      "enabled": true,
+      "stage": 6
+    },
+    {
+      "action": "project.list.query",
+      "capability_id": "CAP.PROJECT.LIST.QUERY",
+      "enabled": true,
+      "stage": 6
+    }
+  ]
+}

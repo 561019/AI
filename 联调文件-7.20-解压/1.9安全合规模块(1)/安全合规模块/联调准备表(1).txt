@@ -1,0 +1,108 @@
+模块名称：安全合规（第 1.9 号模块 / L1 通用基础平台 · 治理保障组）
+负责人：（请填写）
+
+一、我提供给其他模块的能力：
+1. 数据脱敏 —— 对个人隐私（手机号/身份证/姓名）、商业机密等敏感字段，在使用、展示、外发前自动遮挡（掩码/替换），返回脱敏后的文本及识别详情。脱敏只是对字段内容的遮挡保护，与"谁能取这块数据"的权限判定是两回事（后者归 1.8 账号网关管）。
+2. 合规红线（输入输出护栏） —— 对输入文本做违规词扫描（5000+ 敏感词库，覆盖政治敏感/色情/暴力/违法/商业夸大等 20+ 类别），对输出内容做红线检查（尤其多媒体产出对外发布前先过一遍），踩线即拦截或提示。支持高风险违规词直接 deny。
+3. 越权留痕与告警 —— 当业务引擎调安全合规做权限校验时，发现越权行为（非公开数据且非应急账号），记录越权事件并告警。权限本身的判定归 1.8 账号网关，本模块负责越权事件的留痕与报警。
+4. 审计留痕（全链路追踪） —— 依托全平台统一追踪编号（trace_id），将一次安全检查的每一步（模型选择→网络+密级→违规词→脱敏→数据出域→权限）串成 span 链，每条审计日志带密码学 hash 链防篡改，支持事后完整性校验。默认遮蔽各跳业务内容、越权处一眼可查。
+5. 敏感数据不出域 —— 核心机密（confidential）自动拦截：公网环境直接拒绝，海外大模型直接拦截，机密数据只允许本地模型处理，与 1.10 大模型调度模块的底线保持一致。
+
+二、我提供的接口：
+接口 1：安全检查（六层 pipeline，核心接口）
+- 路径：/api/l1/security-compliance/check
+- 方法：POST
+- 输入：
+  {
+    "input_text": "用户输入的文本",
+    "real_person_id": "操作者真实身份ID（如 person_sales_mgr）",
+    "is_emergency": false,
+    "data_classification": "public | confidential",
+    "network": "intranet | public",
+    "model_type": "domestic | overseas | local",
+    "output_files": [{"name": "xxx.pdf", "type": "pdf"}],
+    "output_text": "AI 返回的文本内容"
+  }
+- 输出：
+  {
+    "request_id": "req_xxx",
+    "audit_id": "audit_xxx",
+    "trace_id": "trace_xxx",
+    "model_check": {"passed": true, "model_type": "domestic", "reason": "", "checked": true},
+    "network_check": {"passed": true, "risk_level": "low", "hit_words": [], ...},
+    "violation": {"passed": true, "risk_level": "low", "hit_words": [], "hit_rules": [], "suggestion": "", "checked": true},
+    "masking": {"need_masking": false, "masked_text": "脱敏后文本", "findings": [...], "checked": true},
+    "data_domain": {"can_use_external_model": true, "model_scope": "external_allowed", "reason": "...", "checked": true},
+    "permission": {"has_permission": true, "deny_reason": "", "matched_role": "", "checked": true},
+    "decision": "allow | deny",
+    "decision_reason": "安全检查通过。"
+  }
+- 错误情况：
+  · 400：输入参数缺失或格式不正确（Pydantic 校验失败）
+  · 200 + decision=deny：业务层拦截（非 HTTP 错误，在响应体里体现）：
+    - SEC_DENY_OVERSEAS_MODEL：海外大模型直接拒绝
+    - SEC_DENY_CONFIDENTIAL_PUBLIC_NET：机密数据在公网操作拒绝
+    - SEC_DENY_VIOLATION：输入命中违规词/红线
+    - SEC_DENY_DATA_DOMAIN：数据出域规则不通过
+    - SEC_DENY_NO_PERMISSION：权限不足（非公开数据 + 非应急账号）
+
+接口 2：审计日志查询
+- 路径：/api/l1/security-compliance/check/audit-logs
+- 方法：GET
+- 输入：?real_person_id=xxx&decision=deny&limit=50&offset=0（均为可选）
+- 输出：{"total": N, "items": [...], "limit": 50, "offset": 0}
+- 错误情况：500（数据库异常）
+
+接口 3：审计完整性校验（hash 链防篡改验证）
+- 路径：/api/l1/security-compliance/check/audit-integrity
+- 方法：GET
+- 输入：?limit=500（可选，默认 500）
+- 输出：{"verified": N, "tampered": M, "details": [...]}
+- 错误情况：500（数据库异常）
+
+接口 4：操作留痕追踪详情
+- 路径：/api/l1/security-compliance/check/trace/{trace_id}
+- 方法：GET
+- 输入：trace_id（path 参数）
+- 输出：{"trace_id": "xxx", "spans": [...], "observations": [...]}
+- 错误情况：404（trace_id 不存在）、500（数据库异常）
+
+三、我需要调用哪些模块：
+1. 需要调用模块：1.8 账号网关
+   - 调用目的：获取操作者的真实权限状态（角色、域、是否应急账号）；本模块不自己做权限判定，权限"能不能做"归账号网关管，本模块只在越权时留痕报警。
+   - 需要对方提供什么接口：按 real_person_id 查询该人的当前角色（position）、所属数据域（domain）、是否应急账号、角色对应的 action 权限列表。
+   - 当前是否已 mock：是 —— 当前通过 mock_data.json 中的 accounts / persons / org_position / person_position / position_standard_permission 等 JSON 数据本地模拟，应急账号通过请求参数 is_emergency 手动传入。
+
+2. 需要调用模块：1.7 数据模块
+   - 调用目的：获取数据的分级标签（public / confidential 等），本模块按数据模块的分级结果来决定要不要脱敏、能不能出域。
+   - 需要对方提供什么接口：按 data_id 或数据内容查询数据密级分类（data_classification），以及该数据允许的操作类型列表（allowed_actions）、是否允许外部模型（allow_external_model）。
+   - 当前是否已 mock：是 —— 当前数据密级通过请求参数 data_classification 手动传入，数据注册信息在 mock_data.json 的 data_registry 中本地模拟。
+
+3. 需要调用模块：1.10 大模型调度模块
+   - 调用目的：在数据出域检查中，需要与大模型调度模块保持一致 —— 机密场景不接入海外大模型，确认当前可用的模型池（domestic / overseas / local）及路由策略。
+   - 需要对方提供什么接口：按场景查询当前可调度的模型列表及模型标签（domestic / overseas / local），或者接收本模块的 model_type 建议后做最终路由决策。
+   - 当前是否已 mock：是 —— 当前 model_type 由请求参数手动传入，数据出域规则在代码中硬编码（confidential 只允许 local 模型）。
+
+四、当前 mock 的内容：
+1. 账号与人员数据：mock_data.json 中的 accounts（7 个账号，含 1 个应急监察账号 acc_emergency）、persons（6 人）、org_position（4 个岗位）、person_position（5 条映射），完全本地模拟，未对接 1.8 账号网关。
+2. 权限判定：mock_data.json 中的 position_standard_permission（6 条岗位标准权限）、personal_data_grant（1 条个人数据授权）、policy_rule（4 条制度规则），完全本地模拟。当前 check 接口的权限逻辑简化为"公开数据放行 + 应急账号放行，其余 deny"。
+3. 数据分级与数据注册：mock_data.json 中的 data_registry（7 条数据资产，含 active/frozen/disabled/archived 各状态），完全本地模拟。数据密级（confidential/public）由调用方通过请求参数手动指定。
+4. 大模型调度：model_type（domestic/overseas/local）由调用方通过请求参数手动指定，数据出域规则在 security_gateway.py 中硬编码逻辑，未对接 1.10 大模型调度模块。
+5. 违规词库：data/sensitive_lexicon.json（5000+ 关键词，20+ 类别），本地文件加载，未对接平台统一配置中心（如需动态增删改规则，当前需直接编辑 JSON 文件）。
+6. 审计数据库：SQLite 本地文件（data/security_audit.db），单机运行。生产环境需替换为平台统一数据库（PostgreSQL/MySQL）并接入统一监控。
+
+五、后续联调风险：
+1. 1.8 账号网关接口对齐风险：当前权限逻辑简化为"公开数据放行 + 应急账号放行"，真实联调时需替换为调用账号网关接口获取完整权限树（角色→域→数据→action），接口字段和鉴权方式需双方对齐，预计需 1~2 轮联调。
+2. 1.7 数据模块数据分级接口风险：当前数据密级由调用方手动传入（data_classification 参数），真实场景应由数据模块根据数据 ID 自动返回分级标签。如果数据模块的分级粒度与安全合规的脱敏/出域规则粒度不匹配（例如数据模块只有"公开/内部/机密"三级，而安全合规需要区分"核心经营数据/个人隐私/商业机密"），需要额外映射层。
+3. 各业务引擎嵌入点对齐风险：研发方案定义了五个需要挂安全合规的业务引擎（②外部系统对接、①文档表格解析、④规则计算、⑨流程自动操作、⑧多媒体生成），每个引擎的调用时机和阶段（Stage）不同 —— 有的是"取数前检查"、有的是"产出后检查"。当前只有一个统一的 /check 接口，各引擎需要在自己的流程中约定在哪个 stage 调用、传什么参数（尤其 output_text/output_files 对产出类引擎必传）。联调时需逐个引擎确认嵌入点。
+4. 数据库切换风险：当前使用 SQLite，联调/生产环境需切换到平台统一数据库。hash 链计算依赖上一笔记录 hash 的查询顺序，换库后需验证 INSERT 顺序和并发场景下的 hash 链一致性。
+5. 违规词库同步风险：当前敏感词库为静态 JSON 文件，联调期间如果安全团队需要增删规则，需要确定规则热更新机制（是通过接口动态加载、还是定时拉取配置中心、还是走 CI/CD 发布），避免联调过程中规则不一致。
+6. 输出护栏（output guard）联调范围确认：研发方案中提到了"输入输出护栏"，当前 /check 接口对 input_text 做了违规词检查，对 output_text 仅做脱敏和留痕，并未做输出内容的红线检查（如夸大宣传词"彻底解决""100%"等）。建议联调前与产品确认输出护栏的实现范围和优先级。
+
+六、联调前我能保证什么：
+1. 本模块能独立启动：python run.py 一键启动，监听 127.0.0.1:8002，无外部依赖。
+2. 本模块有测试数据：data/mock_data.json 包含 7 个账号、7 条数据资产、完整的权限和策略 mock 数据；data/sensitive_lexicon.json 包含 5000+ 敏感词。
+3. 本模块有测试结果截图：可通过浏览器打开 http://127.0.0.1:8002/frontend/check.html 进行手动测试并截图，也可通过 curl 调用 /api/l1/security-compliance/check 获取 JSON 响应截图。
+4. 本模块有接口文档：Swagger 文档自动生成，启动后访问 http://127.0.0.1:8002/docs 即可查看所有接口的请求/响应 schema 并在线调试。
+5. 本模块有 mock 数据：见第四部分，所有外部依赖（账号、权限、数据分级、模型调度）均已 mock，可独立演示完整六层检查流程。
+6. 本模块有 README：见上文项目结构说明，包含启动方式、环境变量配置、API 端点说明。

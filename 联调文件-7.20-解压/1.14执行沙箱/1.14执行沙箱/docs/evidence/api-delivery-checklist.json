@@ -1,0 +1,78 @@
+{
+  "module": "L1 1.14 执行沙箱",
+  "delivery_form": "Docker-runtime capability package",
+  "current_runtime": "DockerTemplateExecutor",
+  "cube_position": "future stronger-isolation option, not current blocker",
+  "evidence_summary": {
+    "total": 9,
+    "present": 9,
+    "missing": 0
+  },
+  "summary": {
+    "done": 12,
+    "ready": 0,
+    "missing": 0
+  },
+  "items": [
+    {
+      "name": "模块说明",
+      "status": "done",
+      "evidence": "docs/MODULE_SPEC.md"
+    },
+    {
+      "name": "边界说明",
+      "status": "done",
+      "evidence": "docs/BOUNDARY_SPEC.md"
+    },
+    {
+      "name": "输入输出说明",
+      "status": "done",
+      "evidence": "docs/MODULE_SPEC.md"
+    },
+    {
+      "name": "API/接口说明",
+      "status": "done",
+      "evidence": "docs/API_SPEC.md"
+    },
+    {
+      "name": "小界面 Demo",
+      "status": "done",
+      "evidence": "http://10.60.66.97:8765/"
+    },
+    {
+      "name": "场景测试数据",
+      "status": "done",
+      "evidence": "scenario_templates/scenarios.json + mock ERP/OA payloads"
+    },
+    {
+      "name": "测试用例",
+      "status": "done",
+      "evidence": "/api/verification and /api/acceptance"
+    },
+    {
+      "name": "测试结果文档",
+      "status": "done",
+      "evidence": "docs/TEST_REPORT.md"
+    },
+    {
+      "name": "截图/证据",
+      "status": "done",
+      "evidence": "docs/DELIVERY_EVIDENCE.md + docs/evidence/*"
+    },
+    {
+      "name": "当前限制",
+      "status": "done",
+      "evidence": "docs/MODULE_SPEC.md and docs/PLAN_COMPLIANCE.md"
+    },
+    {
+      "name": "后续模块集成说明",
+      "status": "done",
+      "evidence": "docs/INTEGRATION_PREP_TABLE.md"
+    },
+    {
+      "name": "联调准备表",
+      "status": "done",
+      "evidence": "docs/INTEGRATION_PREP_TABLE.md"
+    }
+  ]
+}

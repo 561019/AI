@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>平台层间交互逻辑图 v2.6</title>
+<style>
+:root{
+  --bg:#f4f6fa; --card:#ffffff; --ink:#1c2333; --sub:#5a6478; --line:#d7dde8;
+  --app:#eef3fb; --app-border:#2e5395; --app-head:#1f3864;
+  --eng:#f0f7f1; --eng-border:#3d7a4e; --eng-head:#28553a;
+  --base:#f6f2ea; --base-border:#9a6b2f; --base-head:#6e4a1c;
+  --iface:#fff7e8; --iface-border:#c78a2d; --iface-head:#8a5a12;
+  --inner:#f2f0fb; --inner-border:#6b5aa6; --inner-head:#4a3d80;
+  --req:#2e5395; --resp:#3d7a4e; --noti:#b0641f; --confirm:#b04a4a;
+  --chip:#ffffff; --chip-border:#c9d2e0; --dim:#9aa3b5;
+  --hl:#fdeeee; --hl-border:#b04a4a;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--ink);
+  font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC","Source Han Sans SC",sans-serif;
+  padding:30px 20px 40px;}
+.wrap{max-width:1500px;margin:0 auto;}
+h1{font-size:26px;letter-spacing:1px;}
+.meta{color:var(--sub);font-size:13px;margin-top:8px;line-height:1.8;}
+.pyramid{position:relative;margin-top:20px;}
+.silhouette{position:absolute;inset:0;z-index:0;display:flex;justify-content:center;pointer-events:none;}
+.silhouette svg{height:100%;width:100%;}
+
+.layer{position:relative;z-index:1;margin:0 auto;border-radius:12px;padding:15px 20px 16px;
+  border:1.6px solid;box-shadow:0 2px 8px rgba(20,30,60,.06);}
+.layer .head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
+.layer .name{font-size:19px;font-weight:700;letter-spacing:.5px;}
+.layer .desc{font-size:12.5px;color:var(--sub);line-height:1.7;}
+.app{width:58%;background:var(--app);border-color:var(--app-border);}
+.app .name{color:var(--app-head);}
+.eng{width:78%;background:var(--eng);border-color:var(--eng-border);}
+.eng .name{color:var(--eng-head);}
+.base{width:98%;background:var(--base);border-color:var(--base-border);}
+.base .name{color:var(--base-head);}
+
+.callout{width:58%;margin:0 auto 10px;border:1px dashed var(--app-border);border-radius:10px;
+  background:var(--card);padding:10px 16px;font-size:12.5px;color:var(--sub);line-height:1.85;position:relative;z-index:1;}
+.callout b{color:var(--ink);}
+
+.entrygrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+.entry{background:var(--chip);border:1px solid var(--chip-border);border-radius:9px;padding:9px 12px;}
+.entry .t{font-size:13px;font-weight:600;margin-bottom:3px;}
+.entry .s{font-size:11.5px;color:var(--sub);line-height:1.6;}
+
+/* 层接口条：对外通道 */
+.ifacebar{border:1.6px solid var(--iface-border);background:var(--iface);border-radius:10px;
+  padding:8px 14px;position:relative;z-index:1;}
+.ifacebar .row{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;}
+.ifacebar .bt{font-size:13px;font-weight:700;color:var(--iface-head);letter-spacing:.3px;white-space:nowrap;}
+.ifacebar .duty{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
+.ifacebar .duty span{font-size:11px;border:1px solid var(--iface-border);color:var(--iface-head);
+  border-radius:12px;padding:2px 8px;background:var(--card);}
+.ifacebar .bnote{font-size:11.5px;color:var(--sub);text-align:center;margin-top:5px;line-height:1.6;}
+.bar-app{width:58%;margin:-4px auto 0;}
+.bar-engt{width:78%;margin:0 auto -4px;}
+.bar-engb{width:78%;margin:-4px auto 0;}
+.bar-baset{width:98%;margin:0 auto -4px;}
+
+/* 层内通道条：对内通道 */
+.innerbar{border:1.4px solid var(--inner-border);background:var(--inner);border-radius:9px;
+  padding:7px 14px;margin-top:11px;}
+.innerbar .row{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;}
+.innerbar .it{font-size:12.5px;font-weight:700;color:var(--inner-head);white-space:nowrap;}
+.innerbar .duty{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
+.innerbar .duty span{font-size:11px;border:1px solid var(--inner-border);color:var(--inner-head);
+  border-radius:12px;padding:2px 8px;background:var(--card);}
+
+/* 层间交互 */
+.gap{width:62%;margin:6px auto;position:relative;z-index:1;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;min-height:92px;}
+.arrowcol{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:2px;padding:0 4px;}
+.arrowlabel{font-size:11.5px;line-height:1.55;text-align:center;}
+.a-req{color:var(--req);} .a-resp{color:var(--resp);} .a-noti{color:var(--noti);}
+.arrow{font-size:20px;line-height:1;font-weight:700;}
+.dashedbox{border:1.2px dashed var(--noti);border-radius:8px;padding:4px 7px;margin-top:5px;}
+.gap .mid{text-align:center;font-size:11.5px;color:var(--sub);line-height:1.7;}
+
+/* 引擎 / 模块 / 路径 */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;}
+.path{border:1px solid var(--chip-border);background:var(--card);border-radius:9px;padding:8px 12px;font-size:12px;line-height:1.7;}
+.path b{font-size:12.5px;}
+.p1 b{color:var(--hl-border);} .p2 b{color:var(--eng-head);}
+.enginegrid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:10px;}
+.modgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin-top:6px;}
+.chip{background:var(--chip);border:1px solid var(--chip-border);border-radius:8px;
+  padding:7px 7px;text-align:center;font-size:12px;line-height:1.45;}
+.chip .no{display:block;font-size:10px;color:var(--sub);margin-bottom:2px;}
+.chip.first{background:var(--hl);border-color:var(--hl-border);font-weight:600;}
+.chip.org{background:#f0f7f1;border-color:var(--eng-border);font-weight:600;}
+.subnote{font-size:11.5px;color:var(--sub);margin-top:9px;line-height:1.7;}
+
+/* 真人确认说明块 */
+.confirmbox{border:1.4px solid var(--confirm);border-radius:10px;background:var(--hl);
+  padding:9px 14px;margin-top:11px;}
+.confirmbox .ct{font-size:12.5px;font-weight:700;color:var(--confirm);margin-bottom:5px;}
+.confirmbox .crow{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.confirmbox .cc{background:var(--card);border:1px solid var(--confirm);border-radius:8px;padding:7px 11px;font-size:11.5px;line-height:1.65;color:var(--ink);}
+.confirmbox .cc b{color:var(--confirm);}
+
+.legend{width:98%;margin:18px auto 0;background:var(--card);border:1px solid var(--line);
+  border-radius:12px;padding:15px 20px;position:relative;z-index:1;}
+.legend .lt{font-size:14px;font-weight:700;margin-bottom:10px;}
+.legrow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+.leg{font-size:12px;line-height:1.8;color:var(--sub);}
+.leg b{color:var(--ink);display:block;margin-bottom:2px;font-size:12.5px;}
+.leg i{font-style:normal;font-weight:700;}
+.footer{margin-top:16px;text-align:center;color:var(--sub);font-size:11.5px;line-height:1.7;}
+
+/* 业务引擎分组：命令中枢 + 执行引擎群（外层大框） */
+.enginewrap{border:1.8px solid var(--eng-border);border-radius:12px;background:#fbfdfb;
+  padding:12px 14px 13px;margin-top:10px;}
+.enginewrap .wraphead{font-size:13px;font-weight:700;color:var(--eng-head);margin-bottom:11px;
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.enginewrap .wraphead .tag{font-size:11px;font-weight:600;color:var(--sub);border:1px solid var(--chip-border);
+  background:var(--card);border-radius:12px;padding:2px 10px;}
+.enginewrap .wrapnote{font-size:11px;color:var(--sub);margin-top:10px;line-height:1.65;}
+.enginecols{display:grid;grid-template-columns:minmax(200px,1.05fr) auto 2.35fr;align-items:stretch;gap:8px;}
+/* 左：命令中枢 */
+.engcore{border:1.7px solid var(--hl-border);border-radius:11px;background:var(--hl);padding:11px 12px;
+  display:flex;flex-direction:column;justify-content:center;}
+.engcore .boxlabel{font-size:11.5px;font-weight:700;color:var(--hl-border);text-align:center;margin-bottom:9px;}
+.corechip{background:var(--card);border:1.5px solid;border-radius:10px;padding:10px 8px;text-align:center;}
+.corechip .no{display:block;font-size:10px;color:var(--sub);margin-bottom:3px;}
+.corechip .nm{font-size:14px;font-weight:700;}
+.corechip.intent{border-color:var(--hl-border);} .corechip.intent .nm{color:var(--hl-border);}
+.corechip.flow{border-color:var(--eng-border);} .corechip.flow .nm{color:var(--eng-head);}
+.coredown{display:flex;flex-direction:column;align-items:center;gap:2px;margin:7px 0;}
+.coredown .cd-arrow{font-size:22px;line-height:1;color:var(--hl-border);font-weight:700;}
+.coredown .cd-label{font-size:10.5px;color:var(--sub);text-align:center;line-height:1.45;}
+/* 中：派发桥 */
+.engbridge{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:3px;
+  padding:0 2px;min-width:104px;}
+.engbridge .br-main{font-size:12px;font-weight:700;color:var(--eng-head);text-align:center;line-height:1.4;}
+.engbridge .br-arrow{font-size:30px;line-height:.75;color:var(--eng-border);font-weight:700;}
+.engbridge .br-backarrow{font-size:17px;line-height:1;color:var(--dim);margin-top:3px;}
+.engbridge .br-back{font-size:10.5px;color:var(--sub);text-align:center;line-height:1.4;}
+/* 右：执行引擎群 */
+.engexec{border:1.5px solid var(--eng-border);border-radius:11px;background:var(--card);padding:11px 12px;}
+.engexec .boxlabel{font-size:11.5px;font-weight:700;color:var(--eng-head);text-align:center;margin-bottom:9px;line-height:1.5;}
+.execgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.execgrid .chip{background:var(--chip);border:1px solid var(--chip-border);border-radius:9px;
+  padding:9px 6px;text-align:center;font-size:12px;line-height:1.4;font-weight:500;display:flex;
+  align-items:center;justify-content:center;}
+
+/* 阶段配色（平台代码研发四阶段） */
+.phaselegend{margin:14px 0 4px;background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:13px 20px;position:relative;z-index:1;}
+.phaselegend .pl-title{font-size:14px;font-weight:700;margin-bottom:10px;}
+.phaselegend .pl-row{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center;}
+.pl-item{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink);}
+.pl-item .muted{color:var(--sub);}
+.pl-swatch{width:26px;height:17px;border-radius:5px;border:1.6px solid;flex:none;
+  display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;}
+.pl-note{font-size:12px;color:var(--sub);margin-top:11px;line-height:1.75;
+  border-top:1px dashed var(--line);padding-top:10px;}
+.pl-note b{color:var(--ink);}
+.sw1{background:#fdf1dd;border-color:#c8801f;color:#8a5a12;}
+.sw2{background:#e6f0fb;border-color:#2e6fc0;color:#1f3864;}
+.sw3{background:#e7f4ea;border-color:#3d8a52;color:#28553a;}
+.sw4{background:#efeafa;border-color:#6b52a8;color:#4a3d80;}
+.sw0{background:#eef0f4;border-color:#c3c9d4;color:#8a92a2;}
+/* 第一阶段高亮 */
+.ph1{background:#fdf1dd !important;border-color:#c8801f !important;
+  box-shadow:0 0 0 2px rgba(200,128,31,.20);}
+.phtag{display:inline-block;margin-left:5px;background:#c8801f;color:#fff;font-size:9px;
+  font-weight:700;border-radius:7px;padding:1px 5px;vertical-align:middle;letter-spacing:.3px;}
+.iface-ph{display:inline-block;font-size:10px;font-weight:700;color:#fff;background:#c8801f;
+  border-radius:8px;padding:1px 8px;margin-left:8px;letter-spacing:.3px;}
+
+.ph2{background:#e6f0fb !important;border-color:#2e6fc0 !important;box-shadow:0 0 0 2px rgba(46,111,192,.18);}
+.ph3{background:#e7f4ea !important;border-color:#3d8a52 !important;box-shadow:0 0 0 2px rgba(61,138,82,.18);}
+.phlater{background:#eef0f4 !important;border-color:#c9cfd9 !important;color:#8a92a2 !important;}
+.phlater .no{color:#a6adba !important;}
+.phtag.t2{background:#2e6fc0;} .phtag.t3{background:#3d8a52;} .phtag.t0{background:#98a0af;} .phtag.t4{background:#6b52a8;}
+.ph4{background:#efeafa !important;border-color:#6b52a8 !important;box-shadow:0 0 0 2px rgba(107,82,168,.18);}
+.iface-ph.b2{background:#2e6fc0;}
+
+.entrygrid.four{grid-template-columns:repeat(4,1fr);}
+.phased{display:flex;flex-wrap:wrap;gap:9px 20px;align-items:flex-start;}
+.pgrp{display:flex;flex-wrap:wrap;gap:7px;align-content:flex-start;}
+.eng-phased .pgrp .chip{width:148px;}
+.mod-phased .pgrp .chip{width:172px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <h1>平台层间交互逻辑图</h1>
+    <div class="meta">三层架构自上而下的调用关系、各层层接口（对外通道与对内通道）与层内逻辑 · 依据《南宁汉和集团AI平台架构框架说明 v2.2》 · v2.6 · 2026-07-16<br>
+    调用链一律自上而下：业务应用层 → 业务引擎层 → 基础模块层，无例外。行业业务层预留位置、本期不启用；将来启用时按同一套接口标准接入，各层接口与交互指令标准不变。<br>v2.1 调整：业务引擎按“命令中枢（意图分析、流程执行）＋执行引擎群”重排分组、补派发与回流箭头；按最新口径取消创建类特别走法、“数字员工”改称“agent”。<br>v2.2 增补：依《第一阶段实施计划 v0.2》标注第一阶段建设范围（橙色①）。<br>v2.3 增补：按东哥定的分批（二阶段场景一三四、三阶段场景五二六）标注第二阶段（蓝色②）、第三阶段（绿色③）建设范围。<br>v2.4 调整：业务应用层补入“我的 Project”、项目管理引擎提到第二阶段；执行引擎群与基础模块层内元素按①②③未阶段从左到右归类排列。<br>v2.5 调整：数据归集聚合引擎更名为数据操作引擎（专管业务数据的整合与增、删、改，站资产角度做登记与打标签，物理存取交基础模块层数据模块执行）；统一用词——Agent 统称智能体、Skills 称技能、Knowledge Base 称知识库，内部与客户皆用；数字资产引擎明确只管智能体、技能、知识库三类、不含业务数据。<br>v2.6 调整：一、各阶段场景标注按《三类十场景定稿》重排——第二阶段为场景七穿透式透明管理、场景八领导者快速稳健决策、场景四跨岗位人机混合编队；第三阶段为场景一二三五六九十共七个；“从管到赋能”已降为贯穿理念、不再单列为场景。二、补上三处挪动——文档表格解析引擎由第三阶段提到第二阶段，外部系统对接引擎与设备与系统接口模块由第二阶段移到第三阶段。三、补入能力字典与能力登记表机制——意图分析引擎把任务对到能力字典编号、流程执行引擎按能力登记表确定性查表选引擎、按数据依赖判串并行；能力登记表不进数据模块、由平台配置管理账号运行期维护、接口控制模块只读加载。四、多媒体生成引擎、安全合规、成本管控由未排期改列第四阶段、全部建成，至此十三个引擎、十五个模块全部有阶段归属。</div>
+  </div>
+
+<div class="phaselegend">
+    <div class="pl-title">阶段配色 · 对应平台代码研发四阶段（四个阶段均已标注到引擎模块一级）</div>
+    <div class="pl-row">
+      <div class="pl-item"><span class="pl-swatch sw1">①</span>第一阶段 · 框架验证<span class="muted">（本图已标）</span></div>
+      <div class="pl-item"><span class="pl-swatch sw2">②</span>第二阶段 · 最小有效产品<span class="muted">（本图已标 · 场景七八四）</span></div>
+      <div class="pl-item"><span class="pl-swatch sw3">③</span>第三阶段 · 全面开发<span class="muted">（本图已标 · 场景一二三五六九十）</span></div>
+      <div class="pl-item"><span class="pl-swatch sw4">④</span><span class="muted">第四阶段 · 跨企业通用化（另补建多媒体生成引擎、安全合规、成本管控三个组件、全部建成）</span></div>
+      <div class="pl-item"><span class="muted">十三个业务引擎、十五个基础模块已全部标注到第一至第四阶段，无未排期项。</span></div>
+    </div>
+    <div class="pl-note"><b>① 第一阶段·框架验证</b>：三层对外通道、业务引擎层对内通道；意图分析引擎、内容产出引擎；权限管理、大模型调度；对话界面。最小案例需求115、单任务，暂不经流程执行引擎。　<b>② 第二阶段·最小有效产品</b>（场景七 穿透式透明管理、场景八 领导者快速稳健决策、场景四 跨岗位人机混合编队）：新增<b>流程执行引擎</b>（多任务编排由此上线）、数据操作、规则计算、分析预测、监控提醒、文档表格解析、<b>项目管理</b>七个引擎；流程模板管理、上下文与提示词管理、数据、账号网关、人机协同五个模块；建全平台<b>能力字典与能力登记表</b>（意图分析引擎对到字典编号、流程执行引擎按登记表确定性查表选引擎、按数据依赖判串并行；登记表不进数据模块、由平台配置管理账号运行期维护、接口控制模块只读加载）；业务应用层新增<b>我的 Project</b>（多对话框归集、纵向上下文来源）、按钮表单入口、待办通知入口。项目管理提到本阶段，因“我的工作汇报”与项目挂钩、用于项目核算；文档表格解析提到本阶段，因场景八要读上传报表。　<b>③ 第三阶段·全面开发</b>（场景一 专家能力平民化、场景二 多智能体协同代办、场景三 今日沉淀、场景五 客户生命周期、场景六 跨部门数据流程打通、场景九 数据分析与预测、场景十 风险自动预警，共七个）：新增数字资产、知识库问答、外部系统对接三个引擎；进化机制、驾驭机制、知识库、执行沙箱、记忆管理、设备与系统接口六个模块。其中场景五、六、九用到的引擎第二阶段已建齐、只需新编排。　<b>④ 第四阶段·跨企业通用化</b>：补建前十个场景都用不到的三个组件——多媒体生成引擎、安全合规、成本管控，全部建成。至此十三个业务引擎、十五个基础模块全部建齐。</div>
+  </div>
+
+  <div class="pyramid">
+    <div class="silhouette">
+      <svg viewBox="0 0 1500 1420" preserveAspectRatio="none">
+        <polygon points="750,0 1500,1420 0,1420" fill="currentColor" opacity="0.04"/>
+      </svg>
+    </div>
+
+    <!-- 业务应用层 顶部说明 -->
+    <div class="callout">
+      <b>业务应用层是全部业务请求的唯一发起层</b>：企业用户在此层提出需求、接收成果。发出的请求分两类——对话框中输入的<b>自然语言</b>，与界面按钮、表单生成的<b>确定性指令</b>（由程序按预定义格式生成、无歧义，如“确定”“同意”“接受”、提交表单、处理待办）；同时本层接收下层送回的结果、受理回执与主动通知。本层不直接调用基础模块层。
+    </div>
+
+    <!-- 业务应用层 -->
+    <div class="layer app">
+      <div class="head"><span class="name">业务应用层</span>
+        <span class="desc">用户入口层 · 业务请求只发不收 · 经本层层接口发出请求并接收结果、回执与通知</span></div>
+      <div class="entrygrid four">
+        <div class="entry ph1"><div class="t">对话框<span class="phtag">①</span></div><div class="s">自然语言请求</div></div>
+        <div class="entry ph2"><div class="t">我的 Project<span class="phtag t2">②</span></div><div class="s">多对话框归集 · 纵向上下文来源</div></div>
+        <div class="entry ph2"><div class="t">业务界面 · 按钮与表单<span class="phtag t2">②</span></div><div class="s">确定性指令</div></div>
+        <div class="entry ph2"><div class="t">待办与通知接收<span class="phtag t2">②</span></div><div class="s">预警 · 真人拍板待办 · 结果送达</div></div>
+      </div>
+      <!-- 业务应用层 对内通道 -->
+      <div class="innerbar">
+        <div class="row"><span class="it">对内通道 · 信息分发与呈现机制</span><span class="iface-ph b2">② 第二阶段</span>
+          <div class="duty"><span>各界面与工作台经本层对内通道配合</span><span>凭真人身份与范围标识把结果、回执、通知送到对应真人的对应界面</span><span>确定性执行、不动用大模型</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 业务应用层 层接口·对外通道 -->
+    <div class="ifacebar bar-app">
+      <div class="row"><span class="bt">业务应用层 层接口 · 对外通道 · 接口控制模块</span><span class="iface-ph">① 第一阶段建</span>
+        <div class="duty"><span>请求发起端：按下层服务目录组装请求 · 生成追踪编号</span><span>接收端：接收结果 / 回执 / 通知</span><span>留痕与用量记录</span></div>
+      </div>
+    </div>
+
+    <!-- 层间交互：应用层 ↔ 引擎层 -->
+    <div class="gap">
+      <div class="arrowcol">
+        <div class="arrowlabel a-req">请求 ↓<br>自然语言 / 确定性指令<br>（携带追踪编号）</div>
+        <div class="arrow a-req">▼</div>
+      </div>
+      <div class="mid">层间交互<br>发生在业务应用层请求发起端<br>与业务引擎层请求接收端之间</div>
+      <div class="arrowcol">
+        <div class="arrow a-resp">▲</div>
+        <div class="arrowlabel a-resp">三种标准回复 ↑<br>即时结果 / 受理回执 / 拒绝及原因</div>
+        <div class="dashedbox arrowlabel a-noti">通知通道 ↑ 预警 · 待办 · 结果送达</div>
+      </div>
+    </div>
+
+    <!-- 业务引擎层 层接口·对外通道·接收端 -->
+    <div class="ifacebar bar-engt">
+      <div class="row"><span class="bt">业务引擎层 层接口 · 对外通道 · 请求接收端</span><span class="iface-ph">① 第一阶段建</span>
+        <div class="duty"><span>唯一入口</span><span>准入名单校验（仅收业务应用层）</span><span>真人权限校验</span><span>留痕与用量记录</span><span>按分派规则表分派</span></div>
+      </div>
+      <div class="bnote">信息进入本层按类别标记分流：<b>自然语言 → 意图分析引擎</b>；<b>确定性指令 → 按追踪编号认领</b>——回答意图确认的回意图分析引擎，其余（流程中途确认、审批、用户主动操作）交流程执行引擎</div>
+    </div>
+
+    <!-- 业务引擎层 -->
+    <div class="layer eng">
+      <div class="head"><span class="name">业务引擎层</span>
+        <span class="desc">平台办理业务的核心层 · 十三个业务引擎 · 上下相邻层齐备、接收与发起两端齐备 · 另含十大经营系统（仅对内）</span></div>
+      <div class="split">
+        <div class="path p1"><b>自然语言</b>：先经意图分析引擎解读为明确任务清单，交流程执行引擎拆分并组织执行；固定流程由其调用流程模板管理取模板</div>
+        <div class="path p2"><b>确定性指令</b>：不再经意图分析，按追踪编号认领去向后直接交对应引擎或恢复对应挂起流程</div>
+      </div>
+      <div class="enginewrap">
+        <div class="wraphead">业务引擎（十三个）<span class="tag">分两组：命令中枢 · 执行引擎群</span></div>
+        <div class="enginecols">
+          <!-- 左：命令中枢（意图分析 → 流程执行）-->
+          <div class="engcore">
+            <div class="boxlabel">命令中枢 · 读懂并组织</div>
+            <div class="corechip intent ph1"><span class="no">自然语言进来第一道</span><span class="nm">意图分析引擎<span class="phtag">①</span></span></div>
+            <div class="coredown"><div class="cd-arrow">▼</div><div class="cd-label">读懂、对到能力字典编号<br>与本人确认后交结构化指令</div></div>
+            <div class="corechip flow ph2"><span class="no">唯一执行组织者</span><span class="nm">流程执行引擎<span class="phtag t2">②</span></span></div>
+          </div>
+          <!-- 中：派发桥（流程执行 → 执行引擎群）-->
+          <div class="engbridge">
+            <div class="br-main">派发子任务<br>经对内通道</div>
+            <div class="br-arrow">▶</div>
+            <div class="br-backarrow">◀</div>
+            <div class="br-back">子任务结果 / 回执<br>回流程执行引擎汇总</div>
+          </div>
+          <!-- 右：执行引擎群（其余十一个，互不直连）-->
+          <div class="engexec">
+            <div class="boxlabel">执行引擎群 · 各自独立完成派来的子任务、互不直连</div>
+            <div class="phased eng-phased">
+              <div class="pgrp">
+                <div class="chip ph1">内容产出引擎<span class="phtag">①</span></div>
+              </div>
+              <div class="pgrp">
+                <div class="chip ph2">文档表格解析引擎<span class="phtag t2">②</span></div>
+                <div class="chip ph2">数据操作引擎<span class="phtag t2">②</span></div>
+                <div class="chip ph2">规则计算引擎<span class="phtag t2">②</span></div>
+                <div class="chip ph2">分析预测引擎<span class="phtag t2">②</span></div>
+                <div class="chip ph2">监控提醒引擎<span class="phtag t2">②</span></div>
+                <div class="chip ph2">项目管理引擎<span class="phtag t2">②</span></div>
+              </div>
+              <div class="pgrp">
+                <div class="chip ph3">外部系统对接引擎<span class="phtag t3">③</span></div>
+                <div class="chip ph3">知识库问答引擎<span class="phtag t3">③</span></div>
+                <div class="chip ph3">数字资产引擎<span class="phtag t3">③</span></div>
+              </div>
+              <div class="pgrp">
+                <div class="chip ph4">多媒体生成引擎<span class="phtag t4">④</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="wrapnote">创建类请求（新建智能体、技能、知识库三类资产）同样由流程执行引擎经对内通道交数字资产引擎办理，与其余引擎一致、无特别走法。</div>
+      </div>
+      </div>
+
+      <!-- 真人确认机制 -->
+      <div class="confirmbox">
+        <div class="ct">真人确认（两类，走法不同，靠同一追踪编号衔接）</div>
+        <div class="crow">
+          <div class="cc"><b>意图确认</b>——确认“有没有理解错你要办什么”。归意图分析引擎，只跟发起人本人确认：读懂后把理解结果发回本人，同时把这笔活挂起、把“在等谁、追踪编号、上下文”存到基础模块层；确认对了才把结构化指令交流程执行引擎，理解错了带上下文重新识别。</div>
+          <div class="cc"><b>第三方确认与提醒</b>——如关键数字需负责人拍板、审批需他人同意。归流程执行引擎编排：走到确认节点时挂起流程，经通知通道（监控提醒引擎发出）送达目标真人；其处理后凭追踪编号恢复流程。</div>
+        </div>
+      </div>
+
+      <div class="subnote">十大经营系统仅对内使用、客户界面不呈现（此处不展开）。业务引擎讲“平台能干哪些活”，经营系统讲“企业有哪些经营板块”，两者是两回事。</div>
+
+      <!-- 业务引擎层 对内通道 -->
+      <div class="innerbar">
+        <div class="row"><span class="it">对内通道 · 层内引擎调度</span><span class="iface-ph">① 第一阶段建</span>
+          <div class="duty"><span>引擎之间互不直连、统一经本层对内通道</span><span>只有流程执行引擎可向其他引擎派发子任务</span><span>每次校验权限、登记留痕</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 业务引擎层 层接口·对外通道·发起端 -->
+    <div class="ifacebar bar-engb">
+      <div class="row"><span class="bt">业务引擎层 层接口 · 对外通道 · 请求发起端</span><span class="iface-ph">① 第一阶段建</span>
+        <div class="duty"><span>按基础模块层服务目录组装请求</span><span>携带追踪编号</span><span>发出请求 · 接收回复</span><span>留痕与用量记录</span></div>
+      </div>
+    </div>
+
+    <!-- 层间交互：引擎层 ↔ 基础模块层 -->
+    <div class="gap">
+      <div class="arrowcol">
+        <div class="arrowlabel a-req">请求 ↓<br>（仅由业务引擎层发起）</div>
+        <div class="arrow a-req">▼</div>
+      </div>
+      <div class="mid">层间交互<br>发生在业务引擎层请求发起端<br>与基础模块层请求接收端之间</div>
+      <div class="arrowcol">
+        <div class="arrow a-resp">▲</div>
+        <div class="arrowlabel a-resp">三种标准回复 ↑<br>即时结果 / 受理回执 / 拒绝及原因</div>
+      </div>
+    </div>
+
+    <!-- 基础模块层 层接口·对外通道·接收端 -->
+    <div class="ifacebar bar-baset">
+      <div class="row"><span class="bt">基础模块层 层接口 · 对外通道 · 请求接收端</span><span class="iface-ph">① 第一阶段建</span>
+        <div class="duty"><span>唯一入口</span><span>准入名单校验（仅收业务引擎层）</span><span>取数按真人实时校验数据权限</span><span>留痕与用量记录</span><span>按分派规则表分派</span></div>
+      </div>
+      <div class="bnote">准入名单中只有业务引擎层——业务应用层直接调用基础模块层在技术上不可行，调用链自上而下由此获得技术保证；本层为最底层、不设请求发起端</div>
+    </div>
+
+    <!-- 基础模块层 -->
+    <div class="layer base">
+      <div class="head"><span class="name">基础模块层</span>
+        <span class="desc">最底层基础能力 · 集团九家公司共享同一份 · 十五个模块 · 只被上层调用、不向外发起</span></div>
+
+      <!-- 基础模块层 对内通道 -->
+      <div class="innerbar">
+        <div class="row"><span class="it">对内通道 · 层内模块调度</span><span class="iface-ph b2">② 第二阶段</span>
+          <div class="duty"><span>模块之间互不直连、统一经本层对内通道</span><span>各模块数据自存、只暴露登记服务</span><span>权限查验机制性直达权限管理（全平台唯一直达）</span></div>
+        </div>
+      </div>
+
+      <div class="phased mod-phased">
+        <div class="pgrp">
+          <div class="chip ph1"><span class="no">基础模块</span>权限管理<span class="phtag">①</span></div>
+          <div class="chip ph1"><span class="no">基础模块</span>大模型调度<span class="phtag">①</span></div>
+        </div>
+        <div class="pgrp">
+          <div class="chip ph2"><span class="no">基础模块</span>流程模板管理<span class="phtag t2">②</span></div>
+          <div class="chip ph2"><span class="no">基础模块</span>上下文与提示词管理<span class="phtag t2">②</span></div>
+          <div class="chip ph2"><span class="no">基础模块</span>数据<span class="phtag t2">②</span></div>
+          <div class="chip ph2"><span class="no">基础模块</span>账号网关<span class="phtag t2">②</span></div>
+          <div class="chip ph2"><span class="no">基础模块</span>人机协同<span class="phtag t2">②</span></div>
+        </div>
+        <div class="pgrp">
+          <div class="chip ph3"><span class="no">基础模块</span>进化机制<span class="phtag t3">③</span></div>
+          <div class="chip ph3"><span class="no">基础模块</span>驾驭机制<span class="phtag t3">③</span></div>
+          <div class="chip ph3"><span class="no">基础模块</span>知识库<span class="phtag t3">③</span></div>
+          <div class="chip ph3"><span class="no">基础模块</span>执行沙箱<span class="phtag t3">③</span></div>
+          <div class="chip ph3"><span class="no">基础模块</span>记忆管理<span class="phtag t3">③</span></div>
+          <div class="chip ph3"><span class="no">基础模块</span>设备与系统接口<span class="phtag t3">③</span></div>
+        </div>
+        <div class="pgrp">
+          <div class="chip ph4"><span class="no">基础模块</span>安全合规<span class="phtag t4">④</span></div>
+          <div class="chip ph4"><span class="no">基础模块</span>成本管控<span class="phtag t4">④</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 图例 -->
+    <div class="legend">
+      <div class="lt">层间交互机制要点</div>
+      <div class="legrow">
+        <div class="leg"><b>层接口：对外通道与对内通道</b>每层各有一个层接口。<i>对外通道</i>含请求接收端与请求发起端，负责与上下相邻层交互；<i>对内通道</i>负责本层内部模块或引擎之间的调度——层内互不直连、统一经此。接口控制模块执行五项职责：唯一入口、合法性检查、真人权限校验、留痕计量、按分派规则表分派；不解析业务含义、不做规则之外的处理。</div>
+        <div class="leg"><b>服务目录 与 能力登记</b>每层对外只公布可提供的服务，不暴露内部模块或引擎划分。能力登记只建一份，两条使用路径共用；引擎或模块增减时只改登记与分派规则表，调用方一概不动。能力以全平台统一的能力字典分级编号登记、功能与能力用同一套编号对齐；意图分析引擎把任务对到字典最小颗粒度编号，流程执行引擎按编号到能力登记表确定性查表选引擎（不调大模型）、按数据依赖判串并行。能力登记表是平台接线配置、不进数据模块，由平台配置管理账号运行期经确认卡片维护、接口控制模块只读加载。</div>
+        <div class="leg"><b>三种标准回复</b>发出请求必有回复：<i>即时结果</i>（可即时完成）、<i>受理回执</i>（长任务，先回执后交付，可中途通报进度）、<i>拒绝及原因</i>（权限不足、格式不符、目录之外）。</div>
+        <div class="leg"><b>通知通道 与 追踪编号</b>预警、真人待办、结果由下层经通知通道主动送达上层相关责任人，同样经权限校验并留痕；追踪编号贯穿请求、回执、待办、确认与结果，全程留痕、可还原全过程。</div>
+        <div class="leg"><b>真人确认（两类）</b><i>意图确认</i>归意图分析引擎、只跟本人、可长时间挂起、状态存基础模块层；<i>第三方确认与提醒</i>归流程执行引擎编排、经监控提醒引擎异步送达。两类靠同一追踪编号认领、互不混淆。</div>
+        <div class="leg"><b>调用链（含创建类）</b>请求一律自上而下、越层调用在技术上走不通。创建类请求（新建智能体、技能、知识库三类资产）与其余请求一样走统一调用链：由流程执行引擎经对内通道交数字资产引擎办理，无特别走法。</div>
+      </div>
+    </div>
+
+    <div class="footer">南宁汉和集团 AI 平台 · 层间交互逻辑图 v2.5 · 层名与引擎模块名称依《架构框架说明 v0.3.1》· 三层名称：业务应用层、业务引擎层、基础模块层 · 本图为内部研发资料</div>
+  </div>
+</div>
+</body>
+</html>

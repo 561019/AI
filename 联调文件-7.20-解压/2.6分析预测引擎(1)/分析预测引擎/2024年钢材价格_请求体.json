@@ -1,0 +1,68 @@
+{
+  "schema_version": "v1",
+  "trace_id": "steel-2024",
+  "analysis_type": "price_forecast",
+  "forecast_horizon": 3,
+  "records": [
+    {
+      "date": "2024-01-01",
+      "source_record_id": "steel-2024-01",
+      "price": "4200.00"
+    },
+    {
+      "date": "2024-02-01",
+      "source_record_id": "steel-2024-02",
+      "price": "4100.00"
+    },
+    {
+      "date": "2024-03-01",
+      "source_record_id": "steel-2024-03",
+      "price": "4300.00"
+    },
+    {
+      "date": "2024-04-01",
+      "source_record_id": "steel-2024-04",
+      "price": "4450.00"
+    },
+    {
+      "date": "2024-05-01",
+      "source_record_id": "steel-2024-05",
+      "price": "4520.00"
+    },
+    {
+      "date": "2024-06-01",
+      "source_record_id": "steel-2024-06",
+      "price": "4680.00"
+    },
+    {
+      "date": "2024-07-01",
+      "source_record_id": "steel-2024-07",
+      "price": "4750.00"
+    },
+    {
+      "date": "2024-08-01",
+      "source_record_id": "steel-2024-08",
+      "price": "4580.00"
+    },
+    {
+      "date": "2024-09-01",
+      "source_record_id": "steel-2024-09",
+      "price": "4820.00"
+    },
+    {
+      "date": "2024-10-01",
+      "source_record_id": "steel-2024-10",
+      "price": "4950.00"
+    },
+    {
+      "date": "2024-11-01",
+      "source_record_id": "steel-2024-11",
+      "price": "5080.00"
+    },
+    {
+      "date": "2024-12-01",
+      "source_record_id": "steel-2024-12",
+      "price": "5250.00"
+    }
+  ]
+}

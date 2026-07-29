@@ -1,0 +1,13 @@
+[
+  {
+    "log_id": "LOG-313E8CF5A8",
+    "time": "2026-07-18T00:11:27",
+    "task_id": null,
+    "actor_id": null,
+    "layer": "system",
+    "action": "system:reset",
+    "target": "local-json-store",
+    "result": "allow",
+    "detail": "内容产出引擎 v0.2 任务适配版任务、登记、日志已重置。"
+  }
+]

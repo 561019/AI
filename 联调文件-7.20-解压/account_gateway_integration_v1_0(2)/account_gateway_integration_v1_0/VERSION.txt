@@ -1,0 +1,7 @@
+account_gateway_integration_v1_0
+build_date=2026-07-20
+account_gateway_port=8080
+permission_gateway_port=8001
+l1_layer_interface_port=8002
+permission_core_tests=25
+l1_layer_interface_tests=3

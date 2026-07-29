@@ -1,0 +1,154 @@
+L1-1.3 进化机制最小联调包使用说明
+
+一、目录位置
+
+本包位于：桌面\jinhuajizhi 1\L1-1.3进化机制联调包
+
+本包用于验证各模块之间的调用关系和框架逻辑，不是生产环境实现。
+
+二、包含内容
+
+1. integration\contracts\evolution-contract.json
+   统一接口契约、状态和错误码。
+
+2. integration\fixtures\success-low-risk.json
+   低风险成功发布样例。
+
+3. integration\fixtures\blocked-missing-evidence.json
+   证据不足、高风险拦截样例。
+
+4. integration\adapters\1.3联调适配器.js
+   1.3治理、风险判断和1.7模拟存储的适配入口。
+
+5. integration\mock-services\联调模拟服务.js
+   本地HTTP联调模拟服务。
+
+6. integration\run-integration-tests.js
+   自动验收脚本。
+
+7. demo\1.3治理服务_v3.js
+   1.3候选、确认、审批、发布和回退治理逻辑。
+
+8. demo\1.4风险判断_v2.js
+   风险规则和风险关卡逻辑。
+
+9. demo\用户Agent模拟存储_v2.js
+   1.7 Agent版本模拟存储逻辑。
+
+三、运行条件
+
+需要安装 Node.js 18 或更高版本。
+
+如果电脑已经安装 Node.js，在本目录打开 PowerShell，执行：
+
+node .\integration\run-integration-tests.js
+
+看到“联调核心测试：6/6 通过”，表示核心联调逻辑通过。
+
+四、启动HTTP模拟服务
+
+在本目录执行：
+
+node .\integration\mock-services\联调模拟服务.js
+
+服务地址：
+
+http://127.0.0.1:8790
+
+健康检查：
+
+http://127.0.0.1:8790/health
+
+服务启动后不要关闭当前窗口。另开一个PowerShell或使用Postman、IDE HTTP Client调用接口。
+
+五、联调顺序
+
+1. POST /api/l1/evolution/candidates
+   创建进化候选版本。
+
+2. POST /api/l1/evolution/candidates/{candidateId}/risk-check
+   调用风险判断。
+
+3. POST /api/l1/evolution/candidates/{candidateId}/confirmations
+   本人确认保留、修改或拒绝。
+
+4. 如果风险结果是pending_approval，调用：
+   POST /api/l1/evolution/candidates/{candidateId}/approvals
+
+5. POST /api/l1/evolution/candidates/{candidateId}/publish
+   通过治理校验后写入1.7模拟存储。
+
+6. GET /api/l1/evolution/audit
+   查询全过程审计记录。
+
+7. 需要回退时调用：
+   POST /api/l1/evolution/assets/{agentId}/rollback
+
+六、最简单的验证方式
+
+先执行：
+
+node .\integration\run-integration-tests.js
+
+然后查看：
+
+integration\联调请求示例.http
+
+把其中的candidateId替换成创建候选接口返回的实际ID，再逐步调用后续接口。
+
+七、必须验证的问题
+
+1. 业务模块是否只调用1.3接口，不直接写1.7数据。
+2. 证据不足是否被风险关卡拦截。
+3. 本人确认是否校验actorId和subjectUserId。
+4. 中风险是否要求BUSINESS_OWNER审批。
+5. 发布、失败和回退是否均产生审计记录。
+6. 所有模块的scenarioId、candidateId、versionId和状态值是否一致。
+
+八、当前范围
+
+本包使用本地内存/模拟存储，不包含正式数据库、正式认证中心、生产网关和真实组织权限系统。框架逻辑验证通过后，再替换为正式服务地址和数据库适配器。
+
+九、联调网址
+
+1. 最终单页整合版（联调总览入口）
+https://jinhuajizhi-1-13-demo.netlify.app/1.3%E6%9C%80%E7%BB%88%E5%8D%95%E9%A1%B5%E6%95%B4%E5%90%88%E7%89%88.html
+
+用途：查看完整链路和七个联调节点：
+L4 -> L2 -> 1.3 AI分析 -> 风险关卡 -> 1.7版本治理 -> L2 -> L4
+
+2. 实际业务接通演示台（真实操作入口）
+https://jinhuajizhi-1-13-demo.netlify.app/%E6%A8%A1%E6%8B%9F%E4%B8%9A%E5%8A%A1%E6%8E%A5%E9%80%9A%E4%B8%8E%E8%81%94%E5%90%88%E8%B0%83%E7%94%A8%E6%BC%94%E7%A4%BA%E5%8F%B0.html
+
+用途：选择业务场景、提交聊天记录、调用DeepSeek、执行风险判断和版本治理。
+
+3. 公开站点首页
+https://jinhuajizhi-1-13-demo.netlify.app/
+
+4. 公开 AI 分析接口
+https://jinhuajizhi-1-13-demo.netlify.app/api/l1/evolution/analysis
+
+调用方式：POST，提交JSON格式的messages、attachments、scenarioId等字段。不要在浏览器或请求中携带DeepSeek API Key。
+
+5. 本地联调模拟服务
+http://127.0.0.1:8790
+
+启动命令：
+node .\integration\mock-services\联调模拟服务.js
+
+健康检查：
+http://127.0.0.1:8790/health
+
+十、联调前提和文件要求
+
+1. 必须保留本联调包的目录结构，不能只复制某一个JS文件。integration目录和demo目录需要保持在同一层级。
+2. 电脑需要安装Node.js 18或更高版本。
+3. 本包可以独立验证1.3治理、风险判断、本人确认、人工审批、1.7版本写入、审计和回退等核心框架逻辑。
+4. 其他模块参与联调时，应按照integration\contracts\evolution-contract.json中的字段和接口顺序调用。
+5. 本包使用模拟内存存储，不需要正式数据库、正式认证中心或生产权限系统即可完成框架验证。
+6. 如果要接入真实业务模块，需要把模拟HTTP服务替换成对方模块的正式接口，并保持字段、状态和错误码兼容。
+7. 如果要使用公开网页上的真实DeepSeek分析，应使用联调说明中的Netlify网址，不需要把API Key放入本地联调包。
+
+十一、验证边界
+
+本包验证的是“模块之间能否按约定正确调用”。它不能证明正式数据库性能、生产环境权限配置、网络安全策略、分布式并发幂等和正式审计存储已经完成。这些需要在接入正式基础设施后单独验收。

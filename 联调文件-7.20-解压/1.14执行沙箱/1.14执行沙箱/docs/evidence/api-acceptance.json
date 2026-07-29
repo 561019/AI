@@ -1,0 +1,78 @@
+{
+  "overall": "docker_based_current_delivery_ready_cube_future_enhancement",
+  "runtime_decision": "Docker is the accepted runtime for current L1 capability-package delivery; Cube Sandbox is tracked as a future stronger isolation option.",
+  "summary": {
+    "passed": 12,
+    "partial": 0,
+    "failed": 0,
+    "blocked": 0,
+    "future": 1
+  },
+  "checks": [
+    {
+      "name": "sandbox lifecycle",
+      "status": "passed",
+      "detail": "Task lifecycle has request/create/result/destroy logs."
+    },
+    {
+      "name": "result collection",
+      "status": "passed",
+      "detail": "Found 250 result files."
+    },
+    {
+      "name": "real container isolation",
+      "status": "passed",
+      "detail": "Docker server version 26.1.3 is available."
+    },
+    {
+      "name": "host file isolation",
+      "status": "passed",
+      "detail": "Container could not read an unmounted host file and could not write to the read-only app mount."
+    },
+    {
+      "name": "resource timeout",
+      "status": "passed",
+      "detail": "Runaway Docker container was stopped after timeout with CPU/memory limits attached."
+    },
+    {
+      "name": "egress allowlist",
+      "status": "passed",
+      "detail": "Docker egress gateway allows a controlled allowlisted test domain, blocks non-allowlisted domains, and prevents direct bypass."
+    },
+    {
+      "name": "browser sandbox",
+      "status": "passed",
+      "detail": "Headless Chromium ran in a read-only Docker browser container, used the egress gateway, and failed direct bypass."
+    },
+    {
+      "name": "credential injection",
+      "status": "passed",
+      "detail": "Task container used a short-lived credential handle through a broker without receiving plaintext secret."
+    },
+    {
+      "name": "E2B-like adapter",
+      "status": "passed",
+      "detail": "Docker-backed create/run/query/destroy sandbox-session workflow is available."
+    },
+    {
+      "name": "Hanhe role scenario E2E",
+      "status": "passed",
+      "detail": "Sales/supply-chain over-stock scenario runs end to end with Docker runtime and platform-chain evidence."
+    },
+    {
+      "name": "Hanhe finance invoice E2E",
+      "status": "passed",
+      "detail": "Finance invoice matching scenario runs end to end with Docker runtime, mock ERP data, permissions, cost, and audit evidence."
+    },
+    {
+      "name": "Hanhe purchase plan E2E",
+      "status": "passed",
+      "detail": "Purchase planning scenario runs end to end with Docker runtime, mock ERP data, permissions, cost, and audit evidence."
+    },
+    {
+      "name": "Cube Sandbox",
+      "status": "future",
+      "detail": "Future stronger-isolation runtime option. Cube is partially installed, but not required for current Docker-based delivery: current kernel lacks /sys/kernel/btf/vmlinux, so Cube network-agent cannot load eBPF CO-RE programs; inactive services: cube-sandbox-network-agent.service, cube-sandbox-compute.target"
+    }
+  ]
+}

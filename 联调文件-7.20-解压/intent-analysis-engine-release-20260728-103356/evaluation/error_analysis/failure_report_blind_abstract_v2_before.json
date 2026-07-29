@@ -1,0 +1,358 @@
+{
+  "source_report": "evaluation\\benchmark\\validation_report_blind_abstract_v2_before.json",
+  "split": "validation",
+  "total_failed": 10,
+  "by_error_type": {
+    "MISSING_SCHEMA_FIELD": 1,
+    "NEED_L3_OR_CLARIFICATION": 8,
+    "UNNECESSARY_REQUIRED_INPUT": 1
+  },
+  "failures": [
+    {
+      "id": "BENCH-VALIDATION-BLIND-ABSTRACT-V2-001",
+      "text": "背景只提到成本压力，当前要统计本季度成本记录，按部门排序，并预测下季度走势。",
+      "intent_category": "long_text_requirement",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_AGGREGATION_SUMMARY"
+        },
+        {
+          "task_type": "DATA_SORT"
+        },
+        {
+          "task_type": "DATA_ANALYSIS_FORECAST"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_AGGREGATION_SUMMARY",
+        "DATA_SORT",
+        "DATA_ANALYSIS_FORECAST"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_AGGREGATION_SUMMARY"
+        },
+        {
+          "task_type": "DATA_SORT"
+        },
+        {
+          "task_type": "DATA_ANALYSIS_FORECAST"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_AGGREGATION_SUMMARY",
+        "DATA_SORT",
+        "DATA_ANALYSIS_FORECAST"
+      ],
+      "missing_inputs": {
+        "expected": [
+          "summary_field"
+        ],
+        "actual": [
+          "analysis_object"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "UNNECESSARY_REQUIRED_INPUT",
+      "confidence": "high",
+      "reason": "Observed missing_inputs contains fields outside the expected task schema: analysis_object.",
+      "suggested_action": "Narrow the task_type schema or validator; do not infer additional required fields from task descriptions."
+    },
+    {
+      "id": "BENCH-VALIDATION-BLIND-ABSTRACT-V2-002",
+      "text": "把客户业务数据调出来",
+      "intent_category": "clarification_evaluation",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "missing_inputs": {
+        "expected": [
+          "data_source"
+        ],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "MISSING_SCHEMA_FIELD",
+      "confidence": "medium",
+      "reason": "The benchmark expects required fields that were not produced by schema validation: data_source.",
+      "suggested_action": "Review validation evidence and add the field to task_type schema only if it is truly required for this task type."
+    },
+    {
+      "id": "BENCH-VALIDATION-BLIND-ABSTRACT-V2-004",
+      "text": "再确认审批状态",
+      "intent_category": "omitted_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "WORKFLOW_START"
+        }
+      ],
+      "actual_task_types": [
+        "WORKFLOW_START"
+      ],
+      "missing_inputs": {
+        "expected": [
+          "data_source"
+        ],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    },
+    {
+      "id": "BENCH-VALIDATION-BLIND-ABSTRACT-V2-005",
+      "text": "接着跟进一下",
+      "intent_category": "omitted_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "actual_tasks": [],
+      "actual_task_types": [],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-VALIDATION-BLIND-ABSTRACT-V2-006",
+      "text": "从CRM拉订单，统计订单金额，生成订单报告",
+      "intent_category": "multi_task_request",
+      "expected_tasks": [
+        {
+          "task_type": "EXTERNAL_DATA_FETCH"
+        },
+        {
+          "task_type": "DATA_AGGREGATION_SUMMARY"
+        },
+        {
+          "task_type": "DOCUMENT_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "EXTERNAL_DATA_FETCH",
+        "DATA_AGGREGATION_SUMMARY",
+        "DOCUMENT_GENERATE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_AGGREGATION_SUMMARY"
+        },
+        {
+          "task_type": "DOCUMENT_GENERATE"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_AGGREGATION_SUMMARY",
+        "DOCUMENT_GENERATE"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "statistical_range"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "medium",
+      "reason": "Failure is not a safe L1/L2 expansion candidate.",
+      "suggested_action": "Review with L3/clarification or data labeling; do not add rule by default."
+    },
+    {
+      "id": "BENCH-VALIDATION-BLIND-ABSTRACT-V2-007",
+      "text": "先不要走流程，帮我看一下逾期回款客户",
+      "intent_category": "negation_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_FILTER"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_FILTER"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [
+        "WORKFLOW_START",
+        "PROCESS_HANDLE"
+      ],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-VALIDATION-BLIND-ABSTRACT-V2-008",
+      "text": "暂时不要写文档，只分析活动海报",
+      "intent_category": "negation_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "analysis_object"
+        ]
+      },
+      "forbidden_tasks": [
+        "DOCUMENT_GENERATE"
+      ],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-VALIDATION-BLIND-ABSTRACT-V2-009",
+      "text": "本次不用提醒功能，请处理活动宣传图",
+      "intent_category": "negation_expression",
+      "expected_tasks": [
+        {
+          "task_type": "MULTIMEDIA_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "MULTIMEDIA_GENERATE"
+      ],
+      "actual_tasks": [],
+      "actual_task_types": [],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [
+        "MONITORING_REMINDER"
+      ],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-VALIDATION-BLIND-ABSTRACT-V2-010",
+      "text": "先不要走流程，帮我看一下活动宣传图",
+      "intent_category": "negation_expression",
+      "expected_tasks": [
+        {
+          "task_type": "MULTIMEDIA_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "MULTIMEDIA_GENERATE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "analysis_object"
+        ]
+      },
+      "forbidden_tasks": [
+        "WORKFLOW_START",
+        "PROCESS_HANDLE"
+      ],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-VALIDATION-BLIND-ABSTRACT-V2-011",
+      "text": "帮我看一下",
+      "intent_category": "insufficient_information",
+      "expected_tasks": [],
+      "expected_task_types": [],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "analysis_object"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    }
+  ]
+}

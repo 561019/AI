@@ -1,0 +1,54 @@
+service,method,path,auth,role_or_scope,purpose
+account_gateway,GET,/health,none,all,网关健康检查
+account_gateway,GET,/login,none,all,OIDC 登录入口
+account_gateway,GET,/callback,OIDC code,all,OIDC 回调并签发 JWT
+account_gateway,POST,/auth/validate,Bearer JWT,current actor,旧系统运行期权限校验
+account_gateway,POST|GET|PATCH|DELETE,/api/accounts,Bearer JWT,self or operator/admin,账号生命周期
+account_gateway,POST,/api/accounts/{name}/freeze,Bearer JWT,operator/admin,冻结账号和资产
+account_gateway,POST,/api/accounts/{name}/handover-confirm,Bearer JWT,operator/admin,确认离职交接
+account_gateway,GET,/api/accounts/{name}/offboarding-assets,Bearer JWT,operator/admin,离职资产清单
+account_gateway,GET,/api/ui-permissions,Bearer JWT,all roles,按角色返回 UI 面板
+account_gateway,GET,/api/audit/logs,Bearer JWT,hanhe_admin,审计查询
+account_gateway,GET,/api/audit/export,Bearer JWT,hanhe_admin,审计 CSV 导出
+account_gateway,GET,/api/audit/status,Bearer JWT,hanhe_admin,审计 writer 状态
+account_gateway,POST,/api/audit/events,Bearer JWT,hanhe_admin,写入安全事件
+account_gateway,POST|GET,/api/credentials,Bearer JWT,owner/admin,凭证存储和列表
+account_gateway,POST,/api/credentials/{id}/use,Bearer JWT,owner/admin,使用凭证
+account_gateway,DELETE,/api/credentials/{id},Bearer JWT,owner/admin,删除凭证
+account_gateway,POST|GET,/api/digital-employees,Bearer JWT,owner/admin,数字员工创建和列表
+account_gateway,GET|DELETE,/api/digital-employees/{name},Bearer JWT,owner/admin,数字员工详情或删除
+account_gateway,POST,/api/digital-employees/{name}/disable,Bearer JWT,owner/admin,禁用数字员工
+account_gateway,POST,/api/digital-employees/{name}/rotate-token,Bearer JWT,owner/admin,轮换数字员工 token
+account_gateway,POST,/api/digital-employees/{name}/execution-mode,Bearer JWT,owner/admin,调整执行模式
+account_gateway,POST|GET,/api/tenants,Bearer JWT,admin or member,创建或查询租户
+account_gateway,GET|PATCH,/api/tenants/{id},Bearer JWT,member/admin,租户详情或更新
+account_gateway,POST|GET,/api/approvals,Bearer JWT,requester/approver,创建或查询审批
+account_gateway,POST,/api/approvals/{id}/approve,Bearer JWT,current approver,批准审批
+account_gateway,POST,/api/approvals/{id}/reject,Bearer JWT,current approver,拒绝审批
+account_gateway,POST,/api/approvals/{id}/revoke,Bearer JWT,authorized actor,撤销审批
+account_gateway,POST|GET,/api/approval-templates,Bearer JWT,admin/authorized reader,审批模板
+account_gateway,POST,/api/org/commands,Bearer JWT,hanhe_im|hanhe_dsm|hanhe_admin,组织命令聚合入口
+account_gateway,GET,/api/org/snapshot,Bearer JWT,hanhe_im|hanhe_dsm|hanhe_admin,组织快照
+account_gateway,POST,/api/permissions/commands,Bearer JWT,owner|hanhe_dsm|hanhe_admin,权限命令聚合入口
+account_gateway,GET,/api/permissions/snapshot,Bearer JWT,current actor|hanhe_dsm|hanhe_admin,权限快照
+account_gateway,POST|GET,/api/positions,Bearer JWT,hanhe_im|hanhe_admin,岗位细接口
+account_gateway,POST|GET,/api/person-position-assignments,Bearer JWT,hanhe_im|hanhe_admin,任职细接口
+account_gateway,POST,/api/person-position-assignments/{id}/end,Bearer JWT,hanhe_im|hanhe_admin,结束任职
+account_gateway,POST|GET,/api/domains,Bearer JWT,hanhe_dsm|hanhe_admin,管理域
+account_gateway,POST|GET,/api/person-manager-edges,Bearer JWT,hanhe_dsm|hanhe_admin,唯一上级
+account_gateway,POST|GET,/api/position-standard-resources,Bearer JWT,hanhe_dsm|hanhe_admin,岗位标配细接口
+account_gateway,POST|GET,/api/delegations,Bearer JWT,authorized actor,转授细接口
+account_gateway,POST|GET,/api/resources,Bearer JWT,owner|hanhe_dsm|hanhe_admin,资源目录
+account_gateway,POST|GET,/api/resource-publications,Bearer JWT,owner|hanhe_dsm|hanhe_admin,资源发布
+account_gateway,POST,/api/resource-publications/{id}/approve,Bearer JWT,hanhe_dsm|hanhe_admin,批准资源发布
+account_gateway,POST|GET,/api/integrations/{provider}/sync|status,Bearer JWT,authorized integration actor,HR/钉钉/企微同步
+account_gateway,POST|GET,/api/breakglass/{action},Bearer JWT,hanhe_admin,应急账号启停审批和报告
+permission_gateway,GET,/health,none,local network,权限服务健康检查
+permission_gateway,POST,/api/permission/check,internal HTTP,all platform layers,固定权限检查
+permission_gateway,GET,/api/permission/audits,internal HTTP,audit consumer,权限决策查询
+permission_gateway,GET,/api/integrations/capabilities,none,all platform modules,返回 L1/L2/L4 集成通道和 source_service 标识
+permission_gateway,POST,/api/integrations/events,validated event envelope,reserved,异步生命周期事件预留；v1 固定返回 501
+permission_gateway,POST,/api/org/commands,trusted gateway headers,hanhe_im|hanhe_dsm|hanhe_admin,remote 组织命令
+permission_gateway,GET,/api/org/snapshot,trusted gateway headers,hanhe_im|hanhe_dsm|hanhe_admin,remote 组织快照
+permission_gateway,POST,/api/permissions/commands,trusted gateway headers,hanhe_dsm|hanhe_admin,remote 权限命令
+permission_gateway,GET,/api/permissions/snapshot,trusted gateway headers,hanhe_dsm|hanhe_admin,remote 权限快照

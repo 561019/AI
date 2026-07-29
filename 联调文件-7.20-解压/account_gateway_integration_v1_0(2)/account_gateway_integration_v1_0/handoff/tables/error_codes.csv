@@ -1,0 +1,29 @@
+service,http_status,code_or_reason,meaning,caller_action
+account_gateway,401,invalid_token,JWT 缺失无效或过期,重新认证且不得放行
+account_gateway,400,missing_header,运行期校验缺少必填头,补齐请求头
+account_gateway,400,invalid_resource_type,资源类型非法,修正枚举
+account_gateway,400,invalid_action,动作未登记,修正动作或先登记
+account_gateway,200,tenant_mismatch,请求租户与 JWT 不一致,拒绝并检查租户上下文
+account_gateway,200,person_context_invalid,账号真人岗位上下文不一致,刷新 active 挂岗
+account_gateway,200,data_record_inactive,数据不是 active,拒绝并检查状态
+account_gateway,200,data_action_forbidden,数据自身禁止动作,拒绝
+account_gateway,503,permission_service_unavailable,remote 权限服务不可用,拒绝并告警不得本地回退
+account_gateway,403,im_only,需要组织信息管理员,更换合法调用身份
+account_gateway,403,dsm_only,需要数据安全管理员,更换合法调用身份
+account_gateway,403,tenant_mismatch,管理接口跨租户,拒绝
+account_gateway,409,active_assignment_exists,岗位已有 active 真人,先结束旧任职
+permission_gateway,200,PERMISSION_GRANTED,允许,执行业务动作
+permission_gateway,200,USER_NOT_FOUND,找不到账号,拒绝
+permission_gateway,200,PERSON_NOT_FOUND,找不到真人映射,拒绝并同步 HR/IM
+permission_gateway,200,NO_ACTIVE_POSITION,没有有效任职,拒绝并同步挂岗
+permission_gateway,200,ACTION_NOT_GRANTED,没有动作权限,拒绝
+permission_gateway,200,DATA_LABEL_DENIED,数据标签不允许,拒绝
+permission_gateway,200,DATA_STATE_DENIED,数据状态不允许,拒绝
+permission_gateway,200,PERMISSION_EXPIRED,权限已过期,拒绝并重新走制度流程
+permission_gateway,200,SERVICE_CALL_DENIED,服务调用关系未允许,拒绝并检查服务规则
+permission_gateway,400,INVALID_REQUEST,业务字段非法,修正字段
+permission_gateway,400,account_person_mismatch,person_id 与实名账号 ID 不同,统一使用 JWT user_id
+permission_gateway,501,INTEGRATION_EVENT_NOT_ENABLED,异步事件入口已预留但未启用,改用账号网关代理的聚合管理接口同步权限事实
+permission_gateway,422,INVALID_REQUEST,缺字段或类型错误,按字段错误修正
+permission_gateway,500,PERMISSION_SERVICE_ERROR,权限模块内部错误,拒绝并告警
+permission_gateway,503,PERMISSION_DB_ERROR,权限数据库不可用,拒绝并告警

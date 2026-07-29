@@ -1,0 +1,12 @@
+{
+  "allowed_service_codes": [
+    "l2.workflow_execution",
+    "l2.interface_control",
+    "l4.project_workbench"
+  ],
+  "allowed_route_types": [
+    "task.dispatch",
+    "deterministic.request",
+    "query.request"
+  ]
+}

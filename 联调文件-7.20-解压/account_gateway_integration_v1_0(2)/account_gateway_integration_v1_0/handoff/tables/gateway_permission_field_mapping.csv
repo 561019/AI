@@ -1,0 +1,24 @@
+flow,input,source,output,required,transform_or_default,example
+validate,X-Trace-ID,request header,trace_id,yes,缺失时生成 trace_gateway_*,trace-gateway-001
+validate,X-Request-ID,request header,request_id,yes,缺失时生成 request_gateway_*,request-gateway-001
+validate,user_id,JWT claim,actor_id,yes,JWT为唯一可信主体,smoke-user
+validate,X-Person-ID,legacy request header,person_id,yes,不采用头值；固定使用JWT user_id,smoke-user
+validate,X-Action,request header,action,yes,原值传递,content.generate
+validate,X-Source-Service,request header,source_service,yes,默认account_gateway,intent_engine
+validate,X-Target-Service,request header,target_service,yes,默认legacy_runtime,content_engine
+validate,X-Data-Label,request header,data_label,yes,默认normal,normal
+validate,X-Data-State,request header,data_state,yes,默认active,active
+validate,X-Tenant-ID|org_id,header or JWT claim,tenant_id,no,缺失时使用JWT org_id,smoke-tenant
+validate,X-Position-ID,request header,position_id,no,去除首尾空格,smoke-position
+validate,X-Resource-Type,request header,resource_type,yes,限定tool|data|skill|knowledge|digital_employee,data
+validate,X-Resource-ID,request header,resource_id,no,缺失时使用旧类型占位ID,data-001
+validate,X-Domain-ID,request header,domain_id,no,去除首尾空格,domain-sales
+validate,decision_id,permission response,policy_id,no,允许和拒绝均用于兼容追踪,decision_01KX...
+validate,allowed+result,permission response,allow,yes,仅allowed=true且result=allow才允许,true
+validate,reason_code,permission response,reason,no,转小写；缺失使用permission_denied,permission_expired
+validate,timeout|connection|non-200|result=error,permission response,HTTP 503+allow=false,yes,固定permission_service_unavailable,permission_service_unavailable
+management,Authorization,gateway request,not forwarded,yes,网关校验后删除,Bearer JWT
+management,user_id,JWT claim,X-Actor-ID,yes,原值传递且等于实名账号ID,smoke-user
+management,role_list,JWT claim,X-Actor-Roles,yes,逗号连接；breakglass追加角色,"hanhe_admin,hanhe_dsm"
+management,org_id,JWT claim,X-Tenant-ID,yes,原值传递,smoke-tenant
+management,method|path|query|body,gateway request,permission request,yes,原样代理,GET /api/org/snapshot

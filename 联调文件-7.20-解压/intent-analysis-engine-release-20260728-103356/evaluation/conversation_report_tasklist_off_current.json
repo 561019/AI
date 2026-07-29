@@ -1,0 +1,236 @@
+{
+  "total": 100,
+  "task_type_accuracy": 0.91,
+  "clarification_accuracy": 0.95,
+  "decomposition_accuracy": 0.91,
+  "passed_cases": 91,
+  "failed_cases": [
+    {
+      "id": "conv-013",
+      "category": "长文本请求",
+      "text": "统计去年各产品利润，比较同比变化，把结果做成管理层材料。",
+      "expected_tasks": [
+        "DATA_AGGREGATION_SUMMARY",
+        "DATA_ANALYSIS_YOY",
+        "DOCUMENT_GENERATE"
+      ],
+      "actual_tasks": [
+        "DATA_AGGREGATION_SUMMARY",
+        "DATA_ANALYSIS_YOY"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        [],
+        []
+      ],
+      "clarification_questions": [],
+      "task_type_pass": false,
+      "clarification_pass": true,
+      "decomposition_pass": false,
+      "passed": false
+    },
+    {
+      "id": "conv-024",
+      "category": "口语表达",
+      "text": "CRM里的客户名单给我调出来。",
+      "expected_tasks": [
+        "EXTERNAL_DATA_FETCH"
+      ],
+      "actual_tasks": [],
+      "expected_clarification": false,
+      "actual_clarification": true,
+      "missing_inputs": [],
+      "clarification_questions": [
+        "请明确需要处理的业务对象和具体动作。"
+      ],
+      "task_type_pass": false,
+      "clarification_pass": false,
+      "decomposition_pass": false,
+      "passed": false
+    },
+    {
+      "id": "conv-025",
+      "category": "口语表达",
+      "text": "这张表帮我读一下。",
+      "expected_tasks": [
+        "DOCUMENT_TABLE_PARSE"
+      ],
+      "actual_tasks": [],
+      "expected_clarification": true,
+      "actual_clarification": true,
+      "missing_inputs": [],
+      "clarification_questions": [
+        "请明确需要处理的业务对象和具体动作。"
+      ],
+      "task_type_pass": false,
+      "clarification_pass": true,
+      "decomposition_pass": false,
+      "passed": false
+    },
+    {
+      "id": "conv-026",
+      "category": "口语表达",
+      "text": "给我整张新品海报。",
+      "expected_tasks": [
+        "MULTIMEDIA_GENERATE"
+      ],
+      "actual_tasks": [],
+      "expected_clarification": false,
+      "actual_clarification": true,
+      "missing_inputs": [],
+      "clarification_questions": [
+        "请明确需要处理的业务对象和具体动作。"
+      ],
+      "task_type_pass": false,
+      "clarification_pass": false,
+      "decomposition_pass": false,
+      "passed": false
+    },
+    {
+      "id": "conv-031",
+      "category": "口语表达",
+      "text": "下季度销量估一估。",
+      "expected_tasks": [
+        "DATA_ANALYSIS_FORECAST"
+      ],
+      "actual_tasks": [],
+      "expected_clarification": false,
+      "actual_clarification": true,
+      "missing_inputs": [],
+      "clarification_questions": [
+        "请明确需要处理的业务对象和具体动作。"
+      ],
+      "task_type_pass": false,
+      "clarification_pass": false,
+      "decomposition_pass": false,
+      "passed": false
+    },
+    {
+      "id": "conv-034",
+      "category": "口语表达",
+      "text": "这月和上月比一比销售额。",
+      "expected_tasks": [
+        "DATA_ANALYSIS_MOM"
+      ],
+      "actual_tasks": [],
+      "expected_clarification": false,
+      "actual_clarification": true,
+      "missing_inputs": [],
+      "clarification_questions": [
+        "请明确需要处理的业务对象和具体动作。"
+      ],
+      "task_type_pass": false,
+      "clarification_pass": false,
+      "decomposition_pass": false,
+      "passed": false
+    },
+    {
+      "id": "conv-056",
+      "category": "多任务请求",
+      "text": "查询本月收入，做环比分析，预测下月收入。",
+      "expected_tasks": [
+        "DATA_QUERY_FETCH",
+        "DATA_ANALYSIS_MOM",
+        "DATA_ANALYSIS_FORECAST"
+      ],
+      "actual_tasks": [
+        "DATA_ANALYSIS_MOM",
+        "DATA_ANALYSIS_FORECAST"
+      ],
+      "expected_clarification": true,
+      "actual_clarification": false,
+      "missing_inputs": [
+        [],
+        []
+      ],
+      "clarification_questions": [],
+      "task_type_pass": false,
+      "clarification_pass": false,
+      "decomposition_pass": false,
+      "passed": false
+    },
+    {
+      "id": "conv-077",
+      "category": "多轮上下文",
+      "text": "再查一下审批状态。",
+      "expected_tasks": [
+        "DATA_QUERY_FETCH"
+      ],
+      "actual_tasks": [],
+      "expected_clarification": true,
+      "actual_clarification": true,
+      "missing_inputs": [],
+      "clarification_questions": [
+        "请明确需要处理的业务对象和具体动作。"
+      ],
+      "task_type_pass": false,
+      "clarification_pass": true,
+      "decomposition_pass": false,
+      "passed": false
+    },
+    {
+      "id": "conv-090",
+      "category": "无效信息干扰",
+      "text": "今天天气不错，对了，帮我查客户列表。",
+      "expected_tasks": [
+        "DATA_QUERY_FETCH"
+      ],
+      "actual_tasks": [],
+      "expected_clarification": true,
+      "actual_clarification": true,
+      "missing_inputs": [],
+      "clarification_questions": [
+        "请明确需要处理的业务对象和具体动作。"
+      ],
+      "task_type_pass": false,
+      "clarification_pass": true,
+      "decomposition_pass": false,
+      "passed": false
+    }
+  ],
+  "by_category": {
+    "口语表达": {
+      "total": 16,
+      "passed": 11,
+      "task_type_accuracy": 0.6875,
+      "clarification_accuracy": 0.75
+    },
+    "多任务请求": {
+      "total": 17,
+      "passed": 16,
+      "task_type_accuracy": 0.9411764705882353,
+      "clarification_accuracy": 0.9411764705882353
+    },
+    "多轮上下文": {
+      "total": 13,
+      "passed": 12,
+      "task_type_accuracy": 0.9230769230769231,
+      "clarification_accuracy": 1.0
+    },
+    "指代表达": {
+      "total": 10,
+      "passed": 10,
+      "task_type_accuracy": 1.0,
+      "clarification_accuracy": 1.0
+    },
+    "无效信息干扰": {
+      "total": 12,
+      "passed": 11,
+      "task_type_accuracy": 0.9166666666666666,
+      "clarification_accuracy": 1.0
+    },
+    "背景信息": {
+      "total": 14,
+      "passed": 14,
+      "task_type_accuracy": 1.0,
+      "clarification_accuracy": 1.0
+    },
+    "长文本请求": {
+      "total": 18,
+      "passed": 17,
+      "task_type_accuracy": 0.9444444444444444,
+      "clarification_accuracy": 1.0
+    }
+  }
+}

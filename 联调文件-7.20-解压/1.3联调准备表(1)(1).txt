@@ -1,0 +1,64 @@
+模块名称：L1-1.3 进化机制
+负责人：豆贵毅
+一、我提供给其他模块的能力：
+1. 进化候选生成：接收经验记忆、技能沉淀、提示词打磨三条路径的进化信号，生成可追踪、可比较、可回退的候选版本；不直接生效。
+2. 风险关卡与真人确认：根据使用范围、风险标签、证据完整性和目标动作判断低风险自动生效、需本人确认、需人工审批或阻断，并校验操作者身份和权限。
+3. 版本治理：支持候选查询、本人确认、人工审批、正式发布、每日沉淀逐卡片决策、审计留痕和版本回退。
+
+二、我提供的接口：
+接口1：进化分析与候选生成（当前联调接口）
+- 路径：POST /api/l1/evolution/analysis
+- 方法：POST
+- 输入：tenantId、userId、scenarioId、messages、attachments、currentVersion（可选）；请求头建议携带 Authorization、X-Request-Id、X-Actor-Id、X-Tenant-Id。
+- 输出：requestId、analysis.provider、analysis.skill、analysis.canProceed、evidence、missingEvidence、proposedVersionId；输出为 Skill 草案或候选版本，不直接发布。
+- 错误情况：400 请求格式错误；401 身份无效；422 证据不足；502 DeepSeek 调用或上游分析失败；500 1.3 内部错误。当前服务支持 DEEPSEEK_TIMEOUT_MS 超时保护。
+
+接口2：候选版本治理（正式契约，当前由本地治理服务 mock）
+- 路径：POST /api/l1/evolution/candidates、GET /api/l1/evolution/candidates/{candidateId}、POST /api/l1/evolution/candidates/{candidateId}/risk-check、POST /api/l1/evolution/candidates/{candidateId}/confirmations、POST /api/l1/evolution/candidates/{candidateId}/approvals、POST /api/l1/evolution/candidates/{candidateId}/publish、POST /api/l1/evolution/assets/{assetId}/rollback
+- 方法：POST / GET
+- 输入：候选内容、evolutionPath、scenarioId、subjectUserId、scope、sourceRefs、evidence、riskTags、确认动作、审批决定、回退原因；写操作必须携带 Idempotency-Key。
+- 输出：candidateId、status、riskLevel、decision、requiredConfirmation、requiredApproverRoles、requestId、auditId、可执行动作和错误码。
+- 错误情况：400 INVALID_REQUEST；401 ACTOR_UNAUTHENTICATED；403 ACTOR_FORBIDDEN；404 CANDIDATE_NOT_FOUND；409 IDEMPOTENCY_CONFLICT / CONFIRMATION_STALE；422 EVIDENCE_INSUFFICIENT；423 RISK_BLOCKED；424 TARGET_MODULE_UNAVAILABLE；500 EVOLUTION_SERVICE_ERROR。
+
+三、我需要调用哪些模块：
+1. 需要调用模块：L4 用户与Agent / 业务引擎层
+   - 调用目的：提交聊天记录、业务反馈和附件证据，触发1.3生成进化候选。
+   - 需要对方提供什么接口：用户身份、租户、Agent和场景上下文；消息与附件提交接口；候选结果展示及用户选择回传接口。
+   - 当前是否已 mock：是。当前页面已模拟L4提交、L2分发、1.3分析和Agent查询链路。
+2. 需要调用模块：AI API / DeepSeek适配层
+   - 调用目的：根据真实业务输入生成结构化Skill草案或候选版本。
+   - 需要对方提供什么接口：POST /api/l1/evolution/analysis；返回严格结构化JSON，并支持超时、错误码和requestId。
+   - 当前是否已 mock：否。DeepSeek真实调用已接入；无API密钥或调用失败时页面保留错误提示，不直接发布。
+3. 需要调用模块：数字资产引擎、记忆管理、上下文与提示词管理、数据模块
+   - 调用目的：在风险关卡通过后分别登记或写入对应进化成果。
+   - 需要对方提供什么接口：候选接收、资产登记、内容写入、版本查询和回退指针更新接口；不得直连对方数据库。
+   - 当前是否已 mock：是。当前使用本地治理服务和内存存储模拟登记、发布、审计和回退。
+4. 需要调用模块：统一身份与权限、审计服务
+   - 调用目的：实时校验本人确认、业务负责人审批、租户范围和操作权限，并记录全链路审计。
+   - 需要对方提供什么接口：当前操作者身份、角色、租户、资源范围校验接口；审计事件写入和查询接口。
+   - 当前是否已 mock：是。当前治理测试使用模拟身份、角色和审计存储。
+
+四、当前 mock 的内容：
+1. 10个业务场景、用户、聊天记录、附件证据、Agent查询和相似能力提示。
+2. L4提交 → L2分发 → 1.3内部AI分析 → 风险关卡 → 用户选择 → 1.7版本治理 → L2/L4返回的完整页面链路。
+3. 三条轻量进化路径的候选生成、证据状态和缺失证据提示。
+4. 低风险、中风险、高风险判断；本人确认、业务负责人审批、证据不足阻断和越权拒绝。
+5. 候选幂等、发布、重复发布拦截、审计记录和版本回退。
+6. 每日沉淀卡片的KEEP、EDIT_AND_KEEP、SNOOZE、REJECT决策模型。
+
+五、后续联调风险：
+1. 当前正式HTTP治理接口、API网关、统一身份系统、数据库和正式审计存储尚未替换本地mock，需要确认真实字段、鉴权方式和环境地址。
+2. DeepSeek真实调用依赖DEEPSEEK_API_KEY、模型配置、网络和额度；需验证超时、限流、结构化输出异常和敏感数据脱敏策略。
+3. 证据不足、风险阻断和人工确认不能被前端绕过；需联调服务端再次校验本人身份、角色、租户、scope和候选版本状态。
+4. 三条路径的最终归属不同：记忆写入记忆管理，技能经数字资产引擎登记，提示词写入上下文与提示词管理，需统一版本号和回退指针。
+5. 正式上线前需补充并发发布、重复请求、确认失效、目标模块不可用、跨租户访问和回退后审计完整性测试。
+
+六、联调前我能保证什么：
+1. 本模块能独立启动：可启动本地1.3 DeepSeek API服务，提供健康检查和Demo静态页面；
+2. 本模块有测试数据：包含10个场景、用户、聊天记录、证据和候选版本数据；
+3. 本模块有测试结果截图：已具备页面联调展示材料，正式联调前补充最新运行截图；
+4. 本模块有接口文档：已提供《L1-1.3进化机制正式接口契约》及错误码、审计事件说明；
+5. 本模块有 mock 数据：治理、权限、真人确认、审批、发布、审计、幂等和回退均有本地mock；
+6. 本模块有 README：已说明启动方式、DeepSeek环境变量、接口调用方式、测试命令和安全注意事项；
+7. 本模块有自动化结果：核心自动测试5/5通过，治理测试12/12通过；
+8. 本模块的边界已固化：不修改大模型权重、不承担数字资产创建和物理存储、不绕过真人确认、不向下调用其他层。

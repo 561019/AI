@@ -1,0 +1,69 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: intent-release-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-intent_analysis}
+      POSTGRES_USER: ${POSTGRES_USER:-intent}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-this-password}
+    volumes:
+      - intent-release-postgres-data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-intent} -d ${POSTGRES_DB:-intent_analysis}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.release
+    image: intent-analysis-engine-api:release
+    container_name: intent-release-backend
+    env_file:
+      - .env.release
+    environment:
+      APP_ENV: ${APP_ENV:-release}
+      PYTHONPATH: /app
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://intent:change-this-password@postgres:5432/intent_analysis}
+      ENABLE_SEMANTIC_MATCHING: ${ENABLE_SEMANTIC_MATCHING:-false}
+      VECTOR_BACKEND: ${VECTOR_BACKEND:-local}
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-mock-llm}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-120}
+      SEMANTIC_THRESHOLD: ${SEMANTIC_THRESHOLD:-0.50}
+      LLM_CONFIDENCE_THRESHOLD: ${LLM_CONFIDENCE_THRESHOLD:-0.70}
+      IMPLICIT_TASK_CONFIDENCE_THRESHOLD: ${IMPLICIT_TASK_CONFIDENCE_THRESHOLD:-0.70}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  frontend:
+    profiles: ["frontend"]
+    build:
+      context: ./frontend
+    image: intent-analysis-engine-frontend:release
+    container_name: intent-release-frontend
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api}
+      VITE_PROXY_TARGET: ${VITE_PROXY_TARGET:-http://backend:8000}
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  intent-release-postgres-data:

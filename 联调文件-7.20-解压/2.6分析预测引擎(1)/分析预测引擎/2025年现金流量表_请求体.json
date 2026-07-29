@@ -1,0 +1,91 @@
+{
+  "schema_version": "v1",
+  "trace_id": "2025-现金流量表",
+  "analysis_type": "financial_statement",
+  "records": [
+    {
+      "period": "2025-01",
+      "source_record_id": "2025-01",
+      "metrics": {
+        "operating_cashflow": "1325625.00"
+      }
+    },
+    {
+      "period": "2025-02",
+      "source_record_id": "2025-02",
+      "metrics": {
+        "operating_cashflow": "1906500.00"
+      }
+    },
+    {
+      "period": "2025-03",
+      "source_record_id": "2025-03",
+      "metrics": {
+        "operating_cashflow": "371875.00"
+      }
+    },
+    {
+      "period": "2025-04",
+      "source_record_id": "2025-04",
+      "metrics": {
+        "operating_cashflow": "1175000.00"
+      }
+    },
+    {
+      "period": "2025-05",
+      "source_record_id": "2025-05",
+      "metrics": {
+        "operating_cashflow": "1234125.00"
+      }
+    },
+    {
+      "period": "2025-06",
+      "source_record_id": "2025-06",
+      "metrics": {
+        "operating_cashflow": "1134375.00"
+      }
+    },
+    {
+      "period": "2025-07",
+      "source_record_id": "2025-07",
+      "metrics": {
+        "operating_cashflow": "1441500.00"
+      }
+    },
+    {
+      "period": "2025-08",
+      "source_record_id": "2025-08",
+      "metrics": {
+        "operating_cashflow": "2133000.00"
+      }
+    },
+    {
+      "period": "2025-09",
+      "source_record_id": "2025-09",
+      "metrics": {
+        "operating_cashflow": "779500.00"
+      }
+    },
+    {
+      "period": "2025-10",
+      "source_record_id": "2025-10",
+      "metrics": {
+        "operating_cashflow": "1402875.00"
+      }
+    },
+    {
+      "period": "2025-11",
+      "source_record_id": "2025-11",
+      "metrics": {
+        "operating_cashflow": "1509125.00"
+      }
+    },
+    {
+      "period": "2025-12",
+      "source_record_id": "2025-12",
+      "metrics": {
+        "operating_cashflow": "1241875.00"
+      }
+    }
+  ]
+}

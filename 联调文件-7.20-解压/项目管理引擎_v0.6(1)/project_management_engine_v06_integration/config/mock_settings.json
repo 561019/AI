@@ -1,0 +1,6 @@
+{
+  "mock_mode": true,
+  "database": "project_management.db",
+  "allow_direct_query": true,
+  "allow_direct_mutation": false
+}

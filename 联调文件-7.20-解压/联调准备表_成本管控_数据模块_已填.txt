@@ -1,0 +1,142 @@
+联调准备表（成本管控 + 数据模块）
+依据：
+- 《数据流转、对接与通信交互规范》v0.3（2026-07-17）
+- 《AI平台接口层间交互与实例提取》v1.0（2026-07-17）
+- 《联调准备表(1).txt》原表
+说明：文档未正式发布完整 REST 路径，以下以已确认的服务动作和建议接口名填写；标注“待专项定义”的字段不能直接视为生产契约。
+
+======================================================================
+一、成本管控
+======================================================================
+
+模块名称：L1.12 成本管控
+负责人：待填写
+
+一、我提供给其他模块的能力：
+1. cost.reserve：模型调用前按真人、部门、项目、智能体、任务和模型申请额度，返回 allow/deny、decision_id、预占额度和拒绝原因。
+2. cost.settle（建议动作名，待专项定义）：模型调用完成后按实际 Token、费用、耗时及本地设备用时结算，关联 trace_id/request_id。
+3. cost.usage / cost.report（建议动作名，待专项定义）：提供用量明细、部门/项目分摊、预算使用率、异常突增和容量看板数据。
+4. cost.alert（建议动作名，待专项定义）：额度临近、超限、异常突增或疑似智能体失控时，生成平台内部预警；通知经统一通知通道送达真人。
+
+二、我提供的接口：
+接口1：cost.reserve（已在接口实例文档中出现，具体路径待专项定义）
+- 路径：建议 /internal/cost/reserve；最终以能力登记表为准
+- 方法：对内通道标准请求；HTTP 方法待专项定义
+- 输入：标准请求信封；actor、trace_id、request_id、project_id、agent_id、task_id、model_id、deployment_type（api/local）、预计 input_tokens、max_output_tokens、预估金额或资源单位、idempotency_key、deadline_at
+- 输出：reply_type=success/failed；allow、reservation_id、decision_id、reserved_amount、remaining_quota、policy_version；拒绝时返回稳定错误码和原因
+- 错误情况：无权限、无预算/额度不足、重复幂等键、模型未登记、参数超限、策略版本不匹配、服务不可用；默认拒绝，不在提示词中绕过
+
+接口2：cost.settle / cost.usage（建议动作名，待专项定义）
+- 路径：建议 /internal/cost/settle；最终以能力登记表为准
+- 方法：对内通道标准请求；HTTP 方法待专项定义
+- 输入：reservation_id、trace_id、actor、部门/项目标签、model_id、deployment_type、实际 input/output/cached tokens、API 实际费用、请求耗时、local_device_seconds（如可取得）、status、error_code、idempotency_key
+- 输出：reply_type=success/failed；usage_id、settled_amount、部门/项目归集结果、budget_remaining、audit_ref
+- 错误情况：预占不存在、重复结算、用量字段非法、金额/模型单价版本不匹配、标签缺失、结算超时；不得重复入账
+
+三、我需要调用哪些模块：
+1. 需要调用模块：L1.5 大模型调度
+   - 调用目的：接收模型调用前的额度预占请求；调用完成后回传 Token、费用、耗时和模型部署类型。
+   - 需要对方提供什么接口：模型调用前的 cost.reserve 调用适配；调用后的 usage/settle 回传；具体字段和回调动作待专项定义。
+   - 当前是否已 mock：未完成；可先用固定 allow/deny + 固定 Token/费用回执 mock。
+2. 需要调用模块：L1.8 账号网关/组织信息
+   - 调用目的：取得当前真人、租户、部门、项目归属等标签，作为预算校验和成本分摊依据。
+   - 需要对方提供什么接口：已验证身份上下文/组织标签查询或随标准信封传递；不接收机器凭证。
+   - 当前是否已 mock：未完成；可先固定 person_id、department_id、project_id 测试数据。
+3. 需要调用模块：L1 层接口控制与通知通道
+   - 调用目的：所有 reserve/settle 进入统一对内通道；预警经统一通知通道送达真人。
+   - 需要对方提供什么接口：标准请求信封、decision_id/audit_ref、success/accepted/failed 回复和通知投递。
+   - 当前是否已 mock：部分可用规范样例，真实通道待联调。
+
+四、当前 mock 的内容：
+1. 建议准备 cost.reserve 的 allow、deny、额度不足、重复幂等键四类回执。
+2. 建议准备 API 模型（Token+人民币费用）和本地模型（Token+耗时/设备秒）两类 usage/settle 样例。
+3. 建议准备预算临界、超限、异常突增和智能体循环调用四类告警样例。
+4. 当前数据模块工程中的旧提成计算 MVP 不能作为成本管控联调 mock，需要单独建立成本接口 mock。
+
+五、后续联调风险：
+1. “算力”计量尚未形成正式单位：API 侧应以 Token/费用为主，本地侧是否接入设备秒、设备指标需运维专项确认。
+2. cost.reserve 的预算预占、结算退回、重复调用幂等和超时补偿尚未形成正式 Schema。
+3. 账号、部门、项目、智能体标签的唯一字段名和来源未冻结，可能导致分摊账无法对齐。
+4. 预警接收人、通知类型、阈值规则和默认预算制度尚未登记。
+5. 成本模块位于调用热路径，接口延迟、不可用时的 fail-close/fail-open 策略必须拍板；涉及预算控制时建议默认拒绝。
+6. 成本模块不应直接接入设备管理或修改算力调度，只接模型网关和监控系统的受控数据。
+
+六、联调前我能保证什么：
+1. 能提供 cost.reserve 的 allow/deny/额度不足/幂等失败 mock。
+2. 能提供 API 与本地部署两类用量结算样例。
+3. 能按 trace_id、request_id、reservation_id、usage_id 串联预占、调用、结算和审计。
+4. 能提供预算临界、超限、突增和重复结算的测试结果。
+5. 能提供接口 Schema 草案、错误码草案和 mock 数据。
+6. 正式联调前需补齐能力登记、组织标签、通知通道和成本专项方案。
+
+======================================================================
+二、数据模块
+======================================================================
+
+模块名称：L1.7 数据模块（统一物理数据存取服务）
+负责人：待填写
+
+一、我提供给其他模块的能力：
+1. data.read / artifact.read：按已授权的 data_ref/artifact_ref 读取物理数据或文件产物，不直接暴露内部库表和对象路径。
+2. data.write / data.persist：按指令写入临时数据、固定存档或 AI 产物，返回数据引用、版本和校验信息。
+3. data.update / data.delete：按资产编号、版本和授权范围更新或删除物理对象，删除默认保留审计；具体逻辑删除/物理删除策略待专项定义。
+4. data.location / data.version（建议动作名，待专项定义）：维护数据资产唯一编号与一个或多个物理对象、位置、版本、校验值之间的映射。
+
+二、我提供的接口：
+接口1：data.read / artifact.read（服务动作已明确，具体路径待专项定义）
+- 路径：建议 /internal/data/read、/internal/artifact/read；最终以能力登记表为准
+- 方法：对内通道标准请求；HTTP 方法待专项定义
+- 输入：标准请求信封；actor、trace_id、request_id、data_ref 或 artifact_ref、版本、allowed_actions、字段/范围、用途、deadline_at、idempotency_key
+- 输出：reply_type=success/accepted/failed；引用对应的受控数据结果、version、checksum、lineage、expires_at；大数据读取返回 task_id 或分页/流式引用
+- 错误情况：无 data.read/artifact.read 权限、引用不存在或过期、版本不存在、范围非法、资源不可用、脱敏义务未满足、超时；默认拒绝
+
+接口2：data.write / data.persist（服务动作已明确，具体路径待专项定义）
+- 路径：建议 /internal/data/write、/internal/data/persist；最终以能力登记表为准
+- 方法：对内通道标准请求；HTTP 方法待专项定义
+- 输入：标准请求信封；data_ref/artifact_ref（新建时可为空）、storage_class、owner_service、payload_ref、schema_version、retention_policy、delete_after、recovery_policy、data_labels、expected_version、idempotency_key、真人确认/decision_id（固定存或业务写入时）
+- 输出：reply_type=success/accepted/failed；asset_id/data_ref/artifact_ref、version、physical_locator（仅内部或受控返回）、checksum、created_at、audit_ref
+- 错误情况：无 data.persist 权限、未完成真人确认、幂等键重复、版本冲突、Schema 不匹配、存储空间/连接不可用、保留策略非法、写入超时；不得重复写入
+
+三、我需要调用哪些模块：
+1. 需要调用模块：L1 层接口控制与对内通道
+   - 调用目的：接收已登记的 L2 能力请求，执行来源校验、当前真人实时判权、安全义务、审计和分派。
+   - 需要对方提供什么接口：标准请求信封、data.read/data.persist/data.update/data.delete 服务登记、decision_id/audit_ref、success/accepted/failed 回复。
+   - 当前是否已 mock：部分有协议样例，真实通道待联调。
+2. 需要调用模块：存储基础设施适配器（数据库/文件/对象存储，属于本模块内部依赖，不作为跨模块直连）
+   - 调用目的：执行物理读写、版本、校验、事务和删除。
+   - 需要对方提供什么接口：由 L1.7 内部统一适配，不对其他模块暴露；具体产品和连接方式待数据机制专项定义。
+   - 当前是否已 mock：当前工程有 SQLite 演示存储，但不符合本次正式资产引用契约，不能直接作为联调完成依据。
+
+四、当前 mock 的内容：
+1. data_ref/artifact_ref、版本、校验值、过期时间和 lineage 的标准样例。
+2. data.read 的成功、无权限、过期引用、版本冲突和资源不可用回执。
+3. data.persist 的临时存、固定存、重复幂等键和真人确认缺失回执。
+4. data.read/data.persist 的最小物理存储适配 mock；真实数据库、对象存储和备份策略待专项定义。
+5. 当前工程已有 SQLite 录入/查询页面，但其中业务分类和提成计算属于旧 MVP，不应作为本次数据模块正式边界。
+
+五、后续联调风险：
+1. 数据资产唯一编号由数据处理引擎还是 L1.7 生成尚未冻结；必须单一责任方生成，L1.7 负责映射和版本。
+2. 同一 asset_id 对应多个文件、表、版本和备份位置的 Schema 尚未冻结。
+3. 临时存、固定存、保留期、delete_after、恢复策略和逻辑/物理删除规则属于待专项定义。
+4. data_ref/artifact_ref 的 allowed_actions 不能代替实时权限结论，必须由层接口传递 decision_id 并重新判权。
+5. 大数据批量读取、分页/流式返回、长任务 accepted 和回调机制尚未完成。
+6. 数据模块不能接收未登记的直接数据库访问，也不能承担业务分类、业务计算、文档解析和大模型调用。
+7. 旧 MVP 的提成计算、业务分类与正式数据模块定位冲突，需要在联调前拆出或停用。
+
+六、联调前我能保证什么：
+1. 能提供 data_ref/artifact_ref 及版本、校验、血缘样例。
+2. 能提供 data.read/data.persist 的 success/accepted/failed 三类标准回执样例。
+3. 能提供临时存、固定存、读、写、版本冲突、幂等和删除审计测试数据。
+4. 能按 trace_id、request_id、asset_id、version、decision_id、audit_ref 串起物理存取证据。
+5. 能提供接口 Schema 草案、错误码草案和 mock 数据。
+6. 能提供独立启动说明、测试结果和 README；正式联调前需冻结存储产品、编号责任方和保留策略。
+
+======================================================================
+三、双方联调优先顺序
+======================================================================
+
+1. 先冻结标准请求信封、actor、trace_id、request_id、idempotency_key、capability_id 和三类标准回复。
+2. 再冻结数据模块的 data_ref/artifact_ref 与成本模块的 reservation_id/usage_id Schema。
+3. 先跑数据读取、成本预占、模型调用用量回传、数据固定存档四条最小链路。
+4. 再补批量长任务、异常重试、通知预警、版本冲突和删除恢复。
+5. 所有接口路径、字段、错误码和超时策略最终以能力登记表及专项协议为准。

@@ -1,0 +1,3 @@
+-- Columns for data_records.initial_person_ids and data_records.initial_user_ids
+-- are added through audit.EnsureSchema's idempotent ensureColumn path because
+-- this project replays embedded migrations on every local startup.

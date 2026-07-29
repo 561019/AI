@@ -1,0 +1,631 @@
+{
+  "accounts": [
+    {
+      "account_id": "acc_sales_mgr",
+      "person_id": "person_sales_mgr",
+      "status": "active",
+      "is_emergency_account": false
+    },
+    {
+      "account_id": "acc_sales_staff",
+      "person_id": "person_sales_staff",
+      "status": "active",
+      "is_emergency_account": false
+    },
+    {
+      "account_id": "acc_hr_im",
+      "person_id": "person_hr_im",
+      "status": "active",
+      "is_emergency_account": false
+    },
+    {
+      "account_id": "acc_formula_admin",
+      "person_id": "person_formula_admin",
+      "status": "active",
+      "is_emergency_account": false
+    },
+    {
+      "account_id": "acc_finance_mgr",
+      "person_id": "person_finance_mgr",
+      "status": "active",
+      "is_emergency_account": false
+    },
+    {
+      "account_id": "acc_emergency",
+      "person_id": "person_chairman",
+      "status": "active",
+      "is_emergency_account": true
+    },
+    {
+      "account_id": "acc_frozen",
+      "person_id": "person_left",
+      "status": "frozen",
+      "is_emergency_account": false
+    }
+  ],
+  "action_registry": [
+    {
+      "action_code": "read",
+      "action_name": "读取数据",
+      "risk_level": "low",
+      "registered": true,
+      "need_policy_basis": false,
+      "need_confirm": false,
+      "enabled": true
+    },
+    {
+      "action_code": "write",
+      "action_name": "写入/更新数据",
+      "risk_level": "medium",
+      "registered": true,
+      "need_policy_basis": false,
+      "need_confirm": false,
+      "enabled": true
+    },
+    {
+      "action_code": "delete",
+      "action_name": "删除数据",
+      "risk_level": "high",
+      "registered": true,
+      "need_policy_basis": true,
+      "need_confirm": true,
+      "enabled": true
+    },
+    {
+      "action_code": "transfer",
+      "action_name": "权限转授权",
+      "risk_level": "high",
+      "registered": true,
+      "need_policy_basis": true,
+      "need_confirm": true,
+      "enabled": true
+    },
+    {
+      "action_code": "external_output",
+      "action_name": "外发/导出",
+      "risk_level": "high",
+      "registered": true,
+      "need_policy_basis": true,
+      "need_confirm": true,
+      "enabled": true
+    },
+    {
+      "action_code": "disable",
+      "action_name": "禁用数据",
+      "risk_level": "high",
+      "registered": true,
+      "need_policy_basis": true,
+      "need_confirm": true,
+      "enabled": true
+    },
+    {
+      "action_code": "freeze",
+      "action_name": "冻结数据",
+      "risk_level": "high",
+      "registered": true,
+      "need_policy_basis": true,
+      "need_confirm": true,
+      "enabled": true
+    },
+    {
+      "action_code": "unfreeze",
+      "action_name": "解冻数据",
+      "risk_level": "high",
+      "registered": true,
+      "need_policy_basis": true,
+      "need_confirm": true,
+      "enabled": true
+    },
+    {
+      "action_code": "export",
+      "action_name": "导出数据",
+      "risk_level": "high",
+      "registered": true,
+      "need_policy_basis": true,
+      "need_confirm": true,
+      "enabled": true
+    },
+    {
+      "action_code": "publish",
+      "action_name": "对外发布",
+      "risk_level": "high",
+      "registered": true,
+      "need_policy_basis": true,
+      "need_confirm": true,
+      "enabled": true
+    },
+    {
+      "action_code": "approve",
+      "action_name": "审批操作",
+      "risk_level": "high",
+      "registered": true,
+      "need_policy_basis": true,
+      "need_confirm": true,
+      "enabled": true
+    },
+    {
+      "action_code": "grant",
+      "action_name": "授权操作",
+      "risk_level": "high",
+      "registered": true,
+      "need_policy_basis": true,
+      "need_confirm": true,
+      "enabled": true
+    }
+  ],
+  "persons": [
+    {
+      "person_id": "person_sales_mgr",
+      "name": "销售经理"
+    },
+    {
+      "person_id": "person_sales_staff",
+      "name": "销售员工"
+    },
+    {
+      "person_id": "person_finance_mgr",
+      "name": "财务负责人"
+    },
+    {
+      "person_id": "person_hr_im",
+      "name": "组织信息管理员"
+    },
+    {
+      "person_id": "person_chairman",
+      "name": "集团高层"
+    },
+    {
+      "person_id": "person_left",
+      "name": "离职员工"
+    }
+  ],
+  "org_position": [
+    {
+      "position_id": "pos_sales_manager",
+      "position_name": "销售经理",
+      "company_id": "hanhe",
+      "department_id": "sales",
+      "role_type": "manager",
+      "domain_id": "domain_sales",
+      "dsm_person_id": "person_dsm_sales",
+      "status": "active"
+    },
+    {
+      "position_id": "pos_sales_staff",
+      "position_name": "销售员工",
+      "company_id": "hanhe",
+      "department_id": "sales",
+      "role_type": "staff",
+      "domain_id": "domain_sales",
+      "dsm_person_id": "person_dsm_sales",
+      "status": "active"
+    },
+    {
+      "position_id": "pos_finance_manager",
+      "position_name": "财务负责人",
+      "company_id": "hanhe",
+      "department_id": "finance",
+      "role_type": "manager",
+      "domain_id": "domain_finance",
+      "dsm_person_id": "person_dsm_finance",
+      "status": "active"
+    },
+    {
+      "position_id": "pos_hr_im",
+      "position_name": "组织信息管理员 IM",
+      "company_id": "hanhe",
+      "department_id": "hr",
+      "role_type": "im",
+      "domain_id": "domain_hr",
+      "dsm_person_id": "person_dsm_hr",
+      "status": "active"
+    }
+  ],
+  "person_position": [
+    {
+      "person_id": "person_sales_mgr",
+      "position_id": "pos_sales_manager",
+      "is_active": true
+    },
+    {
+      "person_id": "person_sales_staff",
+      "position_id": "pos_sales_staff",
+      "is_active": true
+    },
+    {
+      "person_id": "person_finance_mgr",
+      "position_id": "pos_finance_manager",
+      "is_active": true
+    },
+    {
+      "person_id": "person_hr_im",
+      "position_id": "pos_hr_im",
+      "is_active": true
+    },
+    {
+      "person_id": "person_formula_admin",
+      "position_id": "pos_sales_manager",
+      "is_active": true
+    }
+  ],
+  "person_relation": [
+    {
+      "person_id": "person_sales_staff",
+      "domain_id": "domain_sales",
+      "direct_leader_person_id": "person_sales_mgr",
+      "status": "active"
+    }
+  ],
+  "data_registry": [
+    {
+      "data_id": "data_sales_001",
+      "data_name": "销售明细",
+      "owner_person_id": "person_sales_staff",
+      "state": "active",
+      "allowed_actions": [
+        "read",
+        "write"
+      ],
+      "allow_external_model": false,
+      "allow_export": true,
+      "can_delete": false,
+      "can_freeze": true
+    },
+    {
+      "data_id": "data_formula_001",
+      "data_name": "配方成本表",
+      "owner_person_id": "person_sales_mgr",
+      "state": "active",
+      "allowed_actions": [
+        "read",
+        "write"
+      ],
+      "allow_external_model": false,
+      "allow_export": false,
+      "can_delete": false,
+      "can_freeze": true
+    },
+    {
+      "data_id": "data_public_001",
+      "data_name": "公开产品介绍",
+      "owner_person_id": "person_sales_mgr",
+      "state": "active",
+      "allowed_actions": [
+        "read",
+        "write"
+      ],
+      "allow_external_model": true,
+      "allow_export": true,
+      "can_delete": false,
+      "can_freeze": false
+    },
+    {
+      "data_id": "data_finance_001",
+      "data_name": "财务计提表",
+      "owner_person_id": "person_finance_mgr",
+      "state": "active",
+      "allowed_actions": [
+        "read",
+        "write"
+      ],
+      "allow_external_model": false,
+      "allow_export": false,
+      "can_delete": false,
+      "can_freeze": true
+    },
+    {
+      "data_id": "data_frozen_001",
+      "data_name": "已冻结的旧销售数据",
+      "owner_person_id": "person_sales_mgr",
+      "state": "frozen",
+      "allowed_actions": [],
+      "allow_external_model": false,
+      "allow_export": false,
+      "can_delete": false,
+      "can_freeze": false
+    },
+    {
+      "data_id": "data_disabled_001",
+      "data_name": "已被禁用的测试数据",
+      "owner_person_id": "person_sales_mgr",
+      "state": "disabled",
+      "allowed_actions": [],
+      "allow_external_model": false,
+      "allow_export": false,
+      "can_delete": false,
+      "can_freeze": false
+    },
+    {
+      "data_id": "data_archived_001",
+      "data_name": "已归档的历史合同",
+      "owner_person_id": "person_sales_mgr",
+      "state": "archived",
+      "allowed_actions": [
+        "read"
+      ],
+      "allow_external_model": false,
+      "allow_export": false,
+      "can_delete": false,
+      "can_freeze": false
+    }
+  ],
+  "position_standard_permission": [
+    {
+      "position_id": "pos_sales_manager",
+      "resource_type": "data",
+      "resource_id": "*",
+      "permission_type": "read",
+      "scope_type": "subordinate_tree",
+      "policy_id": "policy_subtree_read",
+      "enabled": true
+    },
+    {
+      "position_id": "pos_sales_manager",
+      "resource_type": "action",
+      "resource_id": "generate_package_copy",
+      "permission_type": "generate_content",
+      "scope_type": "department",
+      "policy_id": "policy_package_content",
+      "enabled": true
+    },
+    {
+      "position_id": "pos_sales_staff",
+      "resource_type": "data",
+      "resource_id": "data_public_001",
+      "permission_type": "read",
+      "scope_type": "self",
+      "policy_id": "policy_public_data",
+      "enabled": true
+    },
+    {
+      "position_id": "pos_sales_staff",
+      "resource_type": "action",
+      "resource_id": "generate_draft",
+      "permission_type": "generate_content",
+      "scope_type": "self",
+      "policy_id": "policy_draft",
+      "enabled": true
+    },
+    {
+      "position_id": "pos_finance_manager",
+      "resource_type": "data",
+      "resource_id": "data_finance_001",
+      "permission_type": "read",
+      "scope_type": "department",
+      "policy_id": "policy_finance_access_001",
+      "enabled": true
+    },
+    {
+      "position_id": "pos_finance_manager",
+      "resource_type": "action",
+      "resource_id": "approve_payment",
+      "permission_type": "approve",
+      "scope_type": "department",
+      "policy_id": "policy_finance_payment",
+      "enabled": true
+    }
+  ],
+  "personal_data_grant": [
+    {
+      "grant_id": "grant_001",
+      "data_id": "data_formula_001",
+      "grantor_person_id": "person_sales_mgr",
+      "grantee_person_id": "person_finance_mgr",
+      "permission_type": "read",
+      "can_regrant": false,
+      "grant_basis": "成本测算协同",
+      "grant_time": "2026-07-01T09:00:00+08:00",
+      "source_trace_id": "trace_demo",
+      "status": "active"
+    }
+  ],
+  "policy_rule": [
+    {
+      "policy_id": "policy_finance_access_001",
+      "policy_name": "财务数据取用制度",
+      "scene_code": "finance_data_query",
+      "action_type": "data_read",
+      "condition_json": {},
+      "approval_rule_json": {},
+      "auto_execute_allowed": true,
+      "need_self_confirm": false,
+      "need_policy_approver_confirm": false,
+      "enabled": true
+    },
+    {
+      "policy_id": "policy_package_content",
+      "policy_name": "产品包装内容合规制度",
+      "scene_code": "package_copy_review",
+      "action_type": "generate_content",
+      "condition_json": {},
+      "approval_rule_json": {
+        "role": "compliance_manager"
+      },
+      "auto_execute_allowed": true,
+      "need_self_confirm": false,
+      "need_policy_approver_confirm": false,
+      "enabled": true
+    },
+    {
+      "policy_id": "policy_external_publish",
+      "policy_name": "对外发布审批制度",
+      "scene_code": "media_publish",
+      "action_type": "publish",
+      "condition_json": {},
+      "approval_rule_json": {
+        "role": "department_manager"
+      },
+      "auto_execute_allowed": false,
+      "need_self_confirm": false,
+      "need_policy_approver_confirm": true,
+      "enabled": true
+    },
+    {
+      "policy_id": "policy_finance_payment",
+      "policy_name": "付款与关键数字入账审批制度",
+      "scene_code": "finance_payment",
+      "action_type": "approve",
+      "condition_json": {},
+      "approval_rule_json": {
+        "role": "finance_manager",
+        "multi_sign": true
+      },
+      "auto_execute_allowed": false,
+      "need_self_confirm": false,
+      "need_policy_approver_confirm": true,
+      "enabled": true
+    }
+  ],
+  "security_policy_rule": [
+    {
+      "rule_id": "model_core_business_private_only",
+      "rule_name": "核心经营数据禁止进入外部模型",
+      "rule_type": "model_boundary",
+      "scene_code": "*",
+      "condition_json": {
+        "keywords": [
+          "配方",
+          "成本",
+          "供应商报价",
+          "核心经营"
+        ]
+      },
+      "obligation_json": {
+        "allow_external_model": false,
+        "model_scope": "private_only"
+      },
+      "risk_level": "high",
+      "enabled": true
+    },
+    {
+      "rule_id": "output_exaggerated_claim",
+      "rule_name": "宣传内容夸大承诺红线",
+      "rule_type": "output_guard",
+      "scene_code": "package_copy_review",
+      "condition_json": {
+        "keywords": [
+          "彻底解决",
+          "保证增产",
+          "绝对有效",
+          "100%"
+        ]
+      },
+      "obligation_json": {
+        "deny": true
+      },
+      "risk_level": "high",
+      "enabled": true
+    },
+    {
+      "rule_id": "platform_banned_words",
+      "rule_name": "平台违规词检查",
+      "rule_type": "output_guard",
+      "scene_code": "media_publish",
+      "condition_json": {
+        "keywords": [
+          "最强",
+          "永久有效",
+          "包治"
+        ]
+      },
+      "obligation_json": {
+        "need_output_check": true
+      },
+      "risk_level": "high",
+      "enabled": true
+    },
+    {
+      "rule_id": "audit_emergency",
+      "rule_name": "应急监察账号强审计",
+      "rule_type": "audit",
+      "scene_code": "*",
+      "condition_json": {
+        "is_emergency_account": true
+      },
+      "obligation_json": {
+        "need_audit": true
+      },
+      "risk_level": "high",
+      "enabled": true
+    },
+    {
+      "rule_id": "unit_test_output_guard",
+      "rule_name": "单元测试输出红线",
+      "rule_type": "output_guard",
+      "scene_code": "*",
+      "condition_json": {
+        "keywords": [
+          "单元测试禁词"
+        ]
+      },
+      "obligation_json": {
+        "need_output_check": true
+      },
+      "risk_level": "high",
+      "enabled": true,
+      "rule_version": 53,
+      "updated_at": "2026-07-13T09:51:12.386026+00:00"
+    },
+    {
+      "rule_id": "v7_unit_output_guard",
+      "rule_name": "V7 单元测试输出红线",
+      "rule_type": "output_guard",
+      "scene_code": "*",
+      "condition_json": {
+        "keywords": [
+          "V7禁词"
+        ]
+      },
+      "obligation_json": {
+        "need_output_check": true,
+        "deny": true
+      },
+      "risk_level": "high",
+      "enabled": false,
+      "rule_version": 102,
+      "updated_at": "2026-07-13T09:51:12.601855+00:00"
+    },
+    {
+      "rule_id": "v7_demo_output_guard",
+      "rule_name": "V7演示输出红线",
+      "rule_type": "output_guard",
+      "scene_code": "*",
+      "condition_json": {
+        "keywords": [
+          "永久有效",
+          "最强"
+        ]
+      },
+      "obligation_json": {
+        "need_output_check": true,
+        "deny": true
+      },
+      "risk_level": "high",
+      "enabled": true,
+      "rule_version": 1,
+      "updated_at": "2026-07-06T08:17:59.181018+00:00"
+    },
+    {
+      "rule_id": "v7_mask_personal_name",
+      "rule_name": "自定义姓名脱敏示例",
+      "scene_code": "*",
+      "condition_json": {
+        "keywords": [
+          "张三",
+          "李四",
+          "王五"
+        ],
+        "replacement": null
+      },
+      "obligation_json": {
+        "operator": "mask",
+        "need_masking": true
+      },
+      "risk_level": "medium",
+      "enabled": true,
+      "rule_type": "masking",
+      "rule_version": 1,
+      "updated_at": "2026-07-09T00:00:00.000000+00:00"
+    }
+  ]
+}

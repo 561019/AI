@@ -3,9 +3,18 @@ node_modules/
 outputs/
 dist/
 
-# Large delivered-module source packages are managed separately.
-联调文件-7.20-解压/
+# Delivered module source packages are tracked, but local runtimes/caches inside
+# them are not.
+联调文件-7.20-解压/**/.venv/
+联调文件-7.20-解压/**/venv/
+联调文件-7.20-解压/**/env/
+联调文件-7.20-解压/**/build/
+联调文件-7.20-解压/**/dist/
+联调文件-7.20-解压/**/.pytest_cache/
+联调文件-7.20-解压/**/.mypy_cache/
+联调文件-7.20-解压/**/*.egg-info/
 *.zip
+!联调文件-7.20-解压/**/*.zip
 _incoming_*/
 _current_*.txt
 _incoming_*.txt

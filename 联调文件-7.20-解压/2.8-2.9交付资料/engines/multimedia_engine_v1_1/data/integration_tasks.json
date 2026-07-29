@@ -1,0 +1,1352 @@
+{
+  "b36e41f6-73fc-4000-9c29-3fb7b91ec0b1": {
+    "task_id": "b36e41f6-73fc-4000-9c29-3fb7b91ec0b1",
+    "created_at": "2026-07-25T11:14:29",
+    "status": "failed",
+    "message_id": "2a31c32f-df61-4a69-9920-e54a1c233fad",
+    "parent_message_id": null,
+    "workflow_instance_id": null,
+    "node_id": null,
+    "upstream_task_id": "b36e41f6-73fc-4000-9c29-3fb7b91ec0b1",
+    "idempotency_key": "verify-l2-multimedia-generation-a01b3cbe-b308-4ef2-a751-fe61d1de9c29",
+    "actor_id": "module-validator",
+    "task_type": "multimedia_poster",
+    "capability_id": "text_to_image",
+    "output_type": "poster_plan",
+    "capability_profile": {
+      "name": "文生图",
+      "batch": "首批",
+      "scope": "含图生图、图片编辑、商品图、版式设计图",
+      "implementation": "llm_plan",
+      "default_output_type": "image_plan"
+    },
+    "task_adaptation": {
+      "accepted": true,
+      "code": "MM_ADAPT_PARTIAL",
+      "message": "任务可承办，但建议由流程执行补齐部分素材或参数。",
+      "engine_boundary": {
+        "engine": "multimedia_generation",
+        "owned_outputs": [
+          "image",
+          "video",
+          "audio",
+          "poster_plan",
+          "video_edit_plan",
+          "short_video_plan",
+          "speech_plan",
+          "media_processing_plan"
+        ],
+        "not_owned_outputs": [
+          "text_report",
+          "copywriting",
+          "article",
+          "official_document",
+          "cross_engine_orchestration",
+          "human_approval_organization"
+        ],
+        "principle": "多媒体生成引擎只承接流程执行引擎派发的图片、视频、音频类子任务；纯文字成果、跨引擎编排和真人确认组织不归本引擎办理。"
+      },
+      "requested_capability_id": "text_to_image",
+      "requested_task_type": "multimedia_poster",
+      "requested_output_type": "poster_plan",
+      "requirement": "验证 多媒体生成引擎 标准接口",
+      "normalized": {
+        "capability_id": "text_to_image",
+        "task_type": "multimedia_poster",
+        "output_type": "poster_plan",
+        "label": "文生图/海报方案",
+        "implementation": "llm_plan"
+      },
+      "missing_fields": [
+        {
+          "field": "image_or_logo_asset",
+          "reason": "图片/海报任务建议传入 Logo、产品图或风格参考。"
+        }
+      ],
+      "material_requirements": [
+        "product_profile",
+        "brand_style",
+        "image_or_logo_asset",
+        "compliance_rule"
+      ],
+      "handoff_note": "本适配只发生在多媒体生成引擎内部，不代表本引擎会判断跨引擎流程；最终派发仍应由流程执行引擎固化。"
+    },
+    "requirement": "验证 多媒体生成引擎 标准接口",
+    "source_engine": "module-verification-page",
+    "source_engine_name": "module-verification-page",
+    "parent_flow_id": null,
+    "trace_id": "c4f107a8-78a7-4e37-975d-02d07bd40ebc",
+    "upstream_content_task_id": null,
+    "upstream_content_summary": null,
+    "content_artifact_ref": null,
+    "input_artifact_refs": [],
+    "kb_base": "http://127.0.0.1:8070",
+    "material_package": null,
+    "xml_context": "",
+    "references": [],
+    "messages": [],
+    "llm_result": null,
+    "model_dispatch_usage": {
+      "enabled": false,
+      "status": "reserved_interface",
+      "target_service": "l1.model_dispatch",
+      "target_module": "1.5 大模型调度",
+      "expected_action": "model.chat_completion",
+      "expected_path": "POST /api/model-dispatch/chat-completions",
+      "request_schema_version": "to_be_confirmed",
+      "response_schema_version": "to_be_confirmed",
+      "timeout_seconds": null,
+      "local_fallback_mode": "mock_prompt_only",
+      "truth_note": "正式架构中，多媒体凡涉及模型应调用 1.5 大模型调度；本地版暂用 LiteLLM/Kimi 直连或 mock 方案验证联调。"
+    },
+    "artifact_refs": [],
+    "media_outputs": {
+      "media_type": "image",
+      "artifact_refs": [],
+      "preview_url": null,
+      "file_ref": null,
+      "reuse_mode": null,
+      "hot_case_refs": [],
+      "label_status": "pending_real_media_generation",
+      "ai_generation_label": {
+        "required": true,
+        "status": "pending_real_media_generation",
+        "type": "explicit_or_implicit_after_real_media_generation"
+      },
+      "note": "本地联调版仅生成方案/提示词；真实媒体文件接入后在此返回 artifact_refs、preview_url 或 file_ref。"
+    },
+    "hot_case_reuse": {
+      "enabled": false,
+      "reuse_mode": null,
+      "batch_index": null,
+      "batch_count": null,
+      "hot_case_refs": [],
+      "hot_case_materials": [],
+      "boundary_note": "爆款复用在本版本只承办取材、画面方案和提示词生成；真实图片/视频生成和爆款效果验证待后续接口接入。"
+    },
+    "digital_asset_skill_usage": {
+      "enabled": false,
+      "status": "reserved_interface",
+      "target_service": "l2.digital_asset_engine",
+      "target_engine": "数字资产引擎",
+      "expected_action": "skills.resolve",
+      "expected_path": "POST /api/digital-assets/skills/resolve",
+      "skill_refs": [],
+      "skill_requirements": [],
+      "truth_note": "本地没有实现数字资产引擎，当前仅保留爆款模式与制作标准技能的取用接口位；多媒体不创建、不修改技能。"
+    },
+    "permission_result": {
+      "mode": "local_mock",
+      "decision_id": "DECISION-b36e41f6-73fc-4000-9c29-3fb7b91ec0b1",
+      "allowed": false,
+      "audit_ref": "AUDIT-b36e41f6-73fc-4000-9c29-3fb7b91ec0b1"
+    },
+    "security_check_status": "local_mock_not_passed",
+    "audit_ref": "AUDIT-b36e41f6-73fc-4000-9c29-3fb7b91ec0b1",
+    "exit_type": "unable_to_handle",
+    "events": [
+      {
+        "time": "2026-07-25T11:14:29",
+        "step": "receive_subtask",
+        "status": "ok",
+        "detail": "已接收流程派发的多媒体子任务。"
+      },
+      {
+        "time": "2026-07-25T11:14:29",
+        "step": "validate_subtask",
+        "status": "ok",
+        "detail": "子任务字段已通过接口模型校验，包含真人、任务类型、能力接口位、产出类型和需求描述。"
+      },
+      {
+        "time": "2026-07-25T11:14:29",
+        "step": "task_adaptation",
+        "status": "ok",
+        "detail": "任务适配：任务可承办，但建议由流程执行补齐部分素材或参数。 capability=text_to_image task_type=multimedia_poster",
+        "data": {
+          "missing_fields": [
+            {
+              "field": "image_or_logo_asset",
+              "reason": "图片/海报任务建议传入 Logo、产品图或风格参考。"
+            }
+          ]
+        }
+      },
+      {
+        "time": "2026-07-25T11:14:29",
+        "step": "capability_route",
+        "status": "ok",
+        "detail": "能力接口位识别为 text_to_image · 文生图（含图生图、图片编辑、商品图、版式设计图），批次=首批；当前联通取材与文本 LLM/Mock 方案生成，真实媒体文件生成按后续实现挂接。"
+      },
+      {
+        "time": "2026-07-25T11:14:29",
+        "step": "error",
+        "status": "failed",
+        "detail": "知识库接口 HTTP 400: {\"detail\":{\"code\":\"KB_400_UNKNOWN_ACTOR\",\"message\":\"未知真人/演示用户\"}}"
+      },
+      {
+        "time": "2026-07-25T11:14:29",
+        "step": "exit_decision",
+        "status": "failed",
+        "detail": "素材、字段或知识库环节失败，按三种出口判定为：无法办理。"
+      },
+      {
+        "time": "2026-07-25T11:14:29",
+        "step": "return_result",
+        "status": "failed",
+        "detail": "已把无法办理原因返回流程执行引擎/调用方。"
+      }
+    ],
+    "error": "知识库接口 HTTP 400: {\"detail\":{\"code\":\"KB_400_UNKNOWN_ACTOR\",\"message\":\"未知真人/演示用户\"}}",
+    "truth_note": "v1.1 真实调用本地知识库接口，并在多媒体边界内做任务归一和缺项提示；LLM 是否真实调用取决于配置和 use_llm。没有真实图片/视频生成。",
+    "interface": "POST /api/multimedia/subtasks",
+    "accepted_receipt": {
+      "status": "accepted",
+      "workflow_instance_id": null,
+      "node_id": null,
+      "task_id": "b36e41f6-73fc-4000-9c29-3fb7b91ec0b1",
+      "trace_id": "c4f107a8-78a7-4e37-975d-02d07bd40ebc",
+      "idempotency_key": "verify-l2-multimedia-generation-a01b3cbe-b308-4ef2-a751-fe61d1de9c29"
+    },
+    "flow_callback_preview": {
+      "callback_type": "flow.callback",
+      "workflow_instance_id": null,
+      "node_id": null,
+      "task_id": "b36e41f6-73fc-4000-9c29-3fb7b91ec0b1",
+      "trace_id": "c4f107a8-78a7-4e37-975d-02d07bd40ebc",
+      "idempotency_key": "verify-l2-multimedia-generation-a01b3cbe-b308-4ef2-a751-fe61d1de9c29-callback",
+      "source_service": "l2.multimedia_generation.local_v1_1",
+      "status": "failed",
+      "result": {
+        "multimedia_task_id": "b36e41f6-73fc-4000-9c29-3fb7b91ec0b1",
+        "output_type": "poster_plan",
+        "capability_id": "text_to_image",
+        "artifact_refs": [],
+        "media_outputs": {
+          "media_type": "image",
+          "artifact_refs": [],
+          "preview_url": null,
+          "file_ref": null,
+          "reuse_mode": null,
+          "hot_case_refs": [],
+          "label_status": "pending_real_media_generation",
+          "ai_generation_label": {
+            "required": true,
+            "status": "pending_real_media_generation",
+            "type": "explicit_or_implicit_after_real_media_generation"
+          },
+          "note": "本地联调版仅生成方案/提示词；真实媒体文件接入后在此返回 artifact_refs、preview_url 或 file_ref。"
+        },
+        "hot_case_reuse": {
+          "enabled": false,
+          "reuse_mode": null,
+          "batch_index": null,
+          "batch_count": null,
+          "hot_case_refs": [],
+          "hot_case_materials": [],
+          "boundary_note": "爆款复用在本版本只承办取材、画面方案和提示词生成；真实图片/视频生成和爆款效果验证待后续接口接入。"
+        },
+        "digital_asset_skill_usage": {
+          "enabled": false,
+          "status": "reserved_interface",
+          "target_service": "l2.digital_asset_engine",
+          "target_engine": "数字资产引擎",
+          "expected_action": "skills.resolve",
+          "expected_path": "POST /api/digital-assets/skills/resolve",
+          "skill_refs": [],
+          "skill_requirements": [],
+          "truth_note": "本地没有实现数字资产引擎，当前仅保留爆款模式与制作标准技能的取用接口位；多媒体不创建、不修改技能。"
+        },
+        "references": [],
+        "truth_note": "v1.1 真实调用本地知识库接口，并在多媒体边界内做任务归一和缺项提示；LLM 是否真实调用取决于配置和 use_llm。没有真实图片/视频生成。"
+      },
+      "error": "知识库接口 HTTP 400: {\"detail\":{\"code\":\"KB_400_UNKNOWN_ACTOR\",\"message\":\"未知真人/演示用户\"}}",
+      "audit_ref": "AUDIT-b36e41f6-73fc-4000-9c29-3fb7b91ec0b1"
+    },
+    "callback": {
+      "enabled": false,
+      "protocol": "simple",
+      "url": null,
+      "source_service": "l2.multimedia_generation.local_v1_1"
+    }
+  },
+  "dcd06226-6c91-46b1-b33c-3f74145d6e41": {
+    "task_id": "dcd06226-6c91-46b1-b33c-3f74145d6e41",
+    "created_at": "2026-07-25T11:15:31",
+    "status": "failed",
+    "message_id": "b738a41c-07c9-4d4a-86e8-33529da5e503",
+    "parent_message_id": null,
+    "workflow_instance_id": null,
+    "node_id": null,
+    "upstream_task_id": "dcd06226-6c91-46b1-b33c-3f74145d6e41",
+    "idempotency_key": "internal-multimedia.generate-run-c18f1b1b5dbc",
+    "actor_id": "fu-shengxian",
+    "task_type": "multimedia_poster",
+    "capability_id": "text_to_image",
+    "output_type": "poster_plan",
+    "capability_profile": {
+      "name": "文生图",
+      "batch": "首批",
+      "scope": "含图生图、图片编辑、商品图、版式设计图",
+      "implementation": "llm_plan",
+      "default_output_type": "image_plan"
+    },
+    "task_adaptation": {
+      "accepted": true,
+      "code": "MM_ADAPT_PARTIAL",
+      "message": "任务可承办，但建议由流程执行补齐部分素材或参数。",
+      "engine_boundary": {
+        "engine": "multimedia_generation",
+        "owned_outputs": [
+          "image",
+          "video",
+          "audio",
+          "poster_plan",
+          "video_edit_plan",
+          "short_video_plan",
+          "speech_plan",
+          "media_processing_plan"
+        ],
+        "not_owned_outputs": [
+          "text_report",
+          "copywriting",
+          "article",
+          "official_document",
+          "cross_engine_orchestration",
+          "human_approval_organization"
+        ],
+        "principle": "多媒体生成引擎只承接流程执行引擎派发的图片、视频、音频类子任务；纯文字成果、跨引擎编排和真人确认组织不归本引擎办理。"
+      },
+      "requested_capability_id": "text_to_image",
+      "requested_task_type": "multimedia_poster",
+      "requested_output_type": "poster_plan",
+      "requirement": "multimedia.generate 验证请求",
+      "normalized": {
+        "capability_id": "text_to_image",
+        "task_type": "multimedia_poster",
+        "output_type": "poster_plan",
+        "label": "文生图/海报方案",
+        "implementation": "llm_plan"
+      },
+      "missing_fields": [
+        {
+          "field": "image_or_logo_asset",
+          "reason": "图片/海报任务建议传入 Logo、产品图或风格参考。"
+        }
+      ],
+      "material_requirements": [
+        "product_profile",
+        "brand_style",
+        "image_or_logo_asset",
+        "compliance_rule"
+      ],
+      "handoff_note": "本适配只发生在多媒体生成引擎内部，不代表本引擎会判断跨引擎流程；最终派发仍应由流程执行引擎固化。"
+    },
+    "requirement": "multimedia.generate 验证请求",
+    "source_engine": "application-gateway",
+    "source_engine_name": "application-gateway",
+    "parent_flow_id": null,
+    "trace_id": "trace-comprehensive-547b560b-414f-4064-878d-6398a8d9a61d",
+    "upstream_content_task_id": null,
+    "upstream_content_summary": null,
+    "content_artifact_ref": null,
+    "input_artifact_refs": [],
+    "kb_base": "http://127.0.0.1:8070",
+    "material_package": null,
+    "xml_context": "",
+    "references": [],
+    "messages": [],
+    "llm_result": null,
+    "model_dispatch_usage": {
+      "enabled": false,
+      "status": "reserved_interface",
+      "target_service": "l1.model_dispatch",
+      "target_module": "1.5 大模型调度",
+      "expected_action": "model.chat_completion",
+      "expected_path": "POST /api/model-dispatch/chat-completions",
+      "request_schema_version": "to_be_confirmed",
+      "response_schema_version": "to_be_confirmed",
+      "timeout_seconds": null,
+      "local_fallback_mode": "mock_prompt_only",
+      "truth_note": "正式架构中，多媒体凡涉及模型应调用 1.5 大模型调度；本地版暂用 LiteLLM/Kimi 直连或 mock 方案验证联调。"
+    },
+    "artifact_refs": [],
+    "media_outputs": {
+      "media_type": "image",
+      "artifact_refs": [],
+      "preview_url": null,
+      "file_ref": null,
+      "reuse_mode": null,
+      "hot_case_refs": [],
+      "label_status": "pending_real_media_generation",
+      "ai_generation_label": {
+        "required": true,
+        "status": "pending_real_media_generation",
+        "type": "explicit_or_implicit_after_real_media_generation"
+      },
+      "note": "本地联调版仅生成方案/提示词；真实媒体文件接入后在此返回 artifact_refs、preview_url 或 file_ref。"
+    },
+    "hot_case_reuse": {
+      "enabled": false,
+      "reuse_mode": null,
+      "batch_index": null,
+      "batch_count": null,
+      "hot_case_refs": [],
+      "hot_case_materials": [],
+      "boundary_note": "爆款复用在本版本只承办取材、画面方案和提示词生成；真实图片/视频生成和爆款效果验证待后续接口接入。"
+    },
+    "digital_asset_skill_usage": {
+      "enabled": false,
+      "status": "reserved_interface",
+      "target_service": "l2.digital_asset_engine",
+      "target_engine": "数字资产引擎",
+      "expected_action": "skills.resolve",
+      "expected_path": "POST /api/digital-assets/skills/resolve",
+      "skill_refs": [],
+      "skill_requirements": [],
+      "truth_note": "本地没有实现数字资产引擎，当前仅保留爆款模式与制作标准技能的取用接口位；多媒体不创建、不修改技能。"
+    },
+    "permission_result": {
+      "mode": "local_mock",
+      "decision_id": "DECISION-dcd06226-6c91-46b1-b33c-3f74145d6e41",
+      "allowed": false,
+      "audit_ref": "AUDIT-dcd06226-6c91-46b1-b33c-3f74145d6e41"
+    },
+    "security_check_status": "local_mock_not_passed",
+    "audit_ref": "AUDIT-dcd06226-6c91-46b1-b33c-3f74145d6e41",
+    "exit_type": "unable_to_handle",
+    "events": [
+      {
+        "time": "2026-07-25T11:15:31",
+        "step": "receive_subtask",
+        "status": "ok",
+        "detail": "已接收流程派发的多媒体子任务。"
+      },
+      {
+        "time": "2026-07-25T11:15:31",
+        "step": "validate_subtask",
+        "status": "ok",
+        "detail": "子任务字段已通过接口模型校验，包含真人、任务类型、能力接口位、产出类型和需求描述。"
+      },
+      {
+        "time": "2026-07-25T11:15:31",
+        "step": "task_adaptation",
+        "status": "ok",
+        "detail": "任务适配：任务可承办，但建议由流程执行补齐部分素材或参数。 capability=text_to_image task_type=multimedia_poster",
+        "data": {
+          "missing_fields": [
+            {
+              "field": "image_or_logo_asset",
+              "reason": "图片/海报任务建议传入 Logo、产品图或风格参考。"
+            }
+          ]
+        }
+      },
+      {
+        "time": "2026-07-25T11:15:31",
+        "step": "capability_route",
+        "status": "ok",
+        "detail": "能力接口位识别为 text_to_image · 文生图（含图生图、图片编辑、商品图、版式设计图），批次=首批；当前联通取材与文本 LLM/Mock 方案生成，真实媒体文件生成按后续实现挂接。"
+      },
+      {
+        "time": "2026-07-25T11:15:31",
+        "step": "error",
+        "status": "failed",
+        "detail": "知识库接口 HTTP 400: {\"detail\":{\"code\":\"KB_400_UNKNOWN_ACTOR\",\"message\":\"未知真人/演示用户\"}}"
+      },
+      {
+        "time": "2026-07-25T11:15:31",
+        "step": "exit_decision",
+        "status": "failed",
+        "detail": "素材、字段或知识库环节失败，按三种出口判定为：无法办理。"
+      },
+      {
+        "time": "2026-07-25T11:15:31",
+        "step": "return_result",
+        "status": "failed",
+        "detail": "已把无法办理原因返回流程执行引擎/调用方。"
+      }
+    ],
+    "error": "知识库接口 HTTP 400: {\"detail\":{\"code\":\"KB_400_UNKNOWN_ACTOR\",\"message\":\"未知真人/演示用户\"}}",
+    "truth_note": "v1.1 真实调用本地知识库接口，并在多媒体边界内做任务归一和缺项提示；LLM 是否真实调用取决于配置和 use_llm。没有真实图片/视频生成。",
+    "interface": "POST /api/multimedia/subtasks",
+    "accepted_receipt": {
+      "status": "accepted",
+      "workflow_instance_id": null,
+      "node_id": null,
+      "task_id": "dcd06226-6c91-46b1-b33c-3f74145d6e41",
+      "trace_id": "trace-comprehensive-547b560b-414f-4064-878d-6398a8d9a61d",
+      "idempotency_key": "internal-multimedia.generate-run-c18f1b1b5dbc"
+    },
+    "flow_callback_preview": {
+      "callback_type": "flow.callback",
+      "workflow_instance_id": null,
+      "node_id": null,
+      "task_id": "dcd06226-6c91-46b1-b33c-3f74145d6e41",
+      "trace_id": "trace-comprehensive-547b560b-414f-4064-878d-6398a8d9a61d",
+      "idempotency_key": "internal-multimedia.generate-run-c18f1b1b5dbc-callback",
+      "source_service": "l2.multimedia_generation.local_v1_1",
+      "status": "failed",
+      "result": {
+        "multimedia_task_id": "dcd06226-6c91-46b1-b33c-3f74145d6e41",
+        "output_type": "poster_plan",
+        "capability_id": "text_to_image",
+        "artifact_refs": [],
+        "media_outputs": {
+          "media_type": "image",
+          "artifact_refs": [],
+          "preview_url": null,
+          "file_ref": null,
+          "reuse_mode": null,
+          "hot_case_refs": [],
+          "label_status": "pending_real_media_generation",
+          "ai_generation_label": {
+            "required": true,
+            "status": "pending_real_media_generation",
+            "type": "explicit_or_implicit_after_real_media_generation"
+          },
+          "note": "本地联调版仅生成方案/提示词；真实媒体文件接入后在此返回 artifact_refs、preview_url 或 file_ref。"
+        },
+        "hot_case_reuse": {
+          "enabled": false,
+          "reuse_mode": null,
+          "batch_index": null,
+          "batch_count": null,
+          "hot_case_refs": [],
+          "hot_case_materials": [],
+          "boundary_note": "爆款复用在本版本只承办取材、画面方案和提示词生成；真实图片/视频生成和爆款效果验证待后续接口接入。"
+        },
+        "digital_asset_skill_usage": {
+          "enabled": false,
+          "status": "reserved_interface",
+          "target_service": "l2.digital_asset_engine",
+          "target_engine": "数字资产引擎",
+          "expected_action": "skills.resolve",
+          "expected_path": "POST /api/digital-assets/skills/resolve",
+          "skill_refs": [],
+          "skill_requirements": [],
+          "truth_note": "本地没有实现数字资产引擎，当前仅保留爆款模式与制作标准技能的取用接口位；多媒体不创建、不修改技能。"
+        },
+        "references": [],
+        "truth_note": "v1.1 真实调用本地知识库接口，并在多媒体边界内做任务归一和缺项提示；LLM 是否真实调用取决于配置和 use_llm。没有真实图片/视频生成。"
+      },
+      "error": "知识库接口 HTTP 400: {\"detail\":{\"code\":\"KB_400_UNKNOWN_ACTOR\",\"message\":\"未知真人/演示用户\"}}",
+      "audit_ref": "AUDIT-dcd06226-6c91-46b1-b33c-3f74145d6e41"
+    },
+    "callback": {
+      "enabled": false,
+      "protocol": "simple",
+      "url": null,
+      "source_service": "l2.multimedia_generation.local_v1_1"
+    }
+  },
+  "373f0660-3645-4d5d-9bca-d3acab7891e1": {
+    "task_id": "373f0660-3645-4d5d-9bca-d3acab7891e1",
+    "created_at": "2026-07-26T13:40:34",
+    "status": "failed",
+    "message_id": "eb345054-3289-4cac-b243-68697d7003cc",
+    "parent_message_id": null,
+    "workflow_instance_id": null,
+    "node_id": null,
+    "upstream_task_id": "373f0660-3645-4d5d-9bca-d3acab7891e1",
+    "idempotency_key": "verify-l2-multimedia-generation-167f1a1e-9d66-4a9c-b836-f37a3be5463b",
+    "actor_id": "module-validator",
+    "task_type": "multimedia_poster",
+    "capability_id": "text_to_image",
+    "output_type": "poster_plan",
+    "capability_profile": {
+      "name": "文生图",
+      "batch": "首批",
+      "scope": "含图生图、图片编辑、商品图、版式设计图",
+      "implementation": "llm_plan",
+      "default_output_type": "image_plan"
+    },
+    "task_adaptation": {
+      "accepted": true,
+      "code": "MM_ADAPT_PARTIAL",
+      "message": "任务可承办，但建议由流程执行补齐部分素材或参数。",
+      "engine_boundary": {
+        "engine": "multimedia_generation",
+        "owned_outputs": [
+          "image",
+          "video",
+          "audio",
+          "poster_plan",
+          "video_edit_plan",
+          "short_video_plan",
+          "speech_plan",
+          "media_processing_plan"
+        ],
+        "not_owned_outputs": [
+          "text_report",
+          "copywriting",
+          "article",
+          "official_document",
+          "cross_engine_orchestration",
+          "human_approval_organization"
+        ],
+        "principle": "多媒体生成引擎只承接流程执行引擎派发的图片、视频、音频类子任务；纯文字成果、跨引擎编排和真人确认组织不归本引擎办理。"
+      },
+      "requested_capability_id": "text_to_image",
+      "requested_task_type": "multimedia_poster",
+      "requested_output_type": "poster_plan",
+      "requirement": "验证 多媒体生成引擎 标准接口",
+      "normalized": {
+        "capability_id": "text_to_image",
+        "task_type": "multimedia_poster",
+        "output_type": "poster_plan",
+        "label": "文生图/海报方案",
+        "implementation": "llm_plan"
+      },
+      "missing_fields": [
+        {
+          "field": "image_or_logo_asset",
+          "reason": "图片/海报任务建议传入 Logo、产品图或风格参考。"
+        }
+      ],
+      "material_requirements": [
+        "product_profile",
+        "brand_style",
+        "image_or_logo_asset",
+        "compliance_rule"
+      ],
+      "handoff_note": "本适配只发生在多媒体生成引擎内部，不代表本引擎会判断跨引擎流程；最终派发仍应由流程执行引擎固化。"
+    },
+    "requirement": "验证 多媒体生成引擎 标准接口",
+    "source_engine": "module-verification-page",
+    "source_engine_name": "module-verification-page",
+    "parent_flow_id": null,
+    "trace_id": "616f6693-e568-4ee2-ada9-e781ef5e0518",
+    "upstream_content_task_id": null,
+    "upstream_content_summary": null,
+    "content_artifact_ref": null,
+    "input_artifact_refs": [],
+    "kb_base": "http://127.0.0.1:8070",
+    "material_package": null,
+    "xml_context": "",
+    "references": [],
+    "messages": [],
+    "llm_result": null,
+    "model_dispatch_usage": {
+      "enabled": false,
+      "status": "reserved_interface",
+      "target_service": "l1.model_dispatch",
+      "target_module": "1.5 大模型调度",
+      "expected_action": "model.chat_completion",
+      "expected_path": "POST /api/model-dispatch/chat-completions",
+      "request_schema_version": "to_be_confirmed",
+      "response_schema_version": "to_be_confirmed",
+      "timeout_seconds": null,
+      "local_fallback_mode": "mock_prompt_only",
+      "truth_note": "正式架构中，多媒体凡涉及模型应调用 1.5 大模型调度；本地版暂用 LiteLLM/Kimi 直连或 mock 方案验证联调。"
+    },
+    "artifact_refs": [],
+    "media_outputs": {
+      "media_type": "image",
+      "artifact_refs": [],
+      "preview_url": null,
+      "file_ref": null,
+      "reuse_mode": null,
+      "hot_case_refs": [],
+      "label_status": "pending_real_media_generation",
+      "ai_generation_label": {
+        "required": true,
+        "status": "pending_real_media_generation",
+        "type": "explicit_or_implicit_after_real_media_generation"
+      },
+      "note": "本地联调版仅生成方案/提示词；真实媒体文件接入后在此返回 artifact_refs、preview_url 或 file_ref。"
+    },
+    "hot_case_reuse": {
+      "enabled": false,
+      "reuse_mode": null,
+      "batch_index": null,
+      "batch_count": null,
+      "hot_case_refs": [],
+      "hot_case_materials": [],
+      "boundary_note": "爆款复用在本版本只承办取材、画面方案和提示词生成；真实图片/视频生成和爆款效果验证待后续接口接入。"
+    },
+    "digital_asset_skill_usage": {
+      "enabled": false,
+      "status": "reserved_interface",
+      "target_service": "l2.digital_asset_engine",
+      "target_engine": "数字资产引擎",
+      "expected_action": "skills.resolve",
+      "expected_path": "POST /api/digital-assets/skills/resolve",
+      "skill_refs": [],
+      "skill_requirements": [],
+      "truth_note": "本地没有实现数字资产引擎，当前仅保留爆款模式与制作标准技能的取用接口位；多媒体不创建、不修改技能。"
+    },
+    "permission_result": {
+      "mode": "local_mock",
+      "decision_id": "DECISION-373f0660-3645-4d5d-9bca-d3acab7891e1",
+      "allowed": false,
+      "audit_ref": "AUDIT-373f0660-3645-4d5d-9bca-d3acab7891e1"
+    },
+    "security_check_status": "local_mock_not_passed",
+    "audit_ref": "AUDIT-373f0660-3645-4d5d-9bca-d3acab7891e1",
+    "exit_type": "unable_to_handle",
+    "events": [
+      {
+        "time": "2026-07-26T13:40:34",
+        "step": "receive_subtask",
+        "status": "ok",
+        "detail": "已接收流程派发的多媒体子任务。"
+      },
+      {
+        "time": "2026-07-26T13:40:34",
+        "step": "validate_subtask",
+        "status": "ok",
+        "detail": "子任务字段已通过接口模型校验，包含真人、任务类型、能力接口位、产出类型和需求描述。"
+      },
+      {
+        "time": "2026-07-26T13:40:34",
+        "step": "task_adaptation",
+        "status": "ok",
+        "detail": "任务适配：任务可承办，但建议由流程执行补齐部分素材或参数。 capability=text_to_image task_type=multimedia_poster",
+        "data": {
+          "missing_fields": [
+            {
+              "field": "image_or_logo_asset",
+              "reason": "图片/海报任务建议传入 Logo、产品图或风格参考。"
+            }
+          ]
+        }
+      },
+      {
+        "time": "2026-07-26T13:40:34",
+        "step": "capability_route",
+        "status": "ok",
+        "detail": "能力接口位识别为 text_to_image · 文生图（含图生图、图片编辑、商品图、版式设计图），批次=首批；当前联通取材与文本 LLM/Mock 方案生成，真实媒体文件生成按后续实现挂接。"
+      },
+      {
+        "time": "2026-07-26T13:40:34",
+        "step": "error",
+        "status": "failed",
+        "detail": "知识库接口 HTTP 400: {\"detail\":{\"code\":\"KB_400_UNKNOWN_ACTOR\",\"message\":\"未知真人/演示用户\"}}"
+      },
+      {
+        "time": "2026-07-26T13:40:34",
+        "step": "exit_decision",
+        "status": "failed",
+        "detail": "素材、字段或知识库环节失败，按三种出口判定为：无法办理。"
+      },
+      {
+        "time": "2026-07-26T13:40:34",
+        "step": "return_result",
+        "status": "failed",
+        "detail": "已把无法办理原因返回流程执行引擎/调用方。"
+      }
+    ],
+    "error": "知识库接口 HTTP 400: {\"detail\":{\"code\":\"KB_400_UNKNOWN_ACTOR\",\"message\":\"未知真人/演示用户\"}}",
+    "truth_note": "v1.1 真实调用本地知识库接口，并在多媒体边界内做任务归一和缺项提示；LLM 是否真实调用取决于配置和 use_llm。没有真实图片/视频生成。",
+    "interface": "POST /api/multimedia/subtasks",
+    "accepted_receipt": {
+      "status": "accepted",
+      "workflow_instance_id": null,
+      "node_id": null,
+      "task_id": "373f0660-3645-4d5d-9bca-d3acab7891e1",
+      "trace_id": "616f6693-e568-4ee2-ada9-e781ef5e0518",
+      "idempotency_key": "verify-l2-multimedia-generation-167f1a1e-9d66-4a9c-b836-f37a3be5463b"
+    },
+    "flow_callback_preview": {
+      "callback_type": "flow.callback",
+      "workflow_instance_id": null,
+      "node_id": null,
+      "task_id": "373f0660-3645-4d5d-9bca-d3acab7891e1",
+      "trace_id": "616f6693-e568-4ee2-ada9-e781ef5e0518",
+      "idempotency_key": "verify-l2-multimedia-generation-167f1a1e-9d66-4a9c-b836-f37a3be5463b-callback",
+      "source_service": "l2.multimedia_generation.local_v1_1",
+      "status": "failed",
+      "result": {
+        "multimedia_task_id": "373f0660-3645-4d5d-9bca-d3acab7891e1",
+        "output_type": "poster_plan",
+        "capability_id": "text_to_image",
+        "artifact_refs": [],
+        "media_outputs": {
+          "media_type": "image",
+          "artifact_refs": [],
+          "preview_url": null,
+          "file_ref": null,
+          "reuse_mode": null,
+          "hot_case_refs": [],
+          "label_status": "pending_real_media_generation",
+          "ai_generation_label": {
+            "required": true,
+            "status": "pending_real_media_generation",
+            "type": "explicit_or_implicit_after_real_media_generation"
+          },
+          "note": "本地联调版仅生成方案/提示词；真实媒体文件接入后在此返回 artifact_refs、preview_url 或 file_ref。"
+        },
+        "hot_case_reuse": {
+          "enabled": false,
+          "reuse_mode": null,
+          "batch_index": null,
+          "batch_count": null,
+          "hot_case_refs": [],
+          "hot_case_materials": [],
+          "boundary_note": "爆款复用在本版本只承办取材、画面方案和提示词生成；真实图片/视频生成和爆款效果验证待后续接口接入。"
+        },
+        "digital_asset_skill_usage": {
+          "enabled": false,
+          "status": "reserved_interface",
+          "target_service": "l2.digital_asset_engine",
+          "target_engine": "数字资产引擎",
+          "expected_action": "skills.resolve",
+          "expected_path": "POST /api/digital-assets/skills/resolve",
+          "skill_refs": [],
+          "skill_requirements": [],
+          "truth_note": "本地没有实现数字资产引擎，当前仅保留爆款模式与制作标准技能的取用接口位；多媒体不创建、不修改技能。"
+        },
+        "references": [],
+        "truth_note": "v1.1 真实调用本地知识库接口，并在多媒体边界内做任务归一和缺项提示；LLM 是否真实调用取决于配置和 use_llm。没有真实图片/视频生成。"
+      },
+      "error": "知识库接口 HTTP 400: {\"detail\":{\"code\":\"KB_400_UNKNOWN_ACTOR\",\"message\":\"未知真人/演示用户\"}}",
+      "audit_ref": "AUDIT-373f0660-3645-4d5d-9bca-d3acab7891e1"
+    },
+    "callback": {
+      "enabled": false,
+      "protocol": "simple",
+      "url": null,
+      "source_service": "l2.multimedia_generation.local_v1_1"
+    }
+  },
+  "646cbee7-3df5-4920-838e-8795f441f9dc": {
+    "task_id": "646cbee7-3df5-4920-838e-8795f441f9dc",
+    "created_at": "2026-07-26T13:49:16",
+    "status": "failed",
+    "message_id": "2dfae54b-d0ab-4165-a4e3-373194501d51",
+    "parent_message_id": null,
+    "workflow_instance_id": null,
+    "node_id": null,
+    "upstream_task_id": "646cbee7-3df5-4920-838e-8795f441f9dc",
+    "idempotency_key": "verify-l2-multimedia-generation-93487f55-99c4-49dd-b666-30ab03aca2e8",
+    "actor_id": "module-validator",
+    "task_type": "multimedia_poster",
+    "capability_id": "text_to_image",
+    "output_type": "poster_plan",
+    "capability_profile": {
+      "name": "文生图",
+      "batch": "首批",
+      "scope": "含图生图、图片编辑、商品图、版式设计图",
+      "implementation": "llm_plan",
+      "default_output_type": "image_plan"
+    },
+    "task_adaptation": {
+      "accepted": true,
+      "code": "MM_ADAPT_PARTIAL",
+      "message": "任务可承办，但建议由流程执行补齐部分素材或参数。",
+      "engine_boundary": {
+        "engine": "multimedia_generation",
+        "owned_outputs": [
+          "image",
+          "video",
+          "audio",
+          "poster_plan",
+          "video_edit_plan",
+          "short_video_plan",
+          "speech_plan",
+          "media_processing_plan"
+        ],
+        "not_owned_outputs": [
+          "text_report",
+          "copywriting",
+          "article",
+          "official_document",
+          "cross_engine_orchestration",
+          "human_approval_organization"
+        ],
+        "principle": "多媒体生成引擎只承接流程执行引擎派发的图片、视频、音频类子任务；纯文字成果、跨引擎编排和真人确认组织不归本引擎办理。"
+      },
+      "requested_capability_id": "text_to_image",
+      "requested_task_type": "multimedia_poster",
+      "requested_output_type": "poster_plan",
+      "requirement": "验证 多媒体生成引擎 标准接口",
+      "normalized": {
+        "capability_id": "text_to_image",
+        "task_type": "multimedia_poster",
+        "output_type": "poster_plan",
+        "label": "文生图/海报方案",
+        "implementation": "llm_plan"
+      },
+      "missing_fields": [
+        {
+          "field": "image_or_logo_asset",
+          "reason": "图片/海报任务建议传入 Logo、产品图或风格参考。"
+        }
+      ],
+      "material_requirements": [
+        "product_profile",
+        "brand_style",
+        "image_or_logo_asset",
+        "compliance_rule"
+      ],
+      "handoff_note": "本适配只发生在多媒体生成引擎内部，不代表本引擎会判断跨引擎流程；最终派发仍应由流程执行引擎固化。"
+    },
+    "requirement": "验证 多媒体生成引擎 标准接口",
+    "source_engine": "module-verification-page",
+    "source_engine_name": "module-verification-page",
+    "parent_flow_id": null,
+    "trace_id": "04170da2-66b1-4da3-8b87-8db3f9d9de66",
+    "upstream_content_task_id": null,
+    "upstream_content_summary": null,
+    "content_artifact_ref": null,
+    "input_artifact_refs": [],
+    "kb_base": "http://127.0.0.1:8070",
+    "material_package": null,
+    "xml_context": "",
+    "references": [],
+    "messages": [],
+    "llm_result": null,
+    "model_dispatch_usage": {
+      "enabled": false,
+      "status": "reserved_interface",
+      "target_service": "l1.model_dispatch",
+      "target_module": "1.5 大模型调度",
+      "expected_action": "model.chat_completion",
+      "expected_path": "POST /api/model-dispatch/chat-completions",
+      "request_schema_version": "to_be_confirmed",
+      "response_schema_version": "to_be_confirmed",
+      "timeout_seconds": null,
+      "local_fallback_mode": "mock_prompt_only",
+      "truth_note": "正式架构中，多媒体凡涉及模型应调用 1.5 大模型调度；本地版暂用 LiteLLM/Kimi 直连或 mock 方案验证联调。"
+    },
+    "artifact_refs": [],
+    "media_outputs": {
+      "media_type": "image",
+      "artifact_refs": [],
+      "preview_url": null,
+      "file_ref": null,
+      "reuse_mode": null,
+      "hot_case_refs": [],
+      "label_status": "pending_real_media_generation",
+      "ai_generation_label": {
+        "required": true,
+        "status": "pending_real_media_generation",
+        "type": "explicit_or_implicit_after_real_media_generation"
+      },
+      "note": "本地联调版仅生成方案/提示词；真实媒体文件接入后在此返回 artifact_refs、preview_url 或 file_ref。"
+    },
+    "hot_case_reuse": {
+      "enabled": false,
+      "reuse_mode": null,
+      "batch_index": null,
+      "batch_count": null,
+      "hot_case_refs": [],
+      "hot_case_materials": [],
+      "boundary_note": "爆款复用在本版本只承办取材、画面方案和提示词生成；真实图片/视频生成和爆款效果验证待后续接口接入。"
+    },
+    "digital_asset_skill_usage": {
+      "enabled": false,
+      "status": "reserved_interface",
+      "target_service": "l2.digital_asset_engine",
+      "target_engine": "数字资产引擎",
+      "expected_action": "skills.resolve",
+      "expected_path": "POST /api/digital-assets/skills/resolve",
+      "skill_refs": [],
+      "skill_requirements": [],
+      "truth_note": "本地没有实现数字资产引擎，当前仅保留爆款模式与制作标准技能的取用接口位；多媒体不创建、不修改技能。"
+    },
+    "permission_result": {
+      "mode": "local_mock",
+      "decision_id": "DECISION-646cbee7-3df5-4920-838e-8795f441f9dc",
+      "allowed": false,
+      "audit_ref": "AUDIT-646cbee7-3df5-4920-838e-8795f441f9dc"
+    },
+    "security_check_status": "local_mock_not_passed",
+    "audit_ref": "AUDIT-646cbee7-3df5-4920-838e-8795f441f9dc",
+    "exit_type": "unable_to_handle",
+    "events": [
+      {
+        "time": "2026-07-26T13:49:16",
+        "step": "receive_subtask",
+        "status": "ok",
+        "detail": "已接收流程派发的多媒体子任务。"
+      },
+      {
+        "time": "2026-07-26T13:49:16",
+        "step": "validate_subtask",
+        "status": "ok",
+        "detail": "子任务字段已通过接口模型校验，包含真人、任务类型、能力接口位、产出类型和需求描述。"
+      },
+      {
+        "time": "2026-07-26T13:49:16",
+        "step": "task_adaptation",
+        "status": "ok",
+        "detail": "任务适配：任务可承办，但建议由流程执行补齐部分素材或参数。 capability=text_to_image task_type=multimedia_poster",
+        "data": {
+          "missing_fields": [
+            {
+              "field": "image_or_logo_asset",
+              "reason": "图片/海报任务建议传入 Logo、产品图或风格参考。"
+            }
+          ]
+        }
+      },
+      {
+        "time": "2026-07-26T13:49:16",
+        "step": "capability_route",
+        "status": "ok",
+        "detail": "能力接口位识别为 text_to_image · 文生图（含图生图、图片编辑、商品图、版式设计图），批次=首批；当前联通取材与文本 LLM/Mock 方案生成，真实媒体文件生成按后续实现挂接。"
+      },
+      {
+        "time": "2026-07-26T13:49:16",
+        "step": "error",
+        "status": "failed",
+        "detail": "知识库接口 HTTP 400: {\"detail\":{\"code\":\"KB_400_UNKNOWN_ACTOR\",\"message\":\"未知真人/演示用户\"}}"
+      },
+      {
+        "time": "2026-07-26T13:49:16",
+        "step": "exit_decision",
+        "status": "failed",
+        "detail": "素材、字段或知识库环节失败，按三种出口判定为：无法办理。"
+      },
+      {
+        "time": "2026-07-26T13:49:16",
+        "step": "return_result",
+        "status": "failed",
+        "detail": "已把无法办理原因返回流程执行引擎/调用方。"
+      }
+    ],
+    "error": "知识库接口 HTTP 400: {\"detail\":{\"code\":\"KB_400_UNKNOWN_ACTOR\",\"message\":\"未知真人/演示用户\"}}",
+    "truth_note": "v1.1 真实调用本地知识库接口，并在多媒体边界内做任务归一和缺项提示；LLM 是否真实调用取决于配置和 use_llm。没有真实图片/视频生成。",
+    "interface": "POST /api/multimedia/subtasks",
+    "accepted_receipt": {
+      "status": "accepted",
+      "workflow_instance_id": null,
+      "node_id": null,
+      "task_id": "646cbee7-3df5-4920-838e-8795f441f9dc",
+      "trace_id": "04170da2-66b1-4da3-8b87-8db3f9d9de66",
+      "idempotency_key": "verify-l2-multimedia-generation-93487f55-99c4-49dd-b666-30ab03aca2e8"
+    },
+    "flow_callback_preview": {
+      "callback_type": "flow.callback",
+      "workflow_instance_id": null,
+      "node_id": null,
+      "task_id": "646cbee7-3df5-4920-838e-8795f441f9dc",
+      "trace_id": "04170da2-66b1-4da3-8b87-8db3f9d9de66",
+      "idempotency_key": "verify-l2-multimedia-generation-93487f55-99c4-49dd-b666-30ab03aca2e8-callback",
+      "source_service": "l2.multimedia_generation.local_v1_1",
+      "status": "failed",
+      "result": {
+        "multimedia_task_id": "646cbee7-3df5-4920-838e-8795f441f9dc",
+        "output_type": "poster_plan",
+        "capability_id": "text_to_image",
+        "artifact_refs": [],
+        "media_outputs": {
+          "media_type": "image",
+          "artifact_refs": [],
+          "preview_url": null,
+          "file_ref": null,
+          "reuse_mode": null,
+          "hot_case_refs": [],
+          "label_status": "pending_real_media_generation",
+          "ai_generation_label": {
+            "required": true,
+            "status": "pending_real_media_generation",
+            "type": "explicit_or_implicit_after_real_media_generation"
+          },
+          "note": "本地联调版仅生成方案/提示词；真实媒体文件接入后在此返回 artifact_refs、preview_url 或 file_ref。"
+        },
+        "hot_case_reuse": {
+          "enabled": false,
+          "reuse_mode": null,
+          "batch_index": null,
+          "batch_count": null,
+          "hot_case_refs": [],
+          "hot_case_materials": [],
+          "boundary_note": "爆款复用在本版本只承办取材、画面方案和提示词生成；真实图片/视频生成和爆款效果验证待后续接口接入。"
+        },
+        "digital_asset_skill_usage": {
+          "enabled": false,
+          "status": "reserved_interface",
+          "target_service": "l2.digital_asset_engine",
+          "target_engine": "数字资产引擎",
+          "expected_action": "skills.resolve",
+          "expected_path": "POST /api/digital-assets/skills/resolve",
+          "skill_refs": [],
+          "skill_requirements": [],
+          "truth_note": "本地没有实现数字资产引擎，当前仅保留爆款模式与制作标准技能的取用接口位；多媒体不创建、不修改技能。"
+        },
+        "references": [],
+        "truth_note": "v1.1 真实调用本地知识库接口，并在多媒体边界内做任务归一和缺项提示；LLM 是否真实调用取决于配置和 use_llm。没有真实图片/视频生成。"
+      },
+      "error": "知识库接口 HTTP 400: {\"detail\":{\"code\":\"KB_400_UNKNOWN_ACTOR\",\"message\":\"未知真人/演示用户\"}}",
+      "audit_ref": "AUDIT-646cbee7-3df5-4920-838e-8795f441f9dc"
+    },
+    "callback": {
+      "enabled": false,
+      "protocol": "simple",
+      "url": null,
+      "source_service": "l2.multimedia_generation.local_v1_1"
+    }
+  },
+  "7bd0b57d-7bb4-4bc3-9a2e-5e83b99d6df1": {
+    "task_id": "7bd0b57d-7bb4-4bc3-9a2e-5e83b99d6df1",
+    "created_at": "2026-07-26T14:01:33",
+    "status": "failed",
+    "message_id": "d23ddc2d-bdf2-47f2-b7b6-ccc46d4d63d5",
+    "parent_message_id": null,
+    "workflow_instance_id": null,
+    "node_id": null,
+    "upstream_task_id": "7bd0b57d-7bb4-4bc3-9a2e-5e83b99d6df1",
+    "idempotency_key": "verify-l2-multimedia-generation-28181fa0-d9b7-4608-9fe9-6013e0282b96",
+    "actor_id": "module-validator",
+    "task_type": "multimedia_poster",
+    "capability_id": "text_to_image",
+    "output_type": "poster_plan",
+    "capability_profile": {
+      "name": "文生图",
+      "batch": "首批",
+      "scope": "含图生图、图片编辑、商品图、版式设计图",
+      "implementation": "llm_plan",
+      "default_output_type": "image_plan"
+    },
+    "task_adaptation": {
+      "accepted": true,
+      "code": "MM_ADAPT_PARTIAL",
+      "message": "任务可承办，但建议由流程执行补齐部分素材或参数。",
+      "engine_boundary": {
+        "engine": "multimedia_generation",
+        "owned_outputs": [
+          "image",
+          "video",
+          "audio",
+          "poster_plan",
+          "video_edit_plan",
+          "short_video_plan",
+          "speech_plan",
+          "media_processing_plan"
+        ],
+        "not_owned_outputs": [
+          "text_report",
+          "copywriting",
+          "article",
+          "official_document",
+          "cross_engine_orchestration",
+          "human_approval_organization"
+        ],
+        "principle": "多媒体生成引擎只承接流程执行引擎派发的图片、视频、音频类子任务；纯文字成果、跨引擎编排和真人确认组织不归本引擎办理。"
+      },
+      "requested_capability_id": "text_to_image",
+      "requested_task_type": "multimedia_poster",
+      "requested_output_type": "poster_plan",
+      "requirement": "验证 多媒体生成引擎 标准接口",
+      "normalized": {
+        "capability_id": "text_to_image",
+        "task_type": "multimedia_poster",
+        "output_type": "poster_plan",
+        "label": "文生图/海报方案",
+        "implementation": "llm_plan"
+      },
+      "missing_fields": [
+        {
+          "field": "image_or_logo_asset",
+          "reason": "图片/海报任务建议传入 Logo、产品图或风格参考。"
+        }
+      ],
+      "material_requirements": [
+        "product_profile",
+        "brand_style",
+        "image_or_logo_asset",
+        "compliance_rule"
+      ],
+      "handoff_note": "本适配只发生在多媒体生成引擎内部，不代表本引擎会判断跨引擎流程；最终派发仍应由流程执行引擎固化。"
+    },
+    "requirement": "验证 多媒体生成引擎 标准接口",
+    "source_engine": "application-gateway",
+    "source_engine_name": "application-gateway",
+    "parent_flow_id": null,
+    "trace_id": "e87f813d-db78-4da5-aebd-f029d08c58d6",
+    "upstream_content_task_id": null,
+    "upstream_content_summary": null,
+    "content_artifact_ref": null,
+    "input_artifact_refs": [],
+    "kb_base": "http://127.0.0.1:8070",
+    "material_package": null,
+    "xml_context": "",
+    "references": [],
+    "messages": [],
+    "llm_result": null,
+    "model_dispatch_usage": {
+      "enabled": false,
+      "status": "reserved_interface",
+      "target_service": "l1.model_dispatch",
+      "target_module": "1.5 大模型调度",
+      "expected_action": "model.chat_completion",
+      "expected_path": "POST /api/model-dispatch/chat-completions",
+      "request_schema_version": "to_be_confirmed",
+      "response_schema_version": "to_be_confirmed",
+      "timeout_seconds": null,
+      "local_fallback_mode": "mock_prompt_only",
+      "truth_note": "正式架构中，多媒体凡涉及模型应调用 1.5 大模型调度；本地版暂用 LiteLLM/Kimi 直连或 mock 方案验证联调。"
+    },
+    "artifact_refs": [],
+    "media_outputs": {
+      "media_type": "image",
+      "artifact_refs": [],
+      "preview_url": null,
+      "file_ref": null,
+      "reuse_mode": null,
+      "hot_case_refs": [],
+      "label_status": "pending_real_media_generation",
+      "ai_generation_label": {
+        "required": true,
+        "status": "pending_real_media_generation",
+        "type": "explicit_or_implicit_after_real_media_generation"
+      },
+      "note": "本地联调版仅生成方案/提示词；真实媒体文件接入后在此返回 artifact_refs、preview_url 或 file_ref。"
+    },
+    "hot_case_reuse": {
+      "enabled": false,
+      "reuse_mode": null,
+      "batch_index": null,
+      "batch_count": null,
+      "hot_case_refs": [],
+      "hot_case_materials": [],
+      "boundary_note": "爆款复用在本版本只承办取材、画面方案和提示词生成；真实图片/视频生成和爆款效果验证待后续接口接入。"
+    },
+    "digital_asset_skill_usage": {
+      "enabled": false,
+      "status": "reserved_interface",
+      "target_service": "l2.digital_asset_engine",
+      "target_engine": "数字资产引擎",
+      "expected_action": "skills.resolve",
+      "expected_path": "POST /api/digital-assets/skills/resolve",
+      "skill_refs": [],
+      "skill_requirements": [],
+      "truth_note": "本地没有实现数字资产引擎，当前仅保留爆款模式与制作标准技能的取用接口位；多媒体不创建、不修改技能。"
+    },
+    "permission_result": {
+      "mode": "local_mock",
+      "decision_id": "DECISION-7bd0b57d-7bb4-4bc3-9a2e-5e83b99d6df1",
+      "allowed": false,
+      "audit_ref": "AUDIT-7bd0b57d-7bb4-4bc3-9a2e-5e83b99d6df1"
+    },
+    "security_check_status": "local_mock_not_passed",
+    "audit_ref": "AUDIT-7bd0b57d-7bb4-4bc3-9a2e-5e83b99d6df1",
+    "exit_type": "unable_to_handle",
+    "events": [
+      {
+        "time": "2026-07-26T14:01:33",
+        "step": "receive_subtask",
+        "status": "ok",
+        "detail": "已接收流程派发的多媒体子任务。"
+      },
+      {
+        "time": "2026-07-26T14:01:33",
+        "step": "validate_subtask",
+        "status": "ok",
+        "detail": "子任务字段已通过接口模型校验，包含真人、任务类型、能力接口位、产出类型和需求描述。"
+      },
+      {
+        "time": "2026-07-26T14:01:33",
+        "step": "task_adaptation",
+        "status": "ok",
+        "detail": "任务适配：任务可承办，但建议由流程执行补齐部分素材或参数。 capability=text_to_image task_type=multimedia_poster",
+        "data": {
+          "missing_fields": [
+            {
+              "field": "image_or_logo_asset",
+              "reason": "图片/海报任务建议传入 Logo、产品图或风格参考。"
+            }
+          ]
+        }
+      },
+      {
+        "time": "2026-07-26T14:01:33",
+        "step": "capability_route",
+        "status": "ok",
+        "detail": "能力接口位识别为 text_to_image · 文生图（含图生图、图片编辑、商品图、版式设计图），批次=首批；当前联通取材与文本 LLM/Mock 方案生成，真实媒体文件生成按后续实现挂接。"
+      },
+      {
+        "time": "2026-07-26T14:01:33",
+        "step": "error",
+        "status": "failed",
+        "detail": "知识库接口 HTTP 400: {\"detail\":{\"code\":\"KB_400_UNKNOWN_ACTOR\",\"message\":\"未知真人/演示用户\"}}"
+      },
+      {
+        "time": "2026-07-26T14:01:33",
+        "step": "exit_decision",
+        "status": "failed",
+        "detail": "素材、字段或知识库环节失败，按三种出口判定为：无法办理。"
+      },
+      {
+        "time": "2026-07-26T14:01:33",
+        "step": "return_result",
+        "status": "failed",
+        "detail": "已把无法办理原因返回流程执行引擎/调用方。"
+      }
+    ],
+    "error": "知识库接口 HTTP 400: {\"detail\":{\"code\":\"KB_400_UNKNOWN_ACTOR\",\"message\":\"未知真人/演示用户\"}}",
+    "truth_note": "v1.1 真实调用本地知识库接口，并在多媒体边界内做任务归一和缺项提示；LLM 是否真实调用取决于配置和 use_llm。没有真实图片/视频生成。",
+    "interface": "POST /api/multimedia/subtasks",
+    "accepted_receipt": {
+      "status": "accepted",
+      "workflow_instance_id": null,
+      "node_id": null,
+      "task_id": "7bd0b57d-7bb4-4bc3-9a2e-5e83b99d6df1",
+      "trace_id": "e87f813d-db78-4da5-aebd-f029d08c58d6",
+      "idempotency_key": "verify-l2-multimedia-generation-28181fa0-d9b7-4608-9fe9-6013e0282b96"
+    },
+    "flow_callback_preview": {
+      "callback_type": "flow.callback",
+      "workflow_instance_id": null,
+      "node_id": null,
+      "task_id": "7bd0b57d-7bb4-4bc3-9a2e-5e83b99d6df1",
+      "trace_id": "e87f813d-db78-4da5-aebd-f029d08c58d6",
+      "idempotency_key": "verify-l2-multimedia-generation-28181fa0-d9b7-4608-9fe9-6013e0282b96-callback",
+      "source_service": "l2.multimedia_generation.local_v1_1",
+      "status": "failed",
+      "result": {
+        "multimedia_task_id": "7bd0b57d-7bb4-4bc3-9a2e-5e83b99d6df1",
+        "output_type": "poster_plan",
+        "capability_id": "text_to_image",
+        "artifact_refs": [],
+        "media_outputs": {
+          "media_type": "image",
+          "artifact_refs": [],
+          "preview_url": null,
+          "file_ref": null,
+          "reuse_mode": null,
+          "hot_case_refs": [],
+          "label_status": "pending_real_media_generation",
+          "ai_generation_label": {
+            "required": true,
+            "status": "pending_real_media_generation",
+            "type": "explicit_or_implicit_after_real_media_generation"
+          },
+          "note": "本地联调版仅生成方案/提示词；真实媒体文件接入后在此返回 artifact_refs、preview_url 或 file_ref。"
+        },
+        "hot_case_reuse": {
+          "enabled": false,
+          "reuse_mode": null,
+          "batch_index": null,
+          "batch_count": null,
+          "hot_case_refs": [],
+          "hot_case_materials": [],
+          "boundary_note": "爆款复用在本版本只承办取材、画面方案和提示词生成；真实图片/视频生成和爆款效果验证待后续接口接入。"
+        },
+        "digital_asset_skill_usage": {
+          "enabled": false,
+          "status": "reserved_interface",
+          "target_service": "l2.digital_asset_engine",
+          "target_engine": "数字资产引擎",
+          "expected_action": "skills.resolve",
+          "expected_path": "POST /api/digital-assets/skills/resolve",
+          "skill_refs": [],
+          "skill_requirements": [],
+          "truth_note": "本地没有实现数字资产引擎，当前仅保留爆款模式与制作标准技能的取用接口位；多媒体不创建、不修改技能。"
+        },
+        "references": [],
+        "truth_note": "v1.1 真实调用本地知识库接口，并在多媒体边界内做任务归一和缺项提示；LLM 是否真实调用取决于配置和 use_llm。没有真实图片/视频生成。"
+      },
+      "error": "知识库接口 HTTP 400: {\"detail\":{\"code\":\"KB_400_UNKNOWN_ACTOR\",\"message\":\"未知真人/演示用户\"}}",
+      "audit_ref": "AUDIT-7bd0b57d-7bb4-4bc3-9a2e-5e83b99d6df1"
+    },
+    "callback": {
+      "enabled": false,
+      "protocol": "simple",
+      "url": null,
+      "source_service": "l2.multimedia_generation.local_v1_1"
+    }
+  }
+}

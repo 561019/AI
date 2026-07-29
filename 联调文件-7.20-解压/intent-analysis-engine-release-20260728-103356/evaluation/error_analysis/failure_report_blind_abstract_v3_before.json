@@ -1,0 +1,230 @@
+{
+  "source_report": "evaluation\\benchmark\\validation_report_blind_abstract_v3_before.json",
+  "split": "validation",
+  "total_failed": 5,
+  "by_error_type": {
+    "MISSING_SCHEMA_FIELD": 1,
+    "NEED_L3_OR_CLARIFICATION": 4
+  },
+  "failures": [
+    {
+      "id": "BENCH-VALIDATION-BLIND-ABSTRACT-V3-001",
+      "text": "也帮我看下办理进度",
+      "intent_category": "omitted_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "PROCESS_HANDLE"
+        }
+      ],
+      "actual_task_types": [
+        "PROCESS_HANDLE"
+      ],
+      "missing_inputs": {
+        "expected": [
+          "data_source"
+        ],
+        "actual": [
+          "process_name"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    },
+    {
+      "id": "BENCH-VALIDATION-BLIND-ABSTRACT-V3-002",
+      "text": "按门店合计回款金额，筛选超期客户，写一份催收话术",
+      "intent_category": "multi_task_request",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_GROUP_SUM"
+        },
+        {
+          "task_type": "DATA_FILTER"
+        },
+        {
+          "task_type": "CONTENT_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_ANALYSIS_GROUP_SUM",
+        "DATA_FILTER",
+        "CONTENT_GENERATE"
+      ],
+      "actual_tasks": [],
+      "actual_task_types": [],
+      "missing_inputs": {
+        "expected": [
+          "statistical_range"
+        ],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    },
+    {
+      "id": "BENCH-VALIDATION-BLIND-ABSTRACT-V3-003",
+      "text": "了解返利政策，计算经销商佣金，生成入账凭证",
+      "intent_category": "multi_task_request",
+      "expected_tasks": [
+        {
+          "task_type": "QUESTION_ANSWER"
+        },
+        {
+          "task_type": "RULE_CALCULATION_COMMISSION"
+        },
+        {
+          "task_type": "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+        }
+      ],
+      "expected_task_types": [
+        "QUESTION_ANSWER",
+        "RULE_CALCULATION_COMMISSION",
+        "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "QUESTION_ANSWER"
+        },
+        {
+          "task_type": "RULE_CALCULATION_COMMISSION"
+        },
+        {
+          "task_type": "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+        }
+      ],
+      "actual_task_types": [
+        "QUESTION_ANSWER",
+        "RULE_CALCULATION_COMMISSION",
+        "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+      ],
+      "missing_inputs": {
+        "expected": [
+          "calculation_policy"
+        ],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "MISSING_SCHEMA_FIELD",
+      "confidence": "medium",
+      "reason": "The benchmark expects required fields that were not produced by schema validation: calculation_policy.",
+      "suggested_action": "Review validation evidence and add the field to task_type schema only if it is truly required for this task type."
+    },
+    {
+      "id": "BENCH-VALIDATION-BLIND-ABSTRACT-V3-004",
+      "text": "获取供应商档案，做等级排序，生成跟进话术",
+      "intent_category": "multi_task_request",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        },
+        {
+          "task_type": "DATA_SORT"
+        },
+        {
+          "task_type": "CONTENT_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_QUERY_FETCH",
+        "DATA_SORT",
+        "CONTENT_GENERATE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "EXTERNAL_DATA_FETCH"
+        },
+        {
+          "task_type": "DATA_SORT"
+        },
+        {
+          "task_type": "CONTENT_GENERATE"
+        }
+      ],
+      "actual_task_types": [
+        "EXTERNAL_DATA_FETCH",
+        "DATA_SORT",
+        "CONTENT_GENERATE"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "external_system"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "medium",
+      "reason": "Failure is not a safe L1/L2 expansion candidate.",
+      "suggested_action": "Review with L3/clarification or data labeling; do not add rule by default."
+    },
+    {
+      "id": "BENCH-VALIDATION-BLIND-ABSTRACT-V3-006",
+      "text": "问一下渠道奖励制度，核算销售佣金，生成计提凭证",
+      "intent_category": "multi_task_request",
+      "expected_tasks": [
+        {
+          "task_type": "QUESTION_ANSWER"
+        },
+        {
+          "task_type": "RULE_CALCULATION_COMMISSION"
+        },
+        {
+          "task_type": "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+        }
+      ],
+      "expected_task_types": [
+        "QUESTION_ANSWER",
+        "RULE_CALCULATION_COMMISSION",
+        "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        },
+        {
+          "task_type": "RULE_CALCULATION_COMMISSION"
+        },
+        {
+          "task_type": "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_QUERY_FETCH",
+        "RULE_CALCULATION_COMMISSION",
+        "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+      ],
+      "missing_inputs": {
+        "expected": [
+          "calculation_policy"
+        ],
+        "actual": [
+          "calculation_policy"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    }
+  ]
+}

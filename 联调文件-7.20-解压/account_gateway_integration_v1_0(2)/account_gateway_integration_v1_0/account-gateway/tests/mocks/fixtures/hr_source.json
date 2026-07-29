@@ -1,0 +1,25 @@
+{
+  "users": [
+    {
+      "user_id": "user_li",
+      "name": "Li Zhigang",
+      "position_id": "huazhong_region_manager",
+      "employment_status": "active",
+      "department_id": "dept_sales_huazhong"
+    },
+    {
+      "user_id": "user_fu",
+      "name": "Fu Shengxian",
+      "position_id": "huazhong_sales",
+      "employment_status": "active",
+      "department_id": "dept_sales_huazhong"
+    },
+    {
+      "user_id": "user_huang",
+      "name": "Huang Wei",
+      "position_id": "hr_source",
+      "employment_status": "active",
+      "department_id": "dept_hr"
+    }
+  ]
+}

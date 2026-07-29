@@ -1,0 +1,483 @@
+{
+  "total": 100,
+  "passed_cases": 90,
+  "engine_accuracy": 0.9,
+  "task_type_accuracy": 0.9,
+  "clarification_accuracy": 1.0,
+  "decomposition_accuracy": 0.9,
+  "candidate_recall": 1.0,
+  "failed_cases": [
+    {
+      "id": "long-009",
+      "category": "业务邮件",
+      "text_length": 115,
+      "expected_actions": [
+        "organize",
+        "analyze",
+        "generate"
+      ],
+      "actual_actions": [
+        "organize",
+        "analyze",
+        "generate"
+      ],
+      "candidate_recall": 1.0,
+      "expected_tasks": [
+        "COMPLAINT_INFORMATION_ORGANIZE",
+        "DATA_ANALYSIS_PROBLEM",
+        "IMPROVEMENT_PLAN_GENERATE"
+      ],
+      "actual_tasks": [
+        "DATA_ANALYSIS_PROBLEM",
+        "IMPROVEMENT_PLAN_GENERATE"
+      ],
+      "expected_engine": [
+        "ENG_DATA_COLLECTION_AGGREGATION",
+        "ENG_ANALYTICS_FORECASTING",
+        "ENG_CONTENT_OUTPUT"
+      ],
+      "actual_engine": [
+        "ENG_ANALYTICS_FORECASTING",
+        "ENG_CONTENT_OUTPUT"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        [],
+        []
+      ],
+      "task_type_pass": false,
+      "engine_pass": false,
+      "clarification_pass": true,
+      "decomposition_pass": false,
+      "candidate_pass": true,
+      "passed": false
+    },
+    {
+      "id": "long-014",
+      "category": "业务邮件",
+      "text_length": 104,
+      "expected_actions": [
+        "parse",
+        "parse"
+      ],
+      "actual_actions": [
+        "parse",
+        "parse"
+      ],
+      "candidate_recall": 1.0,
+      "expected_tasks": [
+        "DOCUMENT_TABLE_PARSE",
+        "FILE_STRUCTURE_EXTRACT"
+      ],
+      "actual_tasks": [
+        "DOCUMENT_TABLE_PARSE"
+      ],
+      "expected_engine": [
+        "ENG_DOCUMENT_TABLE_PARSING",
+        "ENG_DOCUMENT_TABLE_PARSING"
+      ],
+      "actual_engine": [
+        "ENG_DOCUMENT_TABLE_PARSING"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        []
+      ],
+      "task_type_pass": false,
+      "engine_pass": false,
+      "clarification_pass": true,
+      "decomposition_pass": false,
+      "candidate_pass": true,
+      "passed": false
+    },
+    {
+      "id": "long-029",
+      "category": "会议纪要",
+      "text_length": 121,
+      "expected_actions": [
+        "organize",
+        "analyze",
+        "generate"
+      ],
+      "actual_actions": [
+        "organize",
+        "analyze",
+        "generate"
+      ],
+      "candidate_recall": 1.0,
+      "expected_tasks": [
+        "COMPLAINT_INFORMATION_ORGANIZE",
+        "DATA_ANALYSIS_PROBLEM",
+        "IMPROVEMENT_PLAN_GENERATE"
+      ],
+      "actual_tasks": [
+        "DATA_ANALYSIS_PROBLEM",
+        "IMPROVEMENT_PLAN_GENERATE"
+      ],
+      "expected_engine": [
+        "ENG_DATA_COLLECTION_AGGREGATION",
+        "ENG_ANALYTICS_FORECASTING",
+        "ENG_CONTENT_OUTPUT"
+      ],
+      "actual_engine": [
+        "ENG_ANALYTICS_FORECASTING",
+        "ENG_CONTENT_OUTPUT"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        [],
+        []
+      ],
+      "task_type_pass": false,
+      "engine_pass": false,
+      "clarification_pass": true,
+      "decomposition_pass": false,
+      "candidate_pass": true,
+      "passed": false
+    },
+    {
+      "id": "long-034",
+      "category": "会议纪要",
+      "text_length": 110,
+      "expected_actions": [
+        "parse",
+        "parse"
+      ],
+      "actual_actions": [
+        "parse",
+        "parse"
+      ],
+      "candidate_recall": 1.0,
+      "expected_tasks": [
+        "DOCUMENT_TABLE_PARSE",
+        "FILE_STRUCTURE_EXTRACT"
+      ],
+      "actual_tasks": [
+        "DOCUMENT_TABLE_PARSE"
+      ],
+      "expected_engine": [
+        "ENG_DOCUMENT_TABLE_PARSING",
+        "ENG_DOCUMENT_TABLE_PARSING"
+      ],
+      "actual_engine": [
+        "ENG_DOCUMENT_TABLE_PARSING"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        []
+      ],
+      "task_type_pass": false,
+      "engine_pass": false,
+      "clarification_pass": true,
+      "decomposition_pass": false,
+      "candidate_pass": true,
+      "passed": false
+    },
+    {
+      "id": "long-049",
+      "category": "用户需求描述",
+      "text_length": 127,
+      "expected_actions": [
+        "organize",
+        "analyze",
+        "generate"
+      ],
+      "actual_actions": [
+        "organize",
+        "analyze",
+        "generate"
+      ],
+      "candidate_recall": 1.0,
+      "expected_tasks": [
+        "COMPLAINT_INFORMATION_ORGANIZE",
+        "DATA_ANALYSIS_PROBLEM",
+        "IMPROVEMENT_PLAN_GENERATE"
+      ],
+      "actual_tasks": [
+        "DATA_ANALYSIS_PROBLEM",
+        "IMPROVEMENT_PLAN_GENERATE"
+      ],
+      "expected_engine": [
+        "ENG_DATA_COLLECTION_AGGREGATION",
+        "ENG_ANALYTICS_FORECASTING",
+        "ENG_CONTENT_OUTPUT"
+      ],
+      "actual_engine": [
+        "ENG_ANALYTICS_FORECASTING",
+        "ENG_CONTENT_OUTPUT"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        [],
+        []
+      ],
+      "task_type_pass": false,
+      "engine_pass": false,
+      "clarification_pass": true,
+      "decomposition_pass": false,
+      "candidate_pass": true,
+      "passed": false
+    },
+    {
+      "id": "long-054",
+      "category": "用户需求描述",
+      "text_length": 116,
+      "expected_actions": [
+        "parse",
+        "parse"
+      ],
+      "actual_actions": [
+        "parse",
+        "parse"
+      ],
+      "candidate_recall": 1.0,
+      "expected_tasks": [
+        "DOCUMENT_TABLE_PARSE",
+        "FILE_STRUCTURE_EXTRACT"
+      ],
+      "actual_tasks": [
+        "DOCUMENT_TABLE_PARSE"
+      ],
+      "expected_engine": [
+        "ENG_DOCUMENT_TABLE_PARSING",
+        "ENG_DOCUMENT_TABLE_PARSING"
+      ],
+      "actual_engine": [
+        "ENG_DOCUMENT_TABLE_PARSING"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        []
+      ],
+      "task_type_pass": false,
+      "engine_pass": false,
+      "clarification_pass": true,
+      "decomposition_pass": false,
+      "candidate_pass": true,
+      "passed": false
+    },
+    {
+      "id": "long-069",
+      "category": "聊天记录",
+      "text_length": 110,
+      "expected_actions": [
+        "organize",
+        "analyze",
+        "generate"
+      ],
+      "actual_actions": [
+        "organize",
+        "analyze",
+        "generate"
+      ],
+      "candidate_recall": 1.0,
+      "expected_tasks": [
+        "COMPLAINT_INFORMATION_ORGANIZE",
+        "DATA_ANALYSIS_PROBLEM",
+        "IMPROVEMENT_PLAN_GENERATE"
+      ],
+      "actual_tasks": [
+        "DATA_ANALYSIS_PROBLEM",
+        "IMPROVEMENT_PLAN_GENERATE"
+      ],
+      "expected_engine": [
+        "ENG_DATA_COLLECTION_AGGREGATION",
+        "ENG_ANALYTICS_FORECASTING",
+        "ENG_CONTENT_OUTPUT"
+      ],
+      "actual_engine": [
+        "ENG_ANALYTICS_FORECASTING",
+        "ENG_CONTENT_OUTPUT"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        [],
+        []
+      ],
+      "task_type_pass": false,
+      "engine_pass": false,
+      "clarification_pass": true,
+      "decomposition_pass": false,
+      "candidate_pass": true,
+      "passed": false
+    },
+    {
+      "id": "long-074",
+      "category": "聊天记录",
+      "text_length": 99,
+      "expected_actions": [
+        "parse",
+        "parse"
+      ],
+      "actual_actions": [
+        "parse",
+        "parse"
+      ],
+      "candidate_recall": 1.0,
+      "expected_tasks": [
+        "DOCUMENT_TABLE_PARSE",
+        "FILE_STRUCTURE_EXTRACT"
+      ],
+      "actual_tasks": [
+        "DOCUMENT_TABLE_PARSE"
+      ],
+      "expected_engine": [
+        "ENG_DOCUMENT_TABLE_PARSING",
+        "ENG_DOCUMENT_TABLE_PARSING"
+      ],
+      "actual_engine": [
+        "ENG_DOCUMENT_TABLE_PARSING"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        []
+      ],
+      "task_type_pass": false,
+      "engine_pass": false,
+      "clarification_pass": true,
+      "decomposition_pass": false,
+      "candidate_pass": true,
+      "passed": false
+    },
+    {
+      "id": "long-089",
+      "category": "大量背景文本",
+      "text_length": 1244,
+      "expected_actions": [
+        "organize",
+        "analyze",
+        "generate"
+      ],
+      "actual_actions": [
+        "organize",
+        "analyze",
+        "generate"
+      ],
+      "candidate_recall": 1.0,
+      "expected_tasks": [
+        "COMPLAINT_INFORMATION_ORGANIZE",
+        "DATA_ANALYSIS_PROBLEM",
+        "IMPROVEMENT_PLAN_GENERATE"
+      ],
+      "actual_tasks": [
+        "DATA_ANALYSIS_PROBLEM",
+        "IMPROVEMENT_PLAN_GENERATE"
+      ],
+      "expected_engine": [
+        "ENG_DATA_COLLECTION_AGGREGATION",
+        "ENG_ANALYTICS_FORECASTING",
+        "ENG_CONTENT_OUTPUT"
+      ],
+      "actual_engine": [
+        "ENG_ANALYTICS_FORECASTING",
+        "ENG_CONTENT_OUTPUT"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        [],
+        []
+      ],
+      "task_type_pass": false,
+      "engine_pass": false,
+      "clarification_pass": true,
+      "decomposition_pass": false,
+      "candidate_pass": true,
+      "passed": false
+    },
+    {
+      "id": "long-094",
+      "category": "大量背景文本",
+      "text_length": 1133,
+      "expected_actions": [
+        "parse",
+        "parse"
+      ],
+      "actual_actions": [
+        "parse",
+        "parse"
+      ],
+      "candidate_recall": 1.0,
+      "expected_tasks": [
+        "DOCUMENT_TABLE_PARSE",
+        "FILE_STRUCTURE_EXTRACT"
+      ],
+      "actual_tasks": [
+        "DOCUMENT_TABLE_PARSE"
+      ],
+      "expected_engine": [
+        "ENG_DOCUMENT_TABLE_PARSING",
+        "ENG_DOCUMENT_TABLE_PARSING"
+      ],
+      "actual_engine": [
+        "ENG_DOCUMENT_TABLE_PARSING"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        []
+      ],
+      "task_type_pass": false,
+      "engine_pass": false,
+      "clarification_pass": true,
+      "decomposition_pass": false,
+      "candidate_pass": true,
+      "passed": false
+    }
+  ],
+  "by_category": {
+    "业务邮件": {
+      "total": 20,
+      "passed": 18,
+      "engine_accuracy": 0.9,
+      "task_type_accuracy": 0.9,
+      "clarification_accuracy": 1.0,
+      "decomposition_accuracy": 0.9,
+      "candidate_recall": 1.0
+    },
+    "会议纪要": {
+      "total": 20,
+      "passed": 18,
+      "engine_accuracy": 0.9,
+      "task_type_accuracy": 0.9,
+      "clarification_accuracy": 1.0,
+      "decomposition_accuracy": 0.9,
+      "candidate_recall": 1.0
+    },
+    "大量背景文本": {
+      "total": 20,
+      "passed": 18,
+      "engine_accuracy": 0.9,
+      "task_type_accuracy": 0.9,
+      "clarification_accuracy": 1.0,
+      "decomposition_accuracy": 0.9,
+      "candidate_recall": 1.0
+    },
+    "用户需求描述": {
+      "total": 20,
+      "passed": 18,
+      "engine_accuracy": 0.9,
+      "task_type_accuracy": 0.9,
+      "clarification_accuracy": 1.0,
+      "decomposition_accuracy": 0.9,
+      "candidate_recall": 1.0
+    },
+    "聊天记录": {
+      "total": 20,
+      "passed": 18,
+      "engine_accuracy": 0.9,
+      "task_type_accuracy": 0.9,
+      "clarification_accuracy": 1.0,
+      "decomposition_accuracy": 0.9,
+      "candidate_recall": 1.0
+    }
+  }
+}

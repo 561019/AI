@@ -1,0 +1,176 @@
+{
+  "report_type": "blind_failure_abstraction",
+  "source_report": "evaluation\\benchmark\\blind_test_report_blind_abstract_v3_after.json",
+  "split": "blind_test",
+  "sealed": true,
+  "development_use": "aggregate_and_abstract_only",
+  "blind_text_policy": "Raw blind_test text is intentionally omitted. Use only aggregate categories, task labels, and abstract validation plans.",
+  "guardrails": {
+    "do_not_add_blind_case_to_validation": true,
+    "do_not_add_blind_text_keyword_rules": true,
+    "do_not_change_prompt_for_blind": true,
+    "allowed_use": "identify common capability gaps and design independent validation samples"
+  },
+  "full_pass": {
+    "total": 60,
+    "passed": 56,
+    "full_pass": "56/60",
+    "full_pass_rate": 0.9333333333333333
+  },
+  "failure_type_distribution": {
+    "CONTEXT_RECOVERY_FAILURE": 1,
+    "TASK_GENERALIZATION_FAILURE": 1,
+    "CLARIFICATION_DECISION_FAILURE": 2
+  },
+  "by_intent_category": {
+    "multi_task_request": {
+      "CLARIFICATION_DECISION_FAILURE": 2
+    },
+    "negation_expression": {
+      "TASK_GENERALIZATION_FAILURE": 1
+    },
+    "omitted_expression": {
+      "CONTEXT_RECOVERY_FAILURE": 1
+    }
+  },
+  "common_problem_summary": [
+    "Context recovery is the largest generic gap: omitted follow-ups either do not parse or lose to weak standalone matching.",
+    "Task generalization needs broader business-language coverage for filtering, file-structure, external submit, multimedia, and protected-scope current tasks.",
+    "Clarification decisions need stricter separation between business object and true schema-required input source."
+  ],
+  "validation_planning": [
+    {
+      "abstract_capability": "ellipsis + single recent context",
+      "validation_case_family": "repeat/continue/status/field follow-ups across filter, document, and workflow tasks",
+      "expected_behavior": "recover conversation context before L1/L2 semantic matching; clarify on no or ambiguous context"
+    },
+    {
+      "abstract_capability": "business wording generalization",
+      "validation_case_family": "colloquial filter, file structure, external submit, and multimedia current-task expressions",
+      "expected_behavior": "identify the intended task type without adding blind-specific keywords"
+    },
+    {
+      "abstract_capability": "schema-driven clarification",
+      "validation_case_family": "clear action/object but missing source, and low-information pronoun requests",
+      "expected_behavior": "ask only for schema-required fields and avoid task guesses when object/action is absent"
+    }
+  ],
+  "failure_cases": [
+    {
+      "case_id": "BENCH-BLIND_TEST-024",
+      "text_sha256_12": "be7e3f2b9c4a",
+      "text_redacted": true,
+      "intent_category": "omitted_expression",
+      "expected_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "actual_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "expected_clarification": true,
+      "actual_clarification": true,
+      "expected_missing_inputs": [
+        "data_source"
+      ],
+      "actual_missing_inputs": [
+        "analysis_object"
+      ],
+      "sealed_primary_failure_type": "CONTEXT_RECOVERY_ERROR",
+      "sealed_failure_types": [
+        "CONTEXT_RECOVERY_ERROR",
+        "TASK_TYPE_ERROR",
+        "MISSING_INPUT_ERROR"
+      ],
+      "abstract_failure_type": "CONTEXT_RECOVERY_FAILURE",
+      "abstract_issue_pattern": "short follow-up accepted a standalone task interpretation instead of recent context",
+      "optimization_direction": "Add independent validation cases for ellipsis families and context-first recovery; tune resolver priority."
+    },
+    {
+      "case_id": "BENCH-BLIND_TEST-026",
+      "text_sha256_12": "21249f74b516",
+      "text_redacted": true,
+      "intent_category": "multi_task_request",
+      "expected_task_types": [
+        "DATA_ANALYSIS_GROUP_SUM",
+        "DATA_FILTER",
+        "CONTENT_GENERATE"
+      ],
+      "actual_task_types": [
+        "DATA_AGGREGATION_SUMMARY",
+        "DATA_FILTER",
+        "CONTENT_GENERATE"
+      ],
+      "expected_clarification": true,
+      "actual_clarification": true,
+      "expected_missing_inputs": [
+        "statistical_range"
+      ],
+      "actual_missing_inputs": [
+        "statistical_range",
+        "summary_field"
+      ],
+      "sealed_primary_failure_type": "TASK_TYPE_ERROR",
+      "sealed_failure_types": [
+        "TASK_TYPE_ERROR",
+        "MISSING_INPUT_ERROR"
+      ],
+      "abstract_failure_type": "CLARIFICATION_DECISION_FAILURE",
+      "abstract_issue_pattern": "schema-required input presence was over- or under-estimated",
+      "optimization_direction": "Add independent validation cases for low-information requests and schema-required input source checks."
+    },
+    {
+      "case_id": "BENCH-BLIND_TEST-029",
+      "text_sha256_12": "0bf2c10d0055",
+      "text_redacted": true,
+      "intent_category": "multi_task_request",
+      "expected_task_types": [
+        "QUESTION_ANSWER",
+        "RULE_CALCULATION_COMMISSION",
+        "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+      ],
+      "actual_task_types": [
+        "QUESTION_ANSWER",
+        "RULE_CALCULATION_COMMISSION",
+        "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+      ],
+      "expected_clarification": true,
+      "actual_clarification": false,
+      "expected_missing_inputs": [
+        "sales_data_source"
+      ],
+      "actual_missing_inputs": [],
+      "sealed_primary_failure_type": "MISSING_INPUT_ERROR",
+      "sealed_failure_types": [
+        "MISSING_INPUT_ERROR",
+        "CLARIFICATION_ERROR"
+      ],
+      "abstract_failure_type": "CLARIFICATION_DECISION_FAILURE",
+      "abstract_issue_pattern": "schema-required input presence was over- or under-estimated",
+      "optimization_direction": "Add independent validation cases for low-information requests and schema-required input source checks."
+    },
+    {
+      "case_id": "BENCH-BLIND_TEST-033",
+      "text_sha256_12": "cacd779b5df8",
+      "text_redacted": true,
+      "intent_category": "negation_expression",
+      "expected_task_types": [
+        "DATA_FILTER"
+      ],
+      "actual_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "expected_missing_inputs": [],
+      "actual_missing_inputs": [],
+      "sealed_primary_failure_type": "NEGATION_ERROR",
+      "sealed_failure_types": [
+        "NEGATION_ERROR",
+        "TASK_TYPE_ERROR"
+      ],
+      "abstract_failure_type": "TASK_GENERALIZATION_FAILURE",
+      "abstract_issue_pattern": "protected-scope filtering preserved false-positive safety but lost the current actionable task",
+      "optimization_direction": "Add semantic examples and generic matcher coverage for business wording families, without blind text keywords."
+    }
+  ]
+}

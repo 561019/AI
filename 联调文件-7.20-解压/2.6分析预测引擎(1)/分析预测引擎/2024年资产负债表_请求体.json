@@ -1,0 +1,199 @@
+{
+  "schema_version": "v1",
+  "trace_id": "2024-资产负债表",
+  "analysis_type": "financial_statement",
+  "records": [
+    {
+      "period": "2024-01",
+      "source_record_id": "2024-01",
+      "metrics": {
+        "cash": "2100000.00",
+        "accounts_receivable": "3600000.00",
+        "inventory": "5400000.00",
+        "fixed_assets": "15500000.00",
+        "total_assets": "26600000.00",
+        "accounts_payable": "3400000.00",
+        "short_term_debt": "4800000.00",
+        "long_term_debt": "5700000.00",
+        "total_liabilities": "13900000.00",
+        "equity": "12700000.00"
+      }
+    },
+    {
+      "period": "2024-02",
+      "source_record_id": "2024-02",
+      "metrics": {
+        "cash": "1950000.00",
+        "accounts_receivable": "3350000.00",
+        "inventory": "5100000.00",
+        "fixed_assets": "15400000.00",
+        "total_assets": "25800000.00",
+        "accounts_payable": "3200000.00",
+        "short_term_debt": "4650000.00",
+        "long_term_debt": "5600000.00",
+        "total_liabilities": "13450000.00",
+        "equity": "12350000.00"
+      }
+    },
+    {
+      "period": "2024-03",
+      "source_record_id": "2024-03",
+      "metrics": {
+        "cash": "2300000.00",
+        "accounts_receivable": "3950000.00",
+        "inventory": "5850000.00",
+        "fixed_assets": "15800000.00",
+        "total_assets": "27900000.00",
+        "accounts_payable": "3750000.00",
+        "short_term_debt": "5350000.00",
+        "long_term_debt": "6400000.00",
+        "total_liabilities": "15500000.00",
+        "equity": "12400000.00"
+      }
+    },
+    {
+      "period": "2024-04",
+      "source_record_id": "2024-04",
+      "metrics": {
+        "cash": "2400000.00",
+        "accounts_receivable": "4100000.00",
+        "inventory": "6000000.00",
+        "fixed_assets": "16000000.00",
+        "total_assets": "28500000.00",
+        "accounts_payable": "3900000.00",
+        "short_term_debt": "5550000.00",
+        "long_term_debt": "6600000.00",
+        "total_liabilities": "16050000.00",
+        "equity": "12450000.00"
+      }
+    },
+    {
+      "period": "2024-05",
+      "source_record_id": "2024-05",
+      "metrics": {
+        "cash": "2500000.00",
+        "accounts_receivable": "4250000.00",
+        "inventory": "6200000.00",
+        "fixed_assets": "16300000.00",
+        "total_assets": "29250000.00",
+        "accounts_payable": "4050000.00",
+        "short_term_debt": "5750000.00",
+        "long_term_debt": "6900000.00",
+        "total_liabilities": "16700000.00",
+        "equity": "12550000.00"
+      }
+    },
+    {
+      "period": "2024-06",
+      "source_record_id": "2024-06",
+      "metrics": {
+        "cash": "2680000.00",
+        "accounts_receivable": "4550000.00",
+        "inventory": "6550000.00",
+        "fixed_assets": "16700000.00",
+        "total_assets": "30480000.00",
+        "accounts_payable": "4350000.00",
+        "short_term_debt": "6150000.00",
+        "long_term_debt": "7400000.00",
+        "total_liabilities": "17900000.00",
+        "equity": "12580000.00"
+      }
+    },
+    {
+      "period": "2024-07",
+      "source_record_id": "2024-07",
+      "metrics": {
+        "cash": "2780000.00",
+        "accounts_receivable": "4650000.00",
+        "inventory": "6700000.00",
+        "fixed_assets": "17000000.00",
+        "total_assets": "31130000.00",
+        "accounts_payable": "4450000.00",
+        "short_term_debt": "6300000.00",
+        "long_term_debt": "7600000.00",
+        "total_liabilities": "18350000.00",
+        "equity": "12780000.00"
+      }
+    },
+    {
+      "period": "2024-08",
+      "source_record_id": "2024-08",
+      "metrics": {
+        "cash": "2580000.00",
+        "accounts_receivable": "4400000.00",
+        "inventory": "6400000.00",
+        "fixed_assets": "16600000.00",
+        "total_assets": "29980000.00",
+        "accounts_payable": "4200000.00",
+        "short_term_debt": "6000000.00",
+        "long_term_debt": "7200000.00",
+        "total_liabilities": "17400000.00",
+        "equity": "12580000.00"
+      }
+    },
+    {
+      "period": "2024-09",
+      "source_record_id": "2024-09",
+      "metrics": {
+        "cash": "2900000.00",
+        "accounts_receivable": "4850000.00",
+        "inventory": "6950000.00",
+        "fixed_assets": "17300000.00",
+        "total_assets": "32000000.00",
+        "accounts_payable": "4650000.00",
+        "short_term_debt": "6600000.00",
+        "long_term_debt": "7800000.00",
+        "total_liabilities": "19050000.00",
+        "equity": "12950000.00"
+      }
+    },
+    {
+      "period": "2024-10",
+      "source_record_id": "2024-10",
+      "metrics": {
+        "cash": "3050000.00",
+        "accounts_receivable": "5050000.00",
+        "inventory": "7200000.00",
+        "fixed_assets": "17700000.00",
+        "total_assets": "33000000.00",
+        "accounts_payable": "4850000.00",
+        "short_term_debt": "6900000.00",
+        "long_term_debt": "8100000.00",
+        "total_liabilities": "19850000.00",
+        "equity": "13150000.00"
+      }
+    },
+    {
+      "period": "2024-11",
+      "source_record_id": "2024-11",
+      "metrics": {
+        "cash": "3250000.00",
+        "accounts_receivable": "5300000.00",
+        "inventory": "7550000.00",
+        "fixed_assets": "18300000.00",
+        "total_assets": "34400000.00",
+        "accounts_payable": "5100000.00",
+        "short_term_debt": "7300000.00",
+        "long_term_debt": "8500000.00",
+        "total_liabilities": "20900000.00",
+        "equity": "13500000.00"
+      }
+    },
+    {
+      "period": "2024-12",
+      "source_record_id": "2024-12",
+      "metrics": {
+        "cash": "3800000.00",
+        "accounts_receivable": "5950000.00",
+        "inventory": "8400000.00",
+        "fixed_assets": "20500000.00",
+        "total_assets": "38650000.00",
+        "accounts_payable": "5700000.00",
+        "short_term_debt": "8200000.00",
+        "long_term_debt": "9600000.00",
+        "total_liabilities": "23500000.00",
+        "equity": "15150000.00"
+      }
+    }
+  ]
+}

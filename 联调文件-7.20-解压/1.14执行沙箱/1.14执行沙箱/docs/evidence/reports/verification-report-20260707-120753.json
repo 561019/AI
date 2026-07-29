@@ -1,0 +1,631 @@
+{
+  "module": "L1 1.14 执行沙箱",
+  "runtime": "DockerTemplateExecutor",
+  "generated_at": "2026-07-07 12:07:53",
+  "source": "POST /api/verification/report",
+  "result": {
+    "summary": {
+      "passed": 13,
+      "failed": 0
+    },
+    "results": [
+      {
+        "id": "docker_runtime",
+        "title": "Docker 真隔离运行时",
+        "claim": "沙箱任务由 Linux Docker 容器承载，不再是 Windows 本地函数模拟。",
+        "expected": "Docker daemon 可用，并能返回服务端版本。",
+        "status": "passed",
+        "detail": "Docker server is available.",
+        "command": "/usr/bin/docker info --format {{.ServerVersion}}",
+        "evidence": {
+          "returncode": 0,
+          "stdout": "26.1.3",
+          "stderr": ""
+        }
+      },
+      {
+        "id": "docker_task",
+        "title": "任务在 Docker 沙箱中执行",
+        "claim": "业务任务进入 DockerTemplateExecutor，产出真实任务编号和业务结果。",
+        "expected": "任务状态为 success，executor 为 DockerTemplateExecutor。",
+        "status": "passed",
+        "detail": "Docker task returned a business result.",
+        "command": "POST /api/tasks scenario=s19_over_stock_warning actor=sales-user",
+        "evidence": {
+          "task_id": "227d3d13b4ec",
+          "status": "success",
+          "executor": "DockerTemplateExecutor",
+          "duration_ms": 680,
+          "result": {
+            "payload": {
+              "inventory": 50.0,
+              "total_order_qty": 90.0,
+              "over_qty": 40.0,
+              "status": "warning",
+              "orders": [
+                {
+                  "department": "销售一部",
+                  "qty": 30
+                },
+                {
+                  "department": "销售二部",
+                  "qty": 30
+                },
+                {
+                  "department": "销售三部",
+                  "qty": 30
+                }
+              ]
+            },
+            "files": [
+              "/results/over_stock_warning.json",
+              "/results/over_stock_warning_summary.csv"
+            ],
+            "sandbox_runtime": {
+              "executor": "DockerTemplateExecutor",
+              "isolation": "docker_container",
+              "image": "agent-sandbox-python:3.10-local",
+              "network": "none",
+              "read_only_rootfs": true,
+              "memory_mb": 512,
+              "cpu_cores": "1.0"
+            }
+          }
+        }
+      },
+      {
+        "id": "host_file_isolation",
+        "title": "宿主机文件隔离",
+        "claim": "容器只能看到挂载进去的目录，不能读取沙箱外的宿主机文件，也不能写只读代码目录。",
+        "expected": "读取未挂载宿主机文件失败，写 /app 失败。",
+        "status": "passed",
+        "detail": "Container isolation probe passed.",
+        "command": "/usr/bin/docker run --rm --network none --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m -v /home/nlp/刘卓/执行沙箱:/app:ro -w /app agent-sandbox-python:3.10-local python -c from pathlib import Path\nsecret=Path('/home/nlp/刘卓/host_secret_6b033bb0.txt')\nif secret.exists(): raise SystemExit('host secret leaked')\ntry:\n    Path('/app/write_probe.txt').write_text('bad')\n    raise SystemExit('read-only app mount is writable')\nexcept OSError:\n    pass\nprint('PASS: secret not mounted; /app is read-only')\n",
+        "evidence": {
+          "returncode": 0,
+          "stdout": "PASS: secret not mounted; /app is read-only",
+          "stderr": ""
+        }
+      },
+      {
+        "id": "resource_timeout",
+        "title": "跑飞任务自动停止",
+        "claim": "死循环容器会被超时逻辑停止，并带有 CPU/内存限制。",
+        "expected": "死循环容器超时后被 docker rm -f 停止。",
+        "status": "passed",
+        "detail": "Runaway container was stopped after timeout.",
+        "command": "/usr/bin/docker run --rm --name verify-timeout-cc312ff6 --network none --cpus 0.5 --memory 64m agent-sandbox-python:3.10-local python -c while True: pass",
+        "evidence": {
+          "timeout_seconds": 2,
+          "container_name": "verify-timeout-cc312ff6",
+          "cleanup_command": "/usr/bin/docker rm -f verify-timeout-cc312ff6",
+          "cleanup_stdout": "verify-timeout-cc312ff6",
+          "cleanup_stderr": "",
+          "cleanup_returncode": 0
+        }
+      },
+      {
+        "id": "network_default_deny",
+        "title": "默认禁止出站",
+        "claim": "容器使用 --network none，默认不能访问外网。",
+        "expected": "容器内访问 https://example.com 失败。",
+        "status": "passed",
+        "detail": "Outbound network was blocked by --network none.",
+        "command": "/usr/bin/docker run --rm --network none agent-sandbox-python:3.10-local python -c import urllib.request; urllib.request.urlopen('https://example.com', timeout=3)",
+        "evidence": {
+          "returncode": 1,
+          "stdout": "",
+          "stderr": "Traceback (most recent call last):\n  File \"/usr/lib/python3.10/urllib/request.py\", line 1348, in do_open\n    h.request(req.get_method(), req.selector, req.data, headers,\n  File \"/usr/lib/python3.10/http/client.py\", line 1282, in request\n    self._send_request(method, url, body, headers, encode_chunked)\n  File \"/usr/lib/python3.10/http/client.py\", line 1328, in _send_request\n    self.endheaders(body, encode_chunked=encode_chunked)\n  File \"/usr/lib/python3.10/http/client.py\", line 1277, in endheaders\n    self._send_output(message_body, encode_chunked=encode_chunked)\n  File \"/usr/lib/python3.10/http/client.py\", line 1037, in _send_output\n    self.send(msg)\n  File \"/usr/lib/python3.10/http/client.py\", line 975, in send\n    self.connect()\n  File \"/usr/lib/python3.10/http/client.py\", line 1447, in connect\n    super().connect()\n  File \"/usr/lib/python3.10/http/client.py\", line 941, in connect\n    self.sock = self._create_connection(\n  File \"/usr/lib/python3.10/socket.py\", line 824, in create_connection\n    for res in getaddrinfo(host, port, 0, SOCK_STREAM):\n  File \"/usr/lib/python3.10/socket.py\", line 955, in getaddrinfo\n    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):\nsocket.gaierror: [Errno -3] Temporary failure in name resolution\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n  File \"/usr/lib/python3.10/urllib/request.py\", line 216, in urlopen\n    return opener.open(url, data, timeout)\n  File \"/usr/lib/python3.10/urllib/request.py\", line 519, in open\n    response = self._open(req, data)\n  File \"/usr/lib/python3.10/urllib/request.py\", line 536, in _open\n    result = self._call_chain(self.handle_open, protocol, protocol +\n  File \"/usr/lib/python3.10/urllib/request.py\", line 496, in _call_chain\n    result = func(*args)\n  File \"/usr/lib/python3.10/urllib/request.py\", line 1391, in https_open\n    return self.do_open(http.client.HTTPSConnection, req,\n  File \"/usr/lib/python3.10/urllib/request.py\", line 1351, in do_open\n    raise URLError(err)\nurllib.error.URLError: <urlopen error [Errno -3] Temporary failure in name resolution>"
+        }
+      },
+      {
+        "id": "egress_allowlist_gateway",
+        "title": "域名级出站白名单网关",
+        "claim": "任务容器不能直接出网，只能通过 egress-proxy 访问白名单域名。",
+        "expected": "受控白名单测试域名通过，非白名单域名被拒绝，绕过代理直连失败。",
+        "status": "passed",
+        "detail": "Egress gateway allowed a controlled allowlisted test domain, blocked a non-allowlisted domain, and prevented direct bypass.",
+        "command": "/usr/bin/docker network create --internal agent-egress-43295e5c\n/usr/bin/docker run -d --rm --name agent-egress-proxy-43295e5c --network agent-egress-43295e5c -v /home/nlp/刘卓/执行沙箱:/app:ro -w /app agent-sandbox-python:3.10-local python backend/egress_gateway.py --allow sandbox-allow.test --serve-local sandbox-allow.test\n/usr/bin/docker run --rm --network agent-egress-43295e5c -e http_proxy=http://agent-egress-proxy-43295e5c:18080 agent-sandbox-python:3.10-local python -c import urllib.request; print(urllib.request.urlopen('http://sandbox-allow.test', timeout=8).status)\n/usr/bin/docker run --rm --network agent-egress-43295e5c -e http_proxy=http://agent-egress-proxy-43295e5c:18080 agent-sandbox-python:3.10-local python -c import urllib.request; urllib.request.urlopen('http://sandbox-blocked.test', timeout=8)\n/usr/bin/docker run --rm --network agent-egress-43295e5c agent-sandbox-python:3.10-local python -c import urllib.request; urllib.request.urlopen('http://sandbox-allow.test', timeout=5)\n/usr/bin/docker logs agent-egress-proxy-43295e5c",
+        "evidence": {
+          "network": "agent-egress-43295e5c",
+          "proxy_container": "agent-egress-proxy-43295e5c",
+          "allowed_host": "sandbox-allow.test",
+          "blocked_host": "sandbox-blocked.test",
+          "create_network": {
+            "returncode": 0,
+            "stdout": "c060af61a8692816041688ee80453a3e8589159722456c5da5731f8e56724558",
+            "stderr": ""
+          },
+          "start_proxy": {
+            "returncode": 0,
+            "stdout": "ea07951e7641603320fb3ebc7d4b5680177b9d2411b7c8247362907f4a318016",
+            "stderr": ""
+          },
+          "allow_sandbox_test": {
+            "returncode": 0,
+            "stdout": "200",
+            "stderr": ""
+          },
+          "block_non_allowlisted": {
+            "returncode": 1,
+            "stdout": "",
+            "stderr": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n  File \"/usr/lib/python3.10/urllib/request.py\", line 216, in urlopen\n    return opener.open(url, data, timeout)\n  File \"/usr/lib/python3.10/urllib/request.py\", line 525, in open\n    response = meth(req, response)\n  File \"/usr/lib/python3.10/urllib/request.py\", line 634, in http_response\n    response = self.parent.error(\n  File \"/usr/lib/python3.10/urllib/request.py\", line 563, in error\n    return self._call_chain(*args)\n  File \"/usr/lib/python3.10/urllib/request.py\", line 496, in _call_chain\n    result = func(*args)\n  File \"/usr/lib/python3.10/urllib/request.py\", line 643, in http_error_default\n    raise HTTPError(req.full_url, code, msg, hdrs, fp)\nurllib.error.HTTPError: HTTP Error 403: Forbidden"
+          },
+          "direct_bypass_attempt": {
+            "returncode": 1,
+            "stdout": "",
+            "stderr": "Traceback (most recent call last):\n  File \"/usr/lib/python3.10/urllib/request.py\", line 1348, in do_open\n    h.request(req.get_method(), req.selector, req.data, headers,\n  File \"/usr/lib/python3.10/http/client.py\", line 1282, in request\n    self._send_request(method, url, body, headers, encode_chunked)\n  File \"/usr/lib/python3.10/http/client.py\", line 1328, in _send_request\n    self.endheaders(body, encode_chunked=encode_chunked)\n  File \"/usr/lib/python3.10/http/client.py\", line 1277, in endheaders\n    self._send_output(message_body, encode_chunked=encode_chunked)\n  File \"/usr/lib/python3.10/http/client.py\", line 1037, in _send_output\n    self.send(msg)\n  File \"/usr/lib/python3.10/http/client.py\", line 975, in send\n    self.connect()\n  File \"/usr/lib/python3.10/http/client.py\", line 941, in connect\n    self.sock = self._create_connection(\n  File \"/usr/lib/python3.10/socket.py\", line 824, in create_connection\n    for res in getaddrinfo(host, port, 0, SOCK_STREAM):\n  File \"/usr/lib/python3.10/socket.py\", line 955, in getaddrinfo\n    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):\nsocket.gaierror: [Errno -3] Temporary failure in name resolution\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n  File \"/usr/lib/python3.10/urllib/request.py\", line 216, in urlopen\n    return opener.open(url, data, timeout)\n  File \"/usr/lib/python3.10/urllib/request.py\", line 519, in open\n    response = self._open(req, data)\n  File \"/usr/lib/python3.10/urllib/request.py\", line 536, in _open\n    result = self._call_chain(self.handle_open, protocol, protocol +\n  File \"/usr/lib/python3.10/urllib/request.py\", line 496, in _call_chain\n    result = func(*args)\n  File \"/usr/lib/python3.10/urllib/request.py\", line 1377, in http_open\n    return self.do_open(http.client.HTTPConnection, req)\n  File \"/usr/lib/python3.10/urllib/request.py\", line 1351, in do_open\n    raise URLError(err)\nurllib.error.URLError: <urlopen error [Errno -3] Temporary failure in name resolution>"
+          },
+          "proxy_logs": {
+            "returncode": 0,
+            "stdout": "{\"event\": \"egress_proxy_started\", \"allowed_domains\": [\"sandbox-allow.test\"]}\n{\"time\": \"2026-07-07 04:07:38\", \"method\": \"GET\", \"url\": \"http://sandbox-allow.test\", \"host\": \"sandbox-allow.test\", \"allowed\": true, \"status\": 200, \"duration_ms\": 0, \"source\": \"local_test_page\"}\n{\"time\": \"2026-07-07 04:07:38\", \"method\": \"GET\", \"url\": \"http://sandbox-blocked.test\", \"host\": \"sandbox-blocked.test\", \"allowed\": false, \"status\": 403}",
+            "stderr": ""
+          }
+        }
+      },
+      {
+        "id": "browser_sandbox",
+        "title": "浏览器沙箱出站验证",
+        "claim": "Headless Chromium 在独立 Docker 浏览器容器里运行，不能直接出网，只能经白名单网关访问允许域名。",
+        "expected": "受控白名单测试页真实加载，非白名单域名被网关拒绝，绕过代理直连失败。",
+        "status": "passed",
+        "detail": "Browser container loaded a controlled allowlisted page through the gateway, hit a deny record for a non-allowlisted domain, and could not bypass the proxy.",
+        "command": "/usr/bin/docker network create --internal agent-browser-3d85aef9\n/usr/bin/docker run -d --rm --name agent-browser-proxy-3d85aef9 --network agent-browser-3d85aef9 -v /home/nlp/刘卓/执行沙箱:/app:ro -w /app agent-sandbox-python:3.10-local python backend/egress_gateway.py --allow sandbox-allow.test --serve-local sandbox-allow.test\n/usr/bin/docker run --rm --memory 768m --cpus 1 --network agent-browser-3d85aef9 --read-only --tmpfs /tmp:rw,nosuid,size=256m --tmpfs /run:rw,nosuid,size=64m --tmpfs /root:rw,nosuid,size=64m --tmpfs /var/tmp:rw,nosuid,size=64m agent-sandbox-browser:chromium-local /bin/bash -lc mkdir -p /tmp/chrome/crash; chromium --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --disable-crash-reporter --disable-breakpad --disable-background-networking --disable-sync --disable-default-apps --metrics-recording-only --safebrowsing-disable-auto-update --crash-dumps-dir=/tmp/chrome/crash --no-first-run --user-data-dir=/tmp/chrome --proxy-server=http://agent-browser-proxy-3d85aef9:18080 --dump-dom http://sandbox-allow.test\n/usr/bin/docker run --rm --memory 768m --cpus 1 --network agent-browser-3d85aef9 --read-only --tmpfs /tmp:rw,nosuid,size=256m --tmpfs /run:rw,nosuid,size=64m --tmpfs /root:rw,nosuid,size=64m --tmpfs /var/tmp:rw,nosuid,size=64m agent-sandbox-browser:chromium-local /bin/bash -lc mkdir -p /tmp/chrome/crash; chromium --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --disable-crash-reporter --disable-breakpad --disable-background-networking --disable-sync --disable-default-apps --metrics-recording-only --safebrowsing-disable-auto-update --crash-dumps-dir=/tmp/chrome/crash --no-first-run --user-data-dir=/tmp/chrome --proxy-server=http://agent-browser-proxy-3d85aef9:18080 --dump-dom http://sandbox-blocked.test\n/usr/bin/docker run --rm --memory 768m --cpus 1 --network agent-browser-3d85aef9 --read-only --tmpfs /tmp:rw,nosuid,size=256m --tmpfs /run:rw,nosuid,size=64m --tmpfs /root:rw,nosuid,size=64m --tmpfs /var/tmp:rw,nosuid,size=64m agent-sandbox-browser:chromium-local /bin/bash -lc mkdir -p /tmp/chrome/crash; chromium --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --disable-crash-reporter --disable-breakpad --disable-background-networking --disable-sync --disable-default-apps --metrics-recording-only --safebrowsing-disable-auto-update --crash-dumps-dir=/tmp/chrome/crash --no-first-run --user-data-dir=/tmp/chrome --dump-dom http://sandbox-allow.test\n/usr/bin/docker logs agent-browser-proxy-3d85aef9",
+        "evidence": {
+          "network": "agent-browser-3d85aef9",
+          "proxy_container": "agent-browser-proxy-3d85aef9",
+          "browser_image": "agent-sandbox-browser:chromium-local",
+          "python_image": "agent-sandbox-python:3.10-local",
+          "allowed_host": "sandbox-allow.test",
+          "blocked_host": "sandbox-blocked.test",
+          "create_network": {
+            "returncode": 0,
+            "stdout": "afbb40229af3f5f28d8a38f14619e1ac95be577b6a7ef87b22cdfe0278f1574d",
+            "stderr": ""
+          },
+          "start_proxy": {
+            "returncode": 0,
+            "stdout": "841fa2ded93434019512b62aa8643c7a2b9edf343583babc515384f87c850e3e",
+            "stderr": ""
+          },
+          "browser_allow_sandbox_test": {
+            "returncode": 0,
+            "stdout": "<!DOCTYPE html>\n<html><head><title>Sandbox Allowlist Probe</title></head><body><h1>Sandbox Allowlist Probe</h1><p>served by controlled sandbox egress gateway</p></body></html>",
+            "stderr": "[1:35:0707/040741.734660:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory\n[1:35:0707/040741.741586:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[1:35:0707/040741.741750:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory\n[1:35:0707/040741.741902:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory\n[1:35:0707/040741.766958:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[1:35:0707/040741.900920:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[1:35:0707/040741.912243:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[1:1:0707/040742.046286:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: \n[1:35:0707/040742.046376:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[1:1:0707/040742.046820:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: \n[1:1:0707/040742.049276:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: \n[1:1:0707/040742.050516:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: \n[1:35:0707/040742.050586:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[1:35:0707/040742.099002:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory\n[1:35:0707/040742.099075:ERROR:dbus/bus.cc:405] Failed t\n...[trimmed 1716 chars]"
+          },
+          "browser_block_non_allowlisted": {
+            "returncode": 0,
+            "stdout": "<html><head><meta name=\"color-scheme\" content=\"light dark\"></head><body><pre style=\"word-wrap: break-word; white-space: pre-wrap;\">blocked by sandbox egress allowlist</pre></body></html>",
+            "stderr": "[1:35:0707/040743.856493:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory\n[1:35:0707/040743.860399:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[1:35:0707/040743.860522:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory\n[1:35:0707/040743.860748:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory\n[1:35:0707/040743.921919:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[1:35:0707/040744.010532:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[1:35:0707/040744.024056:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[1:1:0707/040744.213983:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: \n[1:35:0707/040744.214110:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[1:1:0707/040744.214761:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: \n[1:1:0707/040744.219834:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: \n[1:1:0707/040744.221563:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: \n[1:35:0707/040744.221674:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[1:35:0707/040744.304323:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory\n[1:1:0707/040744.304365:ERROR:dbus/object_proxy.cc:572] \n...[trimmed 1716 chars]"
+          },
+          "browser_direct_bypass_attempt": {
+            "returncode": 0,
+            "stdout": "<!DOCTYPE html>\n<html dir=\"ltr\" lang=\"en\" class=\"offline\"><head>\n  <meta charset=\"utf-8\">\n  <meta name=\"color-scheme\" content=\"light dark\">\n  <meta name=\"theme-color\" content=\"#fff\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0,\n                                 maximum-scale=1.0, user-scalable=no\">\n  <title>sandbox-allow.test</title>\n  <style>/* Copyright 2017 The Chromium Authors\n * Use of this source code is governed by a BSD-style license that can be\n * found in the LICENSE file. */\n\na {\n  color: var(--link-color);\n}\n\nbody {\n  --background-color: #fff;\n  --error-code-color: var(--google-gray-700);\n  --google-blue-50: rgb(232, 240, 254);\n  --google-blue-100: rgb(210, 227, 252);\n  --google-blue-300: rgb(138, 180, 248);\n  --google-blue-600: rgb(26, 115, 232);\n  --google-blue-700: rgb(25, 103, 210);\n  --google-gray-100: rgb(241, 243, 244);\n  --google-gray-300: rgb(218, 220, 224);\n  --google-gray-500: rgb(154, 160, 166);\n  --google-gray-50: rgb(248, 249, 250);\n  --google-gray-600: rgb(128, 134, 139);\n  --google-gray-700: rgb(95, 99, 104);\n  --google-gray-800: rgb(60, 64, 67);\n  --google-gray-900: rgb(32, 33, 36);\n  --heading-color: var(--google-gray-900);\n  --link-color: rgb(88, 88, 88);\n  --primary-button-fill-color-active: var(--google-blue-700);\n  --primary-button-fill-color: var(--google-blue-600);\n  --primary-button-text-color: #fff;\n  --quiet-background-color: rgb(247, 247, 247);\n  --secondary-button-border-color: var(--google-gray-500);\n  --secondary-button-fill-color: #fff;\n  --secondary-button-hover-border-color: var(--google-gray-600);\n  --secondary-button-hover-fill-color: var(--google-gray-50);\n  --secondary-button-text-color: var(--google-gray-700);\n  --small-link-color: var(--google-gray-700);\n  --text-color: var(--google-gray-700);\n  background: var(--background-color);\n  color: var(--text-color);\n  word-wrap: break-word;\n}\n\n.nav-wrapper .secondary-button {\n  background: var(--secondary-button-fill-color);\n  border: 1px solid var(--secondary-button-border-color);\n  color: var(--secondary-button-text-color);\n  float: none;\n  margin: 0;\n  padding: 8px 16px;\n}\n\n.hidden {\n  display: none;\n}\n\nhtml {\n  -webkit-text-size-adjust: 100%;\n  font-size: 125%;\n}\n\n.icon {\n  background-repeat: no-repeat;\n  background-size: 100%;\n}\n\n@media (prefers-color-scheme: dark) {\n  body {\n    --background-color: var(--google-gray-900);\n    --error-code-color: var(--google-gray-500);\n    --heading-color: var(--google-gray-500);\n    --link-color:\n...[trimmed 248082 chars]",
+            "stderr": "[1:35:0707/040745.938843:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory\n[1:35:0707/040745.945910:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[1:35:0707/040745.946201:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory\n[1:35:0707/040745.946397:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory\n[1:35:0707/040746.010417:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[1:35:0707/040746.098635:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[1:35:0707/040746.116976:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[1:1:0707/040746.307750:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: \n[1:35:0707/040746.307895:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[1:1:0707/040746.308870:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: \n[1:1:0707/040746.317029:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: \n[1:1:0707/040746.319009:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: \n[1:35:0707/040746.319134:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are \"tcp\" and on UNIX \"unix\")\n[1:35:0707/040746.405149:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory\n[1:1:0707/040746.405193:ERROR:dbus/object_proxy.cc:572] \n...[trimmed 1716 chars]"
+          },
+          "proxy_logs": {
+            "returncode": 0,
+            "stdout": "{\"event\": \"egress_proxy_started\", \"allowed_domains\": [\"sandbox-allow.test\"]}\n{\"time\": \"2026-07-07 04:07:42\", \"method\": \"GET\", \"url\": \"http://clients2.google.com/time/1/current?cup2key=10:zHQ1PrilXqcxsemlBwKUlpfhpUOP5dELQuXcysMc1CI&cup2hreq=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\", \"host\": \"clients2.google.com\", \"allowed\": false, \"status\": 403}\n{\"time\": \"2026-07-07 04:07:42\", \"method\": \"CONNECT\", \"url\": \"accounts.google.com:443\", \"host\": \"accounts.google.com\", \"allowed\": false, \"status\": 403, \"note\": \"CONNECT tunneling is intentionally disabled in this minimal validation proxy.\"}\n{\"time\": \"2026-07-07 04:07:42\", \"method\": \"CONNECT\", \"url\": \"www.google.com:443\", \"host\": \"www.google.com\", \"allowed\": false, \"status\": 403, \"note\": \"CONNECT tunneling is intentionally disabled in this minimal validation proxy.\"}\n{\"time\": \"2026-07-07 04:07:42\", \"method\": \"CONNECT\", \"url\": \"www.google.com:443\", \"host\": \"www.google.com\", \"allowed\": false, \"status\": 403, \"note\": \"CONNECT tunneling is intentionally disabled in this minimal validation proxy.\"}\n{\"time\": \"2026-07-07 04:07:42\", \"method\": \"CONNECT\", \"url\": \"www.google.com:443\", \"host\": \"www.google.com\", \"allowed\": false, \"status\": 403, \"note\": \"CONNECT tunneling is intentionally disabled in this minimal validation proxy.\"}\n{\"time\": \"2026-07-07 04:07:42\", \"method\": \"GET\", \"url\": \"http://sandbox-allow.test/\", \"host\": \"sandbox-allow.test\", \"allowed\": true, \"status\": 200, \"duration_ms\": 0, \"source\": \"local_test_page\"}\n{\"time\": \"2026-07-07 04:07:42\", \"method\": \"CONNECT\", \"url\": \"www.google.com:443\", \"host\": \"www.google.com\", \"allowed\": false, \"status\": 403, \"note\": \"CONNECT tunneling is intentionally disabled in this minimal validation proxy.\"}\n{\"time\": \"2026-07-07 04:07:42\", \"method\": \"GET\", \"url\": \"http://sandbox-allow.test/favicon.ico\", \"host\": \"sandbox-allow.test\", \"allowed\": true, \"status\": 200, \"duration_ms\": 0, \"source\": \"local_test_page\"}\n{\"time\": \"2026-07-07 04:07:42\", \"method\": \"CONNECT\", \"url\": \"www.google.com:443\", \"host\": \"www.google.com\", \"allowed\": false, \"status\": 403, \"note\": \"CONNECT tunneling is intentionally disabled in this minimal validation proxy.\"}\n{\"time\": \"2026-07-07 04:07:44\", \"method\": \"GET\", \"url\": \"http://clients2.google.com/time/1/current?cup2key=10:DgK_blUahNtVTRCOx3pPGZyIHTI-NheZ7Kue45UkiFc&cup2hreq=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\", \"host\": \"clients2.google.com\", \"allowed\": false, \"status\": 403}\n{\"time\": \"2026-07-07 04:07:44\", \"method\": \"CONNECT\", \"url\": \"accounts.google.com:443\", \"host\": \"accounts.google.com\", \"allowed\": false, \"status\": 403, \"note\": \"CONNECT tunneling is intentionally disabled in this minimal validation proxy.\"}\n{\"time\": \"2026-07-07 04:07:44\", \"method\": \"CONNECT\", \"url\": \"www.google.com:443\", \"host\": \"www.google.com\", \"allowed\": false, \"status\": 403, \"note\": \"CONNECT tunneling is intentionally disabled in this minimal validation proxy.\"}\n{\"time\": \"2026-07-07 04:07:44\", \"method\": \"CONNECT\", \"url\": \"www.google.com:443\", \"host\": \"www.google.com\", \"allowed\": false, \"status\": 403, \"note\": \"CONNECT tunneling is intentionally disabled in this minimal validation proxy.\"}\n{\"time\": \"2026-07-07 04:07:44\", \"method\": \"GET\", \"url\": \"http://sandbox-blocked.test/\", \"host\": \"sandbox-blocked.test\", \"allowed\": false, \"status\": 403}\n{\"time\": \"2026-07-07 04:07:44\", \"method\": \"CONNECT\", \"url\": \"www.google.com:443\", \"host\": \"www.google.com\", \"allowed\": false, \"status\": 403, \"note\": \"CONNECT tunneling is intentionally disabled in this minimal validation proxy.\"}\n{\"time\": \"2026-07-07 04:07:44\", \"method\": \"GET\", \"url\": \"http://sandbox-blocked.test/favicon.ico\", \"host\": \"sandbox-blocked.test\", \"allowed\": false, \"status\": 403}\n{\"time\": \"2026-07-07 04:07:44\", \"method\": \"CONNECT\", \"url\": \"www.google.com:443\", \"host\": \"www.google.com\", \"allowed\": false, \"status\": 403, \"note\": \"CONNECT tunneling is intentionally disabled in this minimal validation proxy.\"}",
+            "stderr": ""
+          }
+        }
+      },
+      {
+        "id": "permission_denial",
+        "title": "权限不足前置拦截",
+        "claim": "没有权限的角色不会正常执行敏感场景。",
+        "expected": "sales-user 执行发票核销被拦截，缺少 receipt:read。",
+        "status": "passed",
+        "detail": "Permission denial path worked.",
+        "command": "POST /api/tasks scenario=s04_invoice_matching actor=sales-user",
+        "evidence": {
+          "task_id": "c9f2e52bae4b",
+          "status": "failed",
+          "executor": "DockerTemplateExecutor",
+          "error": {
+            "error": "missing permissions: invoice:read, receipt:read"
+          },
+          "security_compliance": {
+            "allowed": false,
+            "required_permissions": [
+              "invoice:read",
+              "receipt:read"
+            ],
+            "missing_permissions": [
+              "invoice:read",
+              "receipt:read"
+            ],
+            "egress_policy": "deny_by_default_allow_mock_internal",
+            "sensitive_data_policy": "mask_secrets_and_keep_audit"
+          }
+        }
+      },
+      {
+        "id": "credential_injection",
+        "title": "凭据注入不暴露明文",
+        "claim": "安全合规侧持有明文凭据，任务容器只拿到短期句柄，不能从环境变量、命令行或挂载目录读到明文密钥。",
+        "expected": "任务容器可以通过 broker 使用凭据能力，但输出、环境、命令行和文件扫描都不包含明文密钥。",
+        "status": "passed",
+        "detail": "Credential handle was usable through the broker while plaintext secret stayed out of task env/cmdline/files/output and broker audit was recorded.",
+        "command": "/usr/bin/docker network create --internal agent-cred-97af5be7\n/usr/bin/docker run -d --rm --name agent-cred-broker-97af5be7 --network agent-cred-97af5be7 --network-alias agent-credential-broker -v /home/nlp/刘卓/执行沙箱:/app:ro -w /app agent-sandbox-python:3.10-local python backend/credential_broker.py --handle handle-70aa0e1962fb4fdfbe5186d42055c412 --secret [REDACTED_SECRET]\n/usr/bin/docker run --rm --network agent-cred-97af5be7 --read-only --tmpfs /tmp:rw,noexec,nosuid,size=32m -v /home/nlp/刘卓/执行沙箱:/app:ro -w /app -e CREDENTIAL_HANDLE=handle-70aa0e1962fb4fdfbe5186d42055c412 -e CREDENTIAL_BROKER_URL=http://agent-credential-broker:18081 agent-sandbox-python:3.10-local python -c \nimport json\nimport os\nimport pathlib\nimport urllib.request\n\nhandle = os.environ[\"CREDENTIAL_HANDLE\"]\nbroker_url = os.environ[\"CREDENTIAL_BROKER_URL\"]\nenv_dump = \"\\n\".join(f\"{k}={v}\" for k, v in os.environ.items())\ncmdline_dump = pathlib.Path(\"/proc/self/cmdline\").read_text(errors=\"replace\")\napp_files_scanned = 0\napp_files_read_errors = 0\nfor path in pathlib.Path(\"/app\").rglob(\"*\"):\n    if path.is_file() and path.stat().st_size <= 200000:\n        app_files_scanned += 1\nscan = {\n    \"env_dump\": env_dump,\n    \"cmdline_dump\": cmdline_dump,\n    \"app_files_scanned\": app_files_scanned,\n    \"app_files_read_errors\": app_files_read_errors,\n}\nwith urllib.request.urlopen(f\"{broker_url}/use?handle={handle}\", timeout=8) as response:\n    broker_response = json.loads(response.read().decode(\"utf-8\"))\nprint(json.dumps({\"scan\": scan, \"broker_response\": broker_response}, ensure_ascii=False))\n\n/usr/bin/docker logs agent-cred-broker-97af5be7",
+        "evidence": {
+          "network": "agent-cred-97af5be7",
+          "broker_container": "agent-cred-broker-97af5be7",
+          "credential_handle": "handle-70aa0e1962fb4fdfbe5186d42055c412",
+          "secret_policy": "plaintext secret is kept in broker container only; task container receives handle only",
+          "create_network": {
+            "returncode": 0,
+            "stdout": "e328d826bec01032cba6f9db62a69ebb2f0747c357c0aeaf4dc9d1438d1e5fb5",
+            "stderr": ""
+          },
+          "start_broker": {
+            "returncode": 0,
+            "stdout": "0f90b35450d6ce482b14e6a952dacdf953b13df6a0abb640c7f3ecd5f01f0c0e",
+            "stderr": ""
+          },
+          "task_probe": {
+            "returncode": 0,
+            "stdout": "{\"scan\": {\"env_dump\": \"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\\nHOSTNAME=821ba103e955\\nCREDENTIAL_HANDLE=handle-70aa0e1962fb4fdfbe5186d42055c412\\nCREDENTIAL_BROKER_URL=http://agent-credential-broker:18081\\nHOME=/root\\nLC_CTYPE=C.UTF-8\", \"cmdline_dump\": \"python\\u0000-c\\u0000\\nimport json\\nimport os\\nimport pathlib\\nimport urllib.request\\n\\nhandle = os.environ[\\\"CREDENTIAL_HANDLE\\\"]\\nbroker_url = os.environ[\\\"CREDENTIAL_BROKER_URL\\\"]\\nenv_dump = \\\"\\\\n\\\".join(f\\\"{k}={v}\\\" for k, v in os.environ.items())\\ncmdline_dump = pathlib.Path(\\\"/proc/self/cmdline\\\").read_text(errors=\\\"replace\\\")\\napp_files_scanned = 0\\napp_files_read_errors = 0\\nfor path in pathlib.Path(\\\"/app\\\").rglob(\\\"*\\\"):\\n    if path.is_file() and path.stat().st_size <= 200000:\\n        app_files_scanned += 1\\nscan = {\\n    \\\"env_dump\\\": env_dump,\\n    \\\"cmdline_dump\\\": cmdline_dump,\\n    \\\"app_files_scanned\\\": app_files_scanned,\\n    \\\"app_files_read_errors\\\": app_files_read_errors,\\n}\\nwith urllib.request.urlopen(f\\\"{broker_url}/use?handle={handle}\\\", timeout=8) as response:\\n    broker_response = json.loads(response.read().decode(\\\"utf-8\\\"))\\nprint(json.dumps({\\\"scan\\\": scan, \\\"broker_response\\\": broker_response}, ensure_ascii=False))\\n\\u0000\", \"app_files_scanned\": 307, \"app_files_read_errors\": 0}, \"broker_response\": {\"ok\": true, \"credential_result\": \"authorized\", \"secret_sha256_prefix\": \"4433c41a96af31b9\", \"masked_secret\": \"vau***b48\", \"plaintext_secret\": null}}",
+            "stderr": ""
+          },
+          "broker_logs": {
+            "returncode": 0,
+            "stdout": "{\"event\": \"credential_broker_started\", \"handle\": \"handle-70aa0e1962fb4fdfbe5186d42055c412\", \"secret_loaded\": true}\n{\"status\": 200, \"ok\": true, \"credential_result\": \"authorized\", \"secret_sha256_prefix\": \"4433c41a96af31b9\", \"masked_secret\": \"vau***b48\", \"plaintext_secret\": null}",
+            "stderr": ""
+          },
+          "leak_checks": {
+            "env_contains_plaintext_secret": false,
+            "cmdline_contains_plaintext_secret": false,
+            "project_files_contain_plaintext_secret": false,
+            "output_contains_plaintext_secret": false,
+            "broker_returned_plaintext_secret": false,
+            "app_files_scanned_by_task": 307
+          }
+        }
+      },
+      {
+        "id": "e2b_like_adapter",
+        "title": "E2B-like Docker 适配器",
+        "claim": "在不依赖 Cube 的情况下，提供 create/run/query/destroy 形态的沙箱会话接口，底层仍由 Docker 沙箱执行。",
+        "expected": "能创建会话、运行一个 Docker 沙箱任务、查询会话任务记录，并销毁会话。",
+        "status": "passed",
+        "detail": "E2B-like adapter created a Docker sandbox session, ran a scenario task, exposed session evidence, and destroyed the session.",
+        "command": "GET /api/e2b/capability\nPOST /api/e2b/sandboxes\nPOST /api/e2b/sandboxes/{sandbox_id}/run\nGET /api/e2b/sandboxes/{sandbox_id}\nPOST /api/e2b/sandboxes/{sandbox_id}/destroy",
+        "evidence": {
+          "capability": {
+            "adapter": "DockerE2BAdapter",
+            "compatibility": "e2b_like_not_full_sdk",
+            "runtime": "docker",
+            "executor": {
+              "name": "DockerTemplateExecutor",
+              "available": true,
+              "server_version": "26.1.3",
+              "image": "agent-sandbox-python:3.10-local"
+            },
+            "supported_operations": [
+              "create_sandbox",
+              "run_template",
+              "get_sandbox",
+              "destroy_sandbox"
+            ],
+            "notes": [
+              "Backed by DockerTemplateExecutor, not Cube native E2B.",
+              "Current adapter runs registered scenario templates and returns task evidence.",
+              "Full arbitrary-code E2B SDK compatibility is a future enhancement."
+            ]
+          },
+          "session": {
+            "id": "sbx_8f4dd9492f28",
+            "status": "running",
+            "runtime": "docker",
+            "adapter": "DockerE2BAdapter",
+            "created_at": "2026-07-07 12:07:50",
+            "destroyed_at": null,
+            "actor": "sales-user",
+            "agent": "e2b-like-verification-agent",
+            "limits": {
+              "timeout_seconds": 10,
+              "memory_mb": 512,
+              "cpu_cores": 1.0
+            },
+            "tasks": [],
+            "metadata": {
+              "purpose": "verification"
+            }
+          },
+          "run": {
+            "task_id": "462148782b3d",
+            "scenario_id": "s19_over_stock_warning",
+            "status": "success",
+            "created_at": "2026-07-07 12:07:50",
+            "finished_at": "2026-07-07 12:07:51",
+            "executor": "DockerTemplateExecutor"
+          },
+          "task_status": "success",
+          "task_executor": "DockerTemplateExecutor",
+          "task_result": {
+            "payload": {
+              "inventory": 50.0,
+              "total_order_qty": 90.0,
+              "over_qty": 40.0,
+              "status": "warning",
+              "orders": [
+                {
+                  "department": "销售一部",
+                  "qty": 30
+                },
+                {
+                  "department": "销售二部",
+                  "qty": 30
+                },
+                {
+                  "department": "销售三部",
+                  "qty": 30
+                }
+              ]
+            },
+            "files": [
+              "/results/over_stock_warning.json",
+              "/results/over_stock_warning_summary.csv"
+            ],
+            "sandbox_runtime": {
+              "executor": "DockerTemplateExecutor",
+              "isolation": "docker_container",
+              "image": "agent-sandbox-python:3.10-local",
+              "network": "none",
+              "read_only_rootfs": true,
+              "memory_mb": 512,
+              "cpu_cores": "1.0"
+            }
+          },
+          "queried_session": {
+            "id": "sbx_8f4dd9492f28",
+            "status": "running",
+            "runtime": "docker",
+            "adapter": "DockerE2BAdapter",
+            "created_at": "2026-07-07 12:07:50",
+            "destroyed_at": null,
+            "actor": "sales-user",
+            "agent": "e2b-like-verification-agent",
+            "limits": {
+              "timeout_seconds": 10,
+              "memory_mb": 512,
+              "cpu_cores": 1.0
+            },
+            "tasks": [
+              {
+                "task_id": "462148782b3d",
+                "scenario_id": "s19_over_stock_warning",
+                "status": "success",
+                "created_at": "2026-07-07 12:07:50",
+                "finished_at": "2026-07-07 12:07:51",
+                "executor": "DockerTemplateExecutor"
+              }
+            ],
+            "metadata": {
+              "purpose": "verification"
+            }
+          },
+          "destroyed_session": {
+            "id": "sbx_8f4dd9492f28",
+            "status": "destroyed",
+            "runtime": "docker",
+            "adapter": "DockerE2BAdapter",
+            "created_at": "2026-07-07 12:07:50",
+            "destroyed_at": "2026-07-07 12:07:51",
+            "actor": "sales-user",
+            "agent": "e2b-like-verification-agent",
+            "limits": {
+              "timeout_seconds": 10,
+              "memory_mb": 512,
+              "cpu_cores": 1.0
+            },
+            "tasks": [
+              {
+                "task_id": "462148782b3d",
+                "scenario_id": "s19_over_stock_warning",
+                "status": "success",
+                "created_at": "2026-07-07 12:07:50",
+                "finished_at": "2026-07-07 12:07:51",
+                "executor": "DockerTemplateExecutor"
+              }
+            ],
+            "metadata": {
+              "purpose": "verification"
+            }
+          }
+        }
+      },
+      {
+        "id": "hanhe_role_scenario_e2e",
+        "title": "汉和岗位场景端到端证明",
+        "claim": "用销售/供应链真实岗位场景证明本 L1 沙箱模块能承接任务、隔离执行、输出结果、记录权限/成本/审计证据。",
+        "expected": "sales-user 运行跨部门超库存预警成功，输出 90 吨订单、50 吨库存、超 40 吨预警，并保留 Docker 与平台链路证据。",
+        "status": "passed",
+        "detail": "Hanhe sales/supply-chain over-stock scenario proved the full module chain end to end.",
+        "command": "POST /api/tasks scenario=s19_over_stock_warning actor=sales-user",
+        "evidence": {
+          "task_id": "3265790ed24c",
+          "scenario": "跨部门同时下单超库存预警",
+          "actor": "sales-user",
+          "role": "销售员",
+          "department": "销售部",
+          "required_permissions": [
+            "inventory:read",
+            "order:read"
+          ],
+          "missing_permissions": [],
+          "business_result": {
+            "inventory": 50.0,
+            "total_order_qty": 90.0,
+            "over_qty": 40.0,
+            "status": "warning",
+            "orders": [
+              {
+                "department": "销售一部",
+                "qty": 30
+              },
+              {
+                "department": "销售二部",
+                "qty": 30
+              },
+              {
+                "department": "销售三部",
+                "qty": 30
+              }
+            ]
+          },
+          "runtime": {
+            "executor": "DockerTemplateExecutor",
+            "isolation": "docker_container",
+            "image": "agent-sandbox-python:3.10-local",
+            "network": "none",
+            "read_only_rootfs": true,
+            "memory_mb": 512,
+            "cpu_cores": "1.0"
+          },
+          "cost": {
+            "meter": "mock_cost_control",
+            "duration_ms": 565,
+            "memory_mb": 512,
+            "cpu_cores": 1.0,
+            "cost_units": 0.57
+          },
+          "audit_event_count": 2,
+          "lifecycle_events": [
+            "sandbox.requested",
+            "account.resolved",
+            "security.precheck",
+            "sandbox.created",
+            "sandbox.policy_attached",
+            "mock.data_loaded",
+            "sandbox.result_collected",
+            "sandbox.destroyed",
+            "cost.reported"
+          ]
+        }
+      },
+      {
+        "id": "hanhe_finance_invoice_e2e",
+        "title": "汉和财务发票核销端到端证明",
+        "claim": "用财务岗位场景证明沙箱能接收 ERP 发票/入库单数据，在 Docker 内完成核销匹配，并留下权限、成本和审计证据。",
+        "expected": "demo-user 运行发票核销成功，至少一张发票匹配、一张发票异常，并保留 Docker 与平台链路证据。",
+        "status": "passed",
+        "detail": "Hanhe finance invoice matching scenario proved Docker execution with account, permission, mock ERP, cost, and audit evidence.",
+        "command": "POST /api/tasks scenario=s04_invoice_matching actor=demo-user",
+        "evidence": {
+          "task_id": "ad06768460ee",
+          "scenario": "发票核销（真伪+入库单匹配）",
+          "actor": "demo-user",
+          "role": "财务会计",
+          "department": "财务部",
+          "required_permissions": [
+            "invoice:read",
+            "receipt:read"
+          ],
+          "missing_permissions": [],
+          "business_result": {
+            "matches": [
+              {
+                "invoice_no": "INV001",
+                "supplier": "供应商A",
+                "matched_receipt": "IN001",
+                "status": "matched",
+                "message": "金额和供应商匹配"
+              },
+              {
+                "invoice_no": "INV002",
+                "supplier": "供应商B",
+                "matched_receipt": null,
+                "status": "exception",
+                "message": "未找到金额一致的入库单"
+              }
+            ]
+          },
+          "runtime": {
+            "executor": "DockerTemplateExecutor",
+            "isolation": "docker_container",
+            "image": "agent-sandbox-python:3.10-local",
+            "network": "none",
+            "read_only_rootfs": true,
+            "memory_mb": 512,
+            "cpu_cores": "1.0"
+          },
+          "cost": {
+            "meter": "mock_cost_control",
+            "duration_ms": 602,
+            "memory_mb": 512,
+            "cpu_cores": 1.0,
+            "cost_units": 0.607
+          },
+          "audit_event_count": 2,
+          "lifecycle_events": [
+            "sandbox.requested",
+            "account.resolved",
+            "security.precheck",
+            "sandbox.created",
+            "sandbox.policy_attached",
+            "mock.data_loaded",
+            "sandbox.result_collected",
+            "sandbox.destroyed",
+            "cost.reported"
+          ]
+        }
+      },
+      {
+        "id": "hanhe_purchase_plan_e2e",
+        "title": "汉和采购计划端到端证明",
+        "claim": "用采购计划场景证明沙箱能接收历史采购和库存数据，在 Docker 内计算预测需求和建议采购量。",
+        "expected": "demo-user 运行采购计划分析成功，输出预测需求和大于 0 的建议采购量，并保留 Docker 与平台链路证据。",
+        "status": "passed",
+        "detail": "Hanhe purchase-plan scenario proved Docker execution with mock ERP purchase data, permissions, cost, and audit evidence.",
+        "command": "POST /api/tasks scenario=s20_purchase_plan actor=demo-user",
+        "evidence": {
+          "task_id": "099800edec89",
+          "scenario": "采购计划分析+历史数据对比+未来需求预测",
+          "actor": "demo-user",
+          "role": "财务会计",
+          "department": "财务部",
+          "required_permissions": [
+            "purchase:read",
+            "inventory:read"
+          ],
+          "missing_permissions": [],
+          "business_result": {
+            "forecast_demand": 153.05,
+            "current_stock": 60.0,
+            "suggested_purchase": 93.05
+          },
+          "runtime": {
+            "executor": "DockerTemplateExecutor",
+            "isolation": "docker_container",
+            "image": "agent-sandbox-python:3.10-local",
+            "network": "none",
+            "read_only_rootfs": true,
+            "memory_mb": 512,
+            "cpu_cores": "1.0"
+          },
+          "cost": {
+            "meter": "mock_cost_control",
+            "duration_ms": 593,
+            "memory_mb": 512,
+            "cpu_cores": 1.0,
+            "cost_units": 0.598
+          },
+          "audit_event_count": 2,
+          "lifecycle_events": [
+            "sandbox.requested",
+            "account.resolved",
+            "security.precheck",
+            "sandbox.created",
+            "sandbox.policy_attached",
+            "mock.data_loaded",
+            "sandbox.result_collected",
+            "sandbox.destroyed",
+            "cost.reported"
+          ]
+        }
+      }
+    ]
+  }
+}

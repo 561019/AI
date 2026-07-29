@@ -1,0 +1,66 @@
+模块名称：文档表格解析引擎（L2 通用文档解析能力）
+负责人：【发送前请填写姓名】
+
+一、我提供给其他模块的能力：
+1. 接收原始文件或文件引用，解析 PDF、DOCX、PPTX、XLS/XLSX/XLSM、CSV/TSV、Markdown、JSON、PNG/JPG/GIF/BMP/TIFF/WebP；图片和扫描件通过 OCR 提取文字、表格、页码、坐标及置信度。
+2. 将解析结果清洗并生成 standard-document/v1 标准文档包，包括 document.md、blocks.jsonl、layout.json、manifest.json、页面预览、提取图片及表格 JSON/Parquet，供后续知识库分块模块使用；本模块不生成 Chunk。
+3. 将原件和标准文档包写入 MinIO/S3，将任务状态、解析结果、人工复核记录和文档包登记写入 PostgreSQL，并提供状态、结果、原件和文档包读取接口。
+
+二、我提供的接口：
+接口1：平台文档解析任务派发
+- 路径：POST /v1/platform/document-parse
+- 方法：POST
+- 输入：标准任务信封，包含 trace_id、request_id、source、target、actor、workflow_instance_id、node_id、task_id、artifact_refs、idempotency_key、deadline_at、confidence_threshold；artifact_ref需包含storage_key、original_name、version、data_labels及read权限。
+- 输出：HTTP 202，reply_type=accepted，返回job_id、任务状态和状态查询地址。
+- 错误情况：403当前人员无data.read/document.parse权限；422任务信封、文件引用或文件类型不合法；500数据库、对象存储或解析服务异常。
+
+接口2：平台任务状态和结果查询
+- 路径：GET /v1/platform/document-parse/{job_id}
+- 方法：GET
+- 输入：job_id；请求头X-Actor-ID。
+- 输出：处理中返回accepted；成功返回success、result_ref、standard_document对象前缀/Manifest/blocks/layout引用及review_required；失败返回failed、错误码和retryable。
+- 错误情况：403无权查询；404任务不存在；409任务不是通过平台信封创建；500内部异常。
+
+接口3：标准文档包读取
+- 路径：GET /v1/jobs/{job_id}/standard-document/{asset_path}；GET /v1/jobs/{job_id}/standard-document.zip
+- 方法：GET
+- 输入：job_id、包内相对路径、请求头X-Actor-ID。
+- 输出：返回manifest.json、document.md、blocks.jsonl、layout.json、表格/图片资源，或完整ZIP包。
+- 错误情况：400非法资源路径；403无artifact.read权限；404任务、文档包或资源不存在。
+
+三、我需要调用哪些模块：
+1. 需要调用模块：L1数据/对象存储服务
+   - 调用目的：根据artifact_ref读取原件，保存标准文档包，并向后续分块模块返回资源引用。
+   - 需要对方提供什么接口：data.read、对象上传/下载、artifact_ref、对象版本和权限标签协议。
+   - 当前是否已mock：是，当前使用Docker MinIO（S3兼容）。
+2. 需要调用模块：L1.8权限中心
+   - 调用目的：校验document.parse、data.read、artifact.read、human.approve等操作权限。
+   - 需要对方提供什么接口：输入person_id、action、business_tags/data_labels，输出allowed和reason的权限判定接口。
+   - 当前是否已mock：是，当前使用ALLOW_DEMO_ACTOR静态演示权限；已预留PERMISSION_API_URL。
+3. 需要调用模块：硅基流动OCR服务
+   - 调用目的：对图片、扫描件和PDF页面调用PaddlePaddle/PaddleOCR-VL-1.5。
+   - 需要对方提供什么接口：OpenAI兼容/v1/chat/completions、模型可用性、API Key、限流和计费规则。
+   - 当前是否已mock：自动化测试使用MockTransport；实际运行通过SILICONFLOW_API_KEY调用硅基流动，本地不部署模型。
+4. 需要调用模块：L2流程执行引擎
+   - 调用目的：接收task.dispatch任务并返回任务受理、状态和标准文档包引用。
+   - 需要对方提供什么接口：统一任务信封、幂等键、状态查询和flow.callback规范。
+   - 当前是否已mock：部分mock；派发和查询接口已实现，主动flow.callback尚未启用。
+
+四、当前mock的内容：
+1. 权限中心使用静态演示人员权限，正式环境通过PERMISSION_API_URL替换。
+2. OCR直接使用硅基流动PaddlePaddle/PaddleOCR-VL-1.5；密钥仅由部署环境注入，不写入任务和结果。
+3. 数据层使用Docker PostgreSQL和MinIO；正式环境的对象存储地址、凭证和数据库连接由平台配置替换。
+
+五、后续联调风险：
+1. artifact_ref、任务信封、权限action、业务标签、标准文档包引用字段需要尽快冻结，否则上下游字段可能不一致。
+2. PDF/PPT页面预览目前未内置独立渲染器；正文、blocks、layout和表格能够生成，预览缺失会写入manifest.warnings。
+3. PDF按页调用远程OCR，成本、吞吐和可用性受硅基流动账户额度及Rate Limits影响；当前已提供超时、429/5xx重试和页数限制。
+4. 当前结果以轮询查询为主，flow.callback主动回调、生产权限中心及生产对象存储仍需联调。
+
+六、联调前我能保证什么：
+1. 本模块能独立启动：能。提供后端专用Dockerfile和docker-compose.integration.yml，可启动API、Worker、PostgreSQL和MinIO；无需本地PaddleOCR和GPU，但OCR需要SILICONFLOW_API_KEY及外网连接。
+2. 本模块有测试数据：有。examples目录包含CSV和图片/OCR sidecar样例。
+3. 本模块有测试结果截图：本轮不提供，按通知前端和工作汇报暂不需要；核心联调包提供自动化测试代码及12项通过结果。
+4. 本模块有接口文档：有。包括平台解析接口说明和standard-document/v1标准文档包规范。
+5. 本模块有mock数据：有。包括硅基流动HTTP响应、静态权限、MinIO/PostgreSQL及OCR sidecar样例。
+6. 本模块有README：有。联调交付包根目录提供README_联调说明.md。

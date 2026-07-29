@@ -1,0 +1,2 @@
+-- approvals.approval_type is added idempotently in audit.EnsureSchema because
+-- embedded migrations are replayed on every startup in local/dev SQLite.

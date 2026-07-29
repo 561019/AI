@@ -1,0 +1,6 @@
+module,owns,authoritative_storage,exposed_interfaces,must_not_do
+casdoor,实名账号|OIDC登录|账号基础状态,Casdoor users,/login|OIDC callback,计算业务权限|写权限决策
+account_gateway,JWT签发校验|账号生命周期|凭证|数字员工身份|breakglass|兼容适配|通用审计,account gateway SQLite|Casdoor,/auth/validate|/api/accounts|/api/credentials|/api/digital-employees|/api/breakglass|管理代理,remote模式存储权限事实|权限服务故障时本地放行
+permission_gateway,账号档案镜像|岗位任职|管理树|岗位标配|转授|制度规则|服务规则|数据登记|实时决策|权限审计,permission SQLite,/api/permission/check|/api/permission/audits|/api/org/*|/api/permissions/*,签发JWT|管理账号凭证|管理数字员工token|改变breakglass状态
+business_service,资源内容|业务动作执行|执行结果,业务数据库,业务API,复制权限规则|绕过运行期检查
+data_platform,数据真实存在性|存储位置|数据内容|数据状态来源,数据平台数据库,数据目录和执行API,用本地名单代替权限服务决策

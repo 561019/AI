@@ -1,0 +1,139 @@
+services:
+  ownership-mock:
+    image: python:3.13-alpine
+    working_dir: /app
+    command: ["python", "tests/mocks/mock_server.py", "--ports", "9101"]
+    volumes:
+      - .:/app:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9101/ownership/by_user/user_li', timeout=2).read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 2s
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: casdoor
+      MYSQL_DATABASE: casdoor
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-pcasdoor"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 15s
+
+  casdoor:
+    image: casbin/casdoor:v1.300.0
+    ports:
+      - "8000:8000"
+    environment:
+      RUNNING_IN_DOCKER: "true"
+    volumes:
+      - ./infra/casdoor/app.conf:/conf/app.conf:ro
+      - ./infra/casdoor/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./infra/casdoor/healthcheck.sh:/usr/local/bin/healthcheck.sh:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+
+  permission-gateway:
+    build:
+      context: ../permission-gateway
+      dockerfile: Dockerfile
+    environment:
+      PERMISSION_HOST: 0.0.0.0
+      PERMISSION_PORT: 8001
+      PERMISSION_DATABASE_URL: sqlite:////data/permission.sqlite3
+      PERMISSION_LOG_LEVEL: ${PERMISSION_LOG_LEVEL:-INFO}
+      PERMISSION_LOG_DIR: /app/logs
+      PERMISSION_TIMEZONE: Asia/Hong_Kong
+      PERMISSION_MECHANISM_SECRET: ${PERMISSION_MECHANISM_SECRET:-local-dev-permission-mechanism-secret}
+    ports:
+      - "${PERMISSION_PORT:-8001}:8001"
+    volumes:
+      - ./.e2e-data/permission:/data
+      - ./.e2e-data/permission-logs:/app/logs
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=2).read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  account-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      CASDOOR_URL: ${CASDOOR_URL:-http://casdoor:8000}
+      CASDOOR_MOCK_OIDC: "1"
+      OWNERSHIP_URL: ${OWNERSHIP_URL:-http://ownership-mock:9101}
+      GATEWAY_PORT: ${GATEWAY_PORT:-8080}
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+      CREDENTIALS_ENCRYPTION_KEY: ${CREDENTIALS_ENCRYPTION_KEY:-12345678901234567890123456789012}
+      AUDIT_DB_PATH: /data/audit.db
+      AUDIT_MODE: ${AUDIT_MODE:-sync}
+      AUTH_VALIDATE_TIMING: ${AUTH_VALIDATE_TIMING:-0}
+      SQLITE_JOURNAL_MODE: ${SQLITE_JOURNAL_MODE:-}
+      PERMISSION_MODE: ${PERMISSION_MODE:-remote}
+      PERMISSION_URL: ${PERMISSION_URL:-http://permission-gateway:8001}
+      PERMISSION_TIMEOUT_MS: ${PERMISSION_TIMEOUT_MS:-2000}
+      L1_INTERFACE_TARGET_SERVICE_SECRET: ${L1_INTERFACE_TARGET_SERVICE_SECRET:-local-dev-target-service-secret}
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    volumes:
+      - ./.e2e-data:/data
+    depends_on:
+      casdoor:
+        condition: service_healthy
+      ownership-mock:
+        condition: service_healthy
+      permission-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  l1-layer-interface:
+    build:
+      context: ../l1-layer-interface
+      dockerfile: Dockerfile
+    environment:
+      L1_INTERFACE_HOST: 0.0.0.0
+      L1_INTERFACE_PORT: 8002
+      L1_INTERFACE_SERVICE_SECRET: ${L1_INTERFACE_SERVICE_SECRET:-local-dev-l2-service-secret}
+      L1_INTERFACE_PERMISSION_URL: http://permission-gateway:8001
+      L1_INTERFACE_PERMISSION_MECHANISM_SECRET: ${PERMISSION_MECHANISM_SECRET:-local-dev-permission-mechanism-secret}
+      L1_INTERFACE_TARGET_SERVICE_SECRET: ${L1_INTERFACE_TARGET_SERVICE_SECRET:-local-dev-target-service-secret}
+      L1_INTERFACE_IDENTITY_CONTEXT_SECRET: ${JWT_SECRET:-change-me}
+      L1_INTERFACE_ACCOUNT_GATEWAY_URL: http://account-gateway:8080
+    ports:
+      - "${L1_INTERFACE_PORT:-8002}:8002"
+    depends_on:
+      permission-gateway:
+        condition: service_healthy
+      account-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health', timeout=2).read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+volumes:
+  casdoor-data:
+  mysql-data:

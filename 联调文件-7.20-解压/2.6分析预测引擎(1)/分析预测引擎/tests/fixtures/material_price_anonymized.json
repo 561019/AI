@@ -1,0 +1,12 @@
+{
+  "schema_version": "v1",
+  "trace_id": "scenario-price-001",
+  "analysis_type": "price_forecast",
+  "forecast_horizon": 2,
+  "records": [
+    {"date": "2026-01-01", "source_record_id": "anon-price-2026-01", "price": "10.00"},
+    {"date": "2026-02-01", "source_record_id": "anon-price-2026-02", "price": "12.00"},
+    {"date": "2026-03-01", "source_record_id": "anon-price-2026-03", "price": "14.00"},
+    {"date": "2026-04-01", "source_record_id": "anon-price-2026-04", "price": "16.00"}
+  ]
+}

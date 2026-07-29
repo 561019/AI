@@ -1,0 +1,24 @@
+{
+  "status": "success",
+  "trace_id": "trace-data-persist-demo-001",
+  "request_id": "req-data-persist-demo-001",
+  "task_id": "trace-data-persist-demo-001",
+  "data": {
+    "data_ref": "data-<generated-uuid>",
+    "business_type": "business_note",
+    "data_labels": ["business-data", "demo", "manual-test"],
+    "company_scope": ["TEST-A"],
+    "storage_class": "fixed",
+    "version": 1,
+    "business_context": {
+      "tenant_id": "tenant-demo",
+      "owner_account_id": "manager_all",
+      "project_id": "project-demo",
+      "conversation_id": "conversation-demo-001",
+      "object_id": "object-demo-001",
+      "workflow_instance_id": "workflow-demo-001"
+    },
+    "l1_location_ref": "local://l1.7/business_objects/data-<generated-uuid>/v1.json"
+  },
+  "error": null
+}

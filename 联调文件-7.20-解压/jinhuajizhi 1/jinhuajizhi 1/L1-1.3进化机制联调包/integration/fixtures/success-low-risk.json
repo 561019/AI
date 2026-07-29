@@ -1,0 +1,27 @@
+{
+  "context": {
+    "requestId": "REQ-INTEGRATION-LOW-001",
+    "actorId": "USER-INTEGRATION-001",
+    "actorType": "human",
+    "tenantId": "TENANT-INTEGRATION",
+    "subjectUserId": "USER-INTEGRATION-001",
+    "roles": [],
+    "sourceApp": "integration-test",
+    "idempotencyKey": "IDEMP-LOW-001"
+  },
+  "candidate": {
+    "evolutionPath": "PROMPT_EVOLUTION",
+    "scenarioId": "SCN-05",
+    "subjectUserId": "USER-INTEGRATION-001",
+    "scope": "PERSONAL",
+    "sourceRefs": ["MSG-INTEGRATION-001", "FILE-INTEGRATION-001"],
+    "evidence": [{"type": "human_feedback", "ref": "MSG-INTEGRATION-001"}],
+    "candidateVersion": {
+      "versionId": "VER-INTEGRATION-LOW-001",
+      "scenarioId": "SCN-05",
+      "skill": "企业文化活动智能策划",
+      "risk": "LOW",
+      "evidenceReady": true
+    }
+  }
+}

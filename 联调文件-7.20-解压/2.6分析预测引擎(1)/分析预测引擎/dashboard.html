@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>分析预测引擎 — 可视化仪表盘</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
+<style>
+/* ===== CSS Custom Properties (Reference Palette) ===== */
+:root {
+  --surface-1:      #fcfcfb;
+  --surface-page:   #f9f9f7;
+  --text-primary:   #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted:     #898781;
+  --gridline:       #e1e0d9;
+  --baseline:       #c3c2b7;
+  --border-ring:    rgba(11,11,11,0.10);
+
+  --series-1: #2a78d6;
+  --series-2: #008300;
+  --series-3: #e87ba4;
+  --series-4: #eda100;
+  --series-5: #1baf7a;
+  --series-6: #eb6834;
+  --series-7: #4a3aa7;
+  --series-8: #e34948;
+
+  --seq-100: #cde2fb; --seq-150: #b7d3f6; --seq-200: #9ec5f4;
+  --seq-250: #86b6ef; --seq-300: #6da7ec; --seq-350: #5598e7;
+  --seq-400: #3987e5; --seq-450: #2a78d6; --seq-500: #256abf;
+  --seq-550: #1c5cab; --seq-600: #184f95; --seq-650: #104281; --seq-700: #0d366b;
+
+  --status-good:     #0ca30c;
+  --status-warning:  #fab219;
+  --status-serious:  #ec835a;
+  --status-critical: #d03b3b;
+
+  --delta-up:   #006300;
+  --delta-down: #d03b3b;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-elevated: 0 4px 16px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --font-sans: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  --font-mono: "Cascadia Code", "Fira Code", "JetBrains Mono", "Consolas", monospace;
+}
+
+:root[data-theme="dark"] {
+  --surface-1:      #1a1a19;
+  --surface-page:   #0d0d0d;
+  --text-primary:   #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted:     #898781;
+  --gridline:       #2c2c2a;
+  --baseline:       #383835;
+  --border-ring:    rgba(255,255,255,0.10);
+
+  --series-1: #3987e5;
+  --series-2: #008300;
+  --series-3: #d55181;
+  --series-4: #c98500;
+  --series-5: #199e70;
+  --series-6: #d95926;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+
+  --seq-100: #0d366b; --seq-150: #104281; --seq-200: #184f95;
+  --seq-250: #1c5cab; --seq-300: #256abf; --seq-350: #2a78d6;
+  --seq-400: #3987e5; --seq-450: #5598e7; --seq-500: #6da7ec;
+  --seq-550: #86b6ef; --seq-600: #9ec5f4; --seq-650: #b7d3f6; --seq-700: #cde2fb;
+
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.20), 0 1px 2px rgba(0,0,0,0.12);
+  --shadow-elevated: 0 4px 16px rgba(0,0,0,0.32), 0 2px 4px rgba(0,0,0,0.16);
+}
+
+/* ===== Reset & Base ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; }
+body {
+  font-family: var(--font-sans);
+  background: var(--surface-page);
+  color: var(--text-primary);
+  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ===== Top Bar ===== */
+.topbar {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px; height: 56px;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--gridline);
+  box-shadow: var(--shadow-card);
+}
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+.topbar-logo {
+  font-size: 1.25rem; font-weight: 700; letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+.topbar-right { display: flex; align-items: center; gap: 16px; }
+
+.api-status {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.8rem; color: var(--text-secondary);
+}
+.api-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--status-serious);
+  transition: background 0.3s;
+}
+.api-dot.online { background: var(--status-good); }
+.api-dot.offline { background: var(--status-critical); }
+
+.theme-toggle {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 1px solid var(--border-ring); background: var(--surface-1);
+  cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center;
+  color: var(--text-secondary); transition: all 0.2s;
+}
+.theme-toggle:hover { background: var(--gridline); }
+
+/* ===== Tabs ===== */
+.tabs {
+  display: flex; gap: 0;
+  padding: 0 24px;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--gridline);
+}
+.tab-btn {
+  padding: 12px 20px; border: none; background: none; cursor: pointer;
+  font-family: var(--font-sans); font-size: 0.875rem; font-weight: 500;
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.15s;
+}
+.tab-btn:hover { color: var(--text-primary); }
+.tab-btn.active { color: var(--series-1); border-bottom-color: var(--series-1); }
+
+/* ===== Main Content ===== */
+.main {
+  display: flex; gap: 24px; padding: 24px; max-width: 1440px; margin: 0 auto;
+  min-height: calc(100vh - 56px - 49px);
+}
+.tab-panel { display: none; flex: 1; flex-direction: column; gap: 20px; }
+.tab-panel.active { display: flex; }
+
+/* ===== Sidebar Form ===== */
+.sidebar {
+  width: 380px; flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.card {
+  background: var(--surface-1); border-radius: var(--radius-md);
+  border: 1px solid var(--border-ring); box-shadow: var(--shadow-card);
+  padding: 20px;
+}
+.card-title {
+  font-size: 0.8rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 12px;
+}
+
+.form-group { margin-bottom: 12px; }
+.form-label {
+  display: block; font-size: 0.8rem; font-weight: 500;
+  color: var(--text-secondary); margin-bottom: 4px;
+}
+.form-textarea {
+  width: 100%; min-height: 200px; padding: 10px 12px;
+  font-family: var(--font-mono); font-size: 0.75rem; line-height: 1.5;
+  border: 1px solid var(--baseline); border-radius: var(--radius-sm);
+  background: var(--surface-page); color: var(--text-primary);
+  resize: vertical; tab-size: 2;
+  transition: border-color 0.2s;
+}
+.form-textarea:focus { outline: none; border-color: var(--series-1); box-shadow: 0 0 0 3px rgba(42,120,214,0.12); }
+.form-input {
+  width: 100%; padding: 8px 12px;
+  font-family: var(--font-mono); font-size: 0.8rem;
+  border: 1px solid var(--baseline); border-radius: var(--radius-sm);
+  background: var(--surface-page); color: var(--text-primary);
+  transition: border-color 0.2s;
+}
+.form-input:focus { outline: none; border-color: var(--series-1); box-shadow: 0 0 0 3px rgba(42,120,214,0.12); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px 16px; border-radius: var(--radius-sm); border: none; cursor: pointer;
+  font-family: var(--font-sans); font-size: 0.825rem; font-weight: 600;
+  transition: all 0.15s; white-space: nowrap;
+}
+.btn-primary { background: var(--series-1); color: #fff; }
+.btn-primary:hover { filter: brightness(1.1); }
+.btn-secondary { background: var(--surface-page); color: var(--text-primary); border: 1px solid var(--baseline); }
+.btn-secondary:hover { background: var(--gridline); }
+.btn-row { display: flex; gap: 8px; margin-top: 4px; }
+
+/* ===== Content Area ===== */
+.content { flex: 1; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.chart-card {
+  background: var(--surface-1); border-radius: var(--radius-md);
+  border: 1px solid var(--border-ring); box-shadow: var(--shadow-card);
+  padding: 20px;
+}
+.chart-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.chart-card-title { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
+.chart-box { width: 100%; height: 340px; }
+
+/* ===== Stat Tiles Row ===== */
+.stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.stat-tile {
+  background: var(--surface-1); border-radius: var(--radius-md);
+  border: 1px solid var(--border-ring); box-shadow: var(--shadow-card);
+  padding: 16px 20px; text-align: center;
+}
+.stat-label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; }
+.stat-value { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
+.stat-delta {
+  font-size: 0.8rem; font-weight: 600; margin-top: 2px;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+}
+.stat-delta.up { color: var(--delta-up); }
+.stat-delta.down { color: var(--delta-down); }
+.stat-delta.stable { color: var(--text-muted); }
+
+/* ===== Alert Cards ===== */
+.alert-list { display: flex; flex-direction: column; gap: 8px; }
+.alert-item {
+  display: flex; align-items: center; gap: 16px; padding: 12px 16px;
+  border-radius: var(--radius-sm); background: var(--surface-page);
+  border-left: 3px solid var(--status-warning);
+}
+.alert-item.critical { border-left-color: var(--status-critical); }
+.alert-metric { font-weight: 600; font-size: 0.85rem; min-width: 120px; }
+.alert-values { font-size: 0.8rem; color: var(--text-secondary); display: flex; gap: 16px; }
+.alert-excess { font-weight: 600; color: var(--status-critical); margin-left: auto; }
+
+/* ===== Hero Figure ===== */
+.hero-figure {
+  font-size: 3rem; font-weight: 700; line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.hero-label { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
+
+/* ===== Provenance Table ===== */
+.prov-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+.prov-table th, .prov-table td {
+  padding: 8px 12px; text-align: left;
+  border-bottom: 1px solid var(--gridline);
+}
+.prov-table th { font-weight: 600; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.prov-table td { color: var(--text-secondary); font-family: var(--font-mono); font-size: 0.7rem; }
+.prov-table tr:hover td { background: var(--surface-page); }
+
+/* ===== AI Narrative Card ===== */
+.narrative-card {
+  background: var(--surface-1); border-radius: var(--radius-md);
+  border: 1px solid var(--baseline); border-left: 4px solid var(--series-4);
+  box-shadow: var(--shadow-card); padding: 20px; position: relative;
+}
+.narrative-card.loading { border-left-color: var(--text-muted); }
+.narrative-card .narrate-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+}
+.narrative-card .narrate-title { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); }
+.narrative-card .narrate-body {
+  font-size: 0.875rem; line-height: 1.8; color: var(--text-primary); white-space: pre-line;
+}
+.narrative-card .narrate-disclaimer { font-size: 0.75rem; color: var(--text-muted); margin-top: 10px; font-style: italic; }
+.narrative-placeholder { color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 12px; }
+
+/* ===== Toast ===== */
+.toast {
+  position: fixed; bottom: 24px; right: 24px; z-index: 200;
+  padding: 12px 20px; border-radius: var(--radius-sm);
+  font-size: 0.825rem; font-weight: 500;
+  box-shadow: var(--shadow-elevated);
+  animation: toastIn 0.3s ease;
+  pointer-events: none;
+}
+.toast.success { background: var(--status-good); color: #fff; }
+.toast.error { background: var(--status-critical); color: #fff; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ===== Loading ===== */
+.loading-overlay {
+  position: absolute; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(252,252,251,0.7);
+  border-radius: var(--radius-md);
+}
+:root[data-theme="dark"] .loading-overlay { background: rgba(26,26,25,0.7); }
+.spinner {
+  width: 32px; height: 32px; border: 3px solid var(--baseline);
+  border-top-color: var(--series-1); border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== Responsive ===== */
+@media (max-width: 900px) {
+  .main { flex-direction: column; padding: 16px; }
+  .sidebar { width: 100%; }
+  .stat-row { grid-template-columns: repeat(2, 1fr); }
+  .chart-box { height: 260px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== Top Bar ===== -->
+<header class="topbar">
+  <div class="topbar-left">
+    <span class="topbar-logo">🔬 分析预测引擎</span>
+    <span style="font-size:0.75rem;color:var(--text-muted);">L2 同步分析计算接口 · 仅供决策参考</span>
+  </div>
+  <div class="topbar-right">
+    <div class="api-status">
+      <span class="api-dot" id="apiDot"></span>
+      <span id="apiStatusText">检测中…</span>
+    </div>
+    <button class="theme-toggle" id="themeToggle" title="切换明暗主题" aria-label="切换明暗主题">☀️</button>
+  </div>
+</header>
+
+<!-- ===== Tabs ===== -->
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="financial">📊 财务经营分析</button>
+  <button class="tab-btn" data-tab="price">📈 原料价格预测</button>
+  <button class="tab-btn" data-tab="business">💼 经营指标分析</button>
+</nav>
+
+<!-- ===== Main ===== -->
+<main class="main">
+
+  <!-- ========== TAB 1: Financial Statement ========== -->
+  <section class="tab-panel active" id="tab-financial">
+    <div class="sidebar">
+      <div class="card">
+        <div class="card-title">📋 请求参数</div>
+        <div class="form-group">
+          <label class="form-label">API 端点</label>
+          <input class="form-input" value="POST /v1/analysis-jobs/evaluate" readonly style="color:var(--text-muted);">
+        </div>
+        <div class="form-group">
+          <label class="form-label">分析类型</label>
+          <input class="form-input" value="financial_statement" readonly style="color:var(--text-muted);">
+        </div>
+        <div class="form-group">
+          <label class="form-label">请求体 (JSON)</label>
+          <textarea class="form-textarea" id="finJson" spellcheck="false"></textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="finSampleBtn">📥 加载示例数据</button>
+          <button class="btn btn-primary" id="finSubmitBtn">▶ 提交分析</button>
+        </div>
+      </div>
+    </div>
+    <div class="content" id="finContent">
+      <div class="chart-card">
+        <div class="chart-card-header"><span class="chart-card-title">指标趋势</span></div>
+        <div class="chart-box" id="finTrendChart"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-header"><span class="chart-card-title">同比 / 环比变化</span></div>
+        <div class="chart-box" id="finPopYoyChart"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-header"><span class="chart-card-title">杜邦分析分解</span></div>
+        <div class="chart-box" id="finDupontChart"></div>
+      </div>
+      <div class="narrative-card" id="finNarrative" style="display:none;">
+        <div class="narrate-header">
+          <span class="narrate-title">🤖 AI 经营解读</span>
+          <button class="btn btn-secondary" onclick="requestNarrative('financial')" style="font-size:0.75rem;padding:4px 10px;">🔄 重新生成</button>
+        </div>
+        <div class="narrate-body" id="finNarrBody"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== TAB 2: Price Forecast ========== -->
+  <section class="tab-panel" id="tab-price">
+    <div class="sidebar">
+      <div class="card">
+        <div class="card-title">📋 请求参数</div>
+        <div class="form-group">
+          <label class="form-label">API 端点</label>
+          <input class="form-input" value="POST /v1/analysis-jobs/evaluate" readonly style="color:var(--text-muted);">
+        </div>
+        <div class="form-group">
+          <label class="form-label">分析类型</label>
+          <input class="form-input" value="price_forecast" readonly style="color:var(--text-muted);">
+        </div>
+        <div class="form-group">
+          <label class="form-label">预测月数 (1-24)</label>
+          <input class="form-input" id="priceHorizon" type="number" min="1" max="24" value="3">
+        </div>
+        <div class="form-group">
+          <label class="form-label">请求体 (JSON)</label>
+          <textarea class="form-textarea" id="priceJson" spellcheck="false"></textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="priceSampleBtn">📥 加载示例数据</button>
+          <button class="btn btn-primary" id="priceSubmitBtn">▶ 提交分析</button>
+        </div>
+      </div>
+    </div>
+    <div class="content" id="priceContent">
+      <div class="stat-row" id="priceStats"></div>
+      <div class="chart-card">
+        <div class="chart-card-header"><span class="chart-card-title">历史价格 & 预测区间</span></div>
+        <div class="chart-box" id="priceForecastChart"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-header"><span class="chart-card-title">预测数据明细</span></div>
+        <div style="overflow-x:auto;"><table class="prov-table" id="priceTable"><thead><tr><th>步数</th><th>预测日期</th><th>预测值</th><th>下限</th><th>上限</th></tr></thead><tbody></tbody></table></div>
+      </div>
+      <div class="narrative-card" id="priceNarrative" style="display:none;">
+        <div class="narrate-header">
+          <span class="narrate-title">🤖 AI 价格解读</span>
+          <button class="btn btn-secondary" onclick="requestNarrative('price')" style="font-size:0.75rem;padding:4px 10px;">🔄 重新生成</button>
+        </div>
+        <div class="narrate-body" id="priceNarrBody"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== TAB 3: Business Metrics ========== -->
+  <section class="tab-panel" id="tab-business">
+    <div class="sidebar">
+      <div class="card">
+        <div class="card-title">📋 请求参数</div>
+        <div class="form-group">
+          <label class="form-label">API 端点</label>
+          <input class="form-input" value="POST /v1/analysis-jobs/evaluate" readonly style="color:var(--text-muted);">
+        </div>
+        <div class="form-group">
+          <label class="form-label">分析类型</label>
+          <input class="form-input" value="business_metric" readonly style="color:var(--text-muted);">
+        </div>
+        <div class="form-group">
+          <label class="form-label">请求体 (JSON)</label>
+          <textarea class="form-textarea" id="bizJson" spellcheck="false"></textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="bizSampleBtn">📥 加载示例数据</button>
+          <button class="btn btn-primary" id="bizSubmitBtn">▶ 提交分析</button>
+        </div>
+      </div>
+    </div>
+    <div class="content" id="bizContent">
+      <div class="stat-row">
+        <div class="stat-tile">
+          <div class="stat-label">净利润</div>
+          <div class="hero-figure" id="bizNetProfit" style="font-size:2rem;">—</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-label">销售成本率</div>
+          <div class="stat-value" id="bizSalesRatio">—</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-label">交付成本率</div>
+          <div class="stat-value" id="bizDeliveryRatio">—</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-label">运营成本率</div>
+          <div class="stat-value" id="bizOperatingRatio">—</div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-header"><span class="chart-card-title">成本占比 vs 目标阈值</span></div>
+        <div class="chart-box" id="bizCostChart"></div>
+      </div>
+      <div class="chart-card" id="bizAlertCard" style="display:none;">
+        <div class="chart-card-header"><span class="chart-card-title">⚠️ 告警候选项</span></div>
+        <div class="alert-list" id="bizAlerts"></div>
+      </div>
+      <div class="narrative-card" id="bizNarrative" style="display:none;">
+        <div class="narrate-header">
+          <span class="narrate-title">🤖 AI 经营解读</span>
+          <button class="btn btn-secondary" onclick="requestNarrative('business')" style="font-size:0.75rem;padding:4px 10px;">🔄 重新生成</button>
+        </div>
+        <div class="narrate-body" id="bizNarrBody"></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+// ============================================================
+// Dashboard Controller
+// ============================================================
+const API_BASE = 'http://127.0.0.1:8000';
+const echartsInstances = {};
+// Store last analysis result for each tab for AI narration
+const lastResult = { financial: null, price: null, business: null };
+
+// ===== Sample Data (from test fixtures) =====
+const FIN_SAMPLE = {
+  schema_version: "v1",
+  trace_id: "dashboard-fin-001",
+  analysis_type: "financial_statement",
+  records: [
+    { period: "2025-06", source_record_id: "anon-fin-2025-06", metrics: { revenue: "1000000.00", net_income: "100000.00", total_assets: "2000000.00", equity: "1000000.00" } },
+    { period: "2026-04", source_record_id: "anon-fin-2026-04", metrics: { revenue: "1200000.00", net_income: "120000.00", total_assets: "2200000.00", equity: "1100000.00" } },
+    { period: "2026-05", source_record_id: "anon-fin-2026-05", metrics: { revenue: "1250000.00", net_income: "125000.00", total_assets: "2250000.00", equity: "1125000.00" } },
+    { period: "2026-06", source_record_id: "anon-fin-2026-06", metrics: { revenue: "1500000.00", net_income: "150000.00", total_assets: "2500000.00", equity: "1250000.00" } }
+  ]
+};
+
+const PRICE_SAMPLE = {
+  schema_version: "v1",
+  trace_id: "dashboard-price-001",
+  analysis_type: "price_forecast",
+  forecast_horizon: 3,
+  records: [
+    { date: "2026-01-01", source_record_id: "anon-price-2026-01", price: "10.00" },
+    { date: "2026-02-01", source_record_id: "anon-price-2026-02", price: "12.00" },
+    { date: "2026-03-01", source_record_id: "anon-price-2026-03", price: "14.00" },
+    { date: "2026-04-01", source_record_id: "anon-price-2026-04", price: "16.00" },
+    { date: "2026-05-01", source_record_id: "anon-price-2026-05", price: "17.50" },
+    { date: "2026-06-01", source_record_id: "anon-price-2026-06", price: "19.00" }
+  ]
+};
+
+const BIZ_SAMPLE = {
+  schema_version: "v1",
+  trace_id: "dashboard-biz-001",
+  analysis_type: "business_metric",
+  record: {
+    period: "2026-06", source_record_id: "anon-law-metric-2026-06",
+    revenue: "1000000.00", sales_cost: "400000.00",
+    delivery_cost: "150000.00", operating_cost: "200000.00"
+  },
+  target_limits: {
+    sales_cost_ratio: "35.00", delivery_cost_ratio: "20.00", operating_cost_ratio: "25.00"
+  }
+};
+
+// ===== Init =====
+document.addEventListener('DOMContentLoaded', () => {
+  loadSampleData();
+  initTabs();
+  initTheme();
+  initCharts();
+  checkHealth();
+  setInterval(checkHealth, 15000);
+  bindSubmitButtons();
+});
+
+function loadSampleData() {
+  document.getElementById('finJson').value = JSON.stringify(FIN_SAMPLE, null, 2);
+  document.getElementById('priceJson').value = JSON.stringify(PRICE_SAMPLE, null, 2);
+  document.getElementById('bizJson').value = JSON.stringify(BIZ_SAMPLE, null, 2);
+  document.getElementById('priceHorizon').value = PRICE_SAMPLE.forecast_horizon;
+}
+
+// ===== Theme =====
+function initTheme() {
+  const toggle = document.getElementById('themeToggle');
+  const saved = localStorage.getItem('dashboard-theme') || 'light';
+  setTheme(saved);
+  toggle.addEventListener('click', () => {
+    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    localStorage.setItem('dashboard-theme', next);
+    Object.values(echartsInstances).forEach(inst => inst?.resize());
+  });
+}
+
+function setTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const toggle = document.getElementById('themeToggle');
+  toggle.textContent = theme === 'dark' ? '🌙' : '☀️';
+}
+
+// ===== Tabs =====
+function initTabs() {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      setTimeout(() => Object.values(echartsInstances).forEach(inst => inst?.resize()), 100);
+    });
+  });
+}
+
+// ===== Health Check =====
+async function checkHealth() {
+  const dot = document.getElementById('apiDot');
+  const text = document.getElementById('apiStatusText');
+  try {
+    const res = await fetch(API_BASE + '/health', { signal: AbortSignal.timeout(3000) });
+    if (res.ok && (await res.json()).status === 'ok') {
+      dot.className = 'api-dot online';
+      text.textContent = 'API 在线';
+    } else {
+      dot.className = 'api-dot offline';
+      text.textContent = 'API 异常';
+    }
+  } catch {
+    dot.className = 'api-dot offline';
+    text.textContent = 'API 离线';
+  }
+}
+
+// ===== Toast =====
+function showToast(msg, type) {
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// ===== ECharts Helpers =====
+function getEChartsTheme() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const style = getComputedStyle(document.documentElement);
+  return {
+    textPrimary: style.getPropertyValue('--text-primary').trim(),
+    textSecondary: style.getPropertyValue('--text-secondary').trim(),
+    textMuted: style.getPropertyValue('--text-muted').trim(),
+    gridline: style.getPropertyValue('--gridline').trim(),
+    baseline: style.getPropertyValue('--baseline').trim(),
+    surface1: style.getPropertyValue('--surface-1').trim(),
+    surfacePage: style.getPropertyValue('--surface-page').trim(),
+    s1: style.getPropertyValue('--series-1').trim(),
+    s2: style.getPropertyValue('--series-2').trim(),
+    s3: style.getPropertyValue('--series-3').trim(),
+    s4: style.getPropertyValue('--series-4').trim(),
+    s5: style.getPropertyValue('--series-5').trim(),
+    isDark
+  };
+}
+
+function initChart(domId) {
+  const dom = document.getElementById(domId);
+  if (!dom) return null;
+  let inst = echartsInstances[domId];
+  if (inst) inst.dispose();
+  inst = echarts.init(dom);
+  echartsInstances[domId] = inst;
+  return inst;
+}
+
+function baseGrid() {
+  const t = getEChartsTheme();
+  return { left: 48, right: 24, top: 20, bottom: 36, containLabel: false };
+}
+
+function baseTooltip() {
+  return {
+    trigger: 'axis',
+    backgroundColor: getEChartsTheme().isDark ? '#2c2c2a' : '#fcfcfb',
+    borderColor: getEChartsTheme().baseline,
+    textStyle: { color: getEChartsTheme().textPrimary, fontSize: 12, fontFamily: 'var(--font-sans)' },
+    extraCssText: 'box-shadow: 0 2px 8px rgba(0,0,0,0.12); border-radius: 4px;'
+  };
+}
+
+function formatCurrency(v) {
+  if (v == null || isNaN(v)) return '—';
+  const n = Number(v);
+  if (Math.abs(n) >= 1e8) return (n / 1e8).toFixed(2) + ' 亿';
+  if (Math.abs(n) >= 1e4) return (n / 1e4).toFixed(2) + ' 万';
+  return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// ===== Chart Init (empty placeholders) =====
+function initCharts() {
+  // Financial tab charts
+  const finTrend = initChart('finTrendChart');
+  if (finTrend) finTrend.setOption(finTrendPlaceholder());
+
+  const finPopYoy = initChart('finPopYoyChart');
+  if (finPopYoy) finPopYoy.setOption(finPopYoyPlaceholder());
+
+  const finDupont = initChart('finDupontChart');
+  if (finDupont) finDupont.setOption(finDupontPlaceholder());
+
+  // Price tab chart
+  const priceChart = initChart('priceForecastChart');
+  if (priceChart) priceChart.setOption(priceForecastPlaceholder());
+
+  // Business tab chart
+  const bizChart = initChart('bizCostChart');
+  if (bizChart) bizChart.setOption(bizCostPlaceholder());
+}
+
+function finTrendPlaceholder() {
+  const t = getEChartsTheme();
+  return {
+    ...baseGrid(), tooltip: baseTooltip(),
+    xAxis: { type: 'category', data: [], axisLine: { lineStyle: { color: t.baseline } }, axisLabel: { color: t.textMuted }, axisTick: { show: false } },
+    yAxis: { type: 'value', axisLabel: { color: t.textMuted, formatter: formatCurrency }, splitLine: { lineStyle: { color: t.gridline } }, nameTextStyle: { color: t.textMuted } },
+    series: [],
+    graphic: [{ type: 'text', left: 'center', top: 'center', style: { text: '提交分析后显示趋势图', fill: t.textMuted, fontSize: 14, fontFamily: 'var(--font-sans)' } }]
+  };
+}
+
+function finPopYoyPlaceholder() {
+  const t = getEChartsTheme();
+  return {
+    ...baseGrid(), tooltip: baseTooltip(),
+    xAxis: { type: 'category', data: [], axisLabel: { color: t.textMuted }, axisTick: { show: false } },
+    yAxis: { type: 'value', axisLabel: { color: t.textMuted, formatter: v => v + '%' }, splitLine: { lineStyle: { color: t.gridline } } },
+    series: [],
+    graphic: [{ type: 'text', left: 'center', top: 'center', style: { text: '提交分析后显示同比/环比', fill: t.textMuted, fontSize: 14, fontFamily: 'var(--font-sans)' } }]
+  };
+}
+
+function finDupontPlaceholder() {
+  const t = getEChartsTheme();
+  return {
+    ...baseGrid(), tooltip: baseTooltip(),
+    xAxis: { type: 'value', axisLabel: { color: t.textMuted }, splitLine: { lineStyle: { color: t.gridline } } },
+    yAxis: { type: 'category', data: [], axisLabel: { color: t.textMuted }, axisTick: { show: false } },
+    series: [],
+    graphic: [{ type: 'text', left: 'center', top: 'center', style: { text: '提交分析后显示杜邦分解', fill: t.textMuted, fontSize: 14, fontFamily: 'var(--font-sans)' } }]
+  };
+}
+
+function priceForecastPlaceholder() {
+  const t = getEChartsTheme();
+  return {
+    ...baseGrid(), tooltip: baseTooltip(),
+    xAxis: { type: 'category', data: [], axisLabel: { color: t.textMuted }, axisTick: { show: false } },
+    yAxis: { type: 'value', axisLabel: { color: t.textMuted, formatter: formatCurrency }, splitLine: { lineStyle: { color: t.gridline } } },
+    series: [],
+    graphic: [{ type: 'text', left: 'center', top: 'center', style: { text: '提交分析后显示价格预测', fill: t.textMuted, fontSize: 14, fontFamily: 'var(--font-sans)' } }]
+  };
+}
+
+function bizCostPlaceholder() {
+  const t = getEChartsTheme();
+  return {
+    ...baseGrid(), tooltip: baseTooltip(),
+    xAxis: { type: 'value', axisLabel: { color: t.textMuted, formatter: v => v + '%' }, splitLine: { lineStyle: { color: t.gridline } } },
+    yAxis: { type: 'category', data: [], axisLabel: { color: t.textMuted }, axisTick: { show: false } },
+    series: [],
+    graphic: [{ type: 'text', left: 'center', top: 'center', style: { text: '提交分析后显示成本占比', fill: t.textMuted, fontSize: 14, fontFamily: 'var(--font-sans)' } }]
+  };
+}
+
+// ===== API Call =====
+async function callApi(payload) {
+  const res = await fetch(API_BASE + '/v1/analysis-jobs/evaluate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+// ===== Bind Submit Buttons =====
+function bindSubmitButtons() {
+  document.getElementById('finSubmitBtn').addEventListener('click', async () => {
+    try {
+      const payload = JSON.parse(document.getElementById('finJson').value);
+      const data = await callApi(payload);
+      lastResult.financial = data;
+      renderFinancial(data);
+      autoNarrate('financial');
+      showToast('财务报表分析完成', 'success');
+    } catch (e) { showToast('分析失败: ' + e.message, 'error'); }
+  });
+
+  document.getElementById('priceSubmitBtn').addEventListener('click', async () => {
+    try {
+      const payload = JSON.parse(document.getElementById('priceJson').value);
+      payload.forecast_horizon = parseInt(document.getElementById('priceHorizon').value) || 3;
+      const data = await callApi(payload);
+      lastResult.price = data;
+      renderPrice(data);
+      autoNarrate('price');
+      showToast('价格预测完成', 'success');
+    } catch (e) { showToast('预测失败: ' + e.message, 'error'); }
+  });
+
+  document.getElementById('bizSubmitBtn').addEventListener('click', async () => {
+    try {
+      const payload = JSON.parse(document.getElementById('bizJson').value);
+      const data = await callApi(payload);
+      lastResult.business = data;
+      renderBusiness(data);
+      autoNarrate('business');
+      showToast('经营指标分析完成', 'success');
+    } catch (e) { showToast('分析失败: ' + e.message, 'error'); }
+  });
+
+  document.getElementById('finSampleBtn').addEventListener('click', () => {
+    document.getElementById('finJson').value = JSON.stringify(FIN_SAMPLE, null, 2);
+  });
+  document.getElementById('priceSampleBtn').addEventListener('click', () => {
+    document.getElementById('priceJson').value = JSON.stringify(PRICE_SAMPLE, null, 2);
+    document.getElementById('priceHorizon').value = PRICE_SAMPLE.forecast_horizon;
+  });
+  document.getElementById('bizSampleBtn').addEventListener('click', () => {
+    document.getElementById('bizJson').value = JSON.stringify(BIZ_SAMPLE, null, 2);
+  });
+}
+
+// ===== Render: Financial Statement =====
+function renderFinancial(data) {
+  const t = getEChartsTheme();
+  const metrics = data.metrics || {};
+  const dupont = data.dupont || {};
+  const metricNames = Object.keys(metrics);
+
+  // 1. Trend chart
+  const payload = JSON.parse(document.getElementById('finJson').value);
+  const records = payload.records || [];
+  const periods = records.map(r => r.period);
+
+  const trendChart = initChart('finTrendChart');
+  if (trendChart) {
+    const series = metricNames.map((name, i) => ({
+      name,
+      type: 'line',
+      data: records.map(r => Number(r.metrics?.[name] || 0)),
+      lineStyle: { width: 2 },
+      symbol: 'circle', symbolSize: 8,
+      itemStyle: { color: [t.s1, t.s2, t.s3, t.s4, t.s5][i % 5] },
+      emphasis: { focus: 'series' }
+    }));
+
+    // Anomaly markers
+    const anomalyMarks = [];
+    metricNames.forEach(name => {
+      const mData = metrics[name];
+      if (mData?.anomalies && Array.isArray(mData.anomalies)) {
+        mData.anomalies.forEach(a => {
+          anomalyMarks.push({
+            coord: [a.index, Number(a.value)],
+            value: '⚠ ' + a.z_score,
+            symbol: 'triangle', symbolSize: 16,
+            itemStyle: { color: t.s6, borderColor: t.surface1, borderWidth: 2 },
+            label: { show: true, position: 'top', fontSize: 10, color: t.s6, formatter: '⚠' }
+          });
+        });
+      }
+    });
+
+    trendChart.setOption({
+      ...baseGrid(), tooltip: baseTooltip(),
+      legend: { data: metricNames, textStyle: { color: t.textSecondary }, bottom: 0, itemWidth: 20, itemHeight: 3 },
+      xAxis: { type: 'category', data: periods, axisLine: { lineStyle: { color: t.baseline } }, axisLabel: { color: t.textMuted }, axisTick: { show: false } },
+      yAxis: { type: 'value', axisLabel: { color: t.textMuted, formatter: formatCurrency }, splitLine: { lineStyle: { color: t.gridline } }, name: '金额', nameTextStyle: { color: t.textMuted } },
+      series: anomalyMarks.length > 0 ? [...series, { type: 'scatter', data: anomalyMarks, z: 10 }] : series
+    }, true);
+  }
+
+  // 2. PoP / YoY chart
+  const finPopYoy = initChart('finPopYoyChart');
+  if (finPopYoy) {
+    const popData = [], yoyData = [], categories = [];
+    metricNames.forEach(name => {
+      const m = metrics[name];
+      if (m.period_over_period_percent != null) {
+        categories.push(name + ' 环比');
+        popData.push(Number(m.period_over_period_percent));
+      }
+      if (m.year_over_year_percent != null) {
+        categories.push(name + ' 同比');
+        yoyData.push(Number(m.year_over_year_percent));
+      }
+    });
+    // Align: create paired data
+    const pairedCats = metricNames.filter(n => metrics[n]?.period_over_period_percent != null || metrics[n]?.year_over_year_percent != null);
+    const alignedPops = pairedCats.map(n => metrics[n]?.period_over_period_percent != null ? Number(metrics[n].period_over_period_percent) : null);
+    const alignedYoys = pairedCats.map(n => metrics[n]?.year_over_year_percent != null ? Number(metrics[n].year_over_year_percent) : null);
+
+    finPopYoy.setOption({
+      ...baseGrid(), tooltip: { ...baseTooltip(), trigger: 'axis', valueFormatter: v => v != null ? v.toFixed(2) + '%' : '—' },
+      legend: { data: ['环比 (MoM)', '同比 (YoY)'], textStyle: { color: t.textSecondary }, bottom: 0, itemWidth: 20, itemHeight: 3 },
+      xAxis: { type: 'category', data: pairedCats, axisLabel: { color: t.textMuted, rotate: 30 }, axisTick: { show: false } },
+      yAxis: { type: 'value', axisLabel: { color: t.textMuted, formatter: v => v + '%' }, splitLine: { lineStyle: { color: t.gridline } } },
+      series: [
+        { name: '环比 (MoM)', type: 'bar', data: alignedPops, itemStyle: { color: t.s1, borderRadius: [4,4,0,0] }, barMaxWidth: 32, barGap: '20%' },
+        { name: '同比 (YoY)', type: 'bar', data: alignedYoys, itemStyle: { color: t.s5, borderRadius: [4,4,0,0] }, barMaxWidth: 32 }
+      ]
+    }, true);
+  }
+
+  // 3. DuPont chart
+  const finDupont = initChart('finDupontChart');
+  if (finDupont && dupont.status !== 'not_computable') {
+    const items = [
+      { name: '净利率 (%)', value: Number(dupont.net_margin_percent || 0) },
+      { name: '资产周转率', value: Number(dupont.asset_turnover || 0) },
+      { name: '权益乘数', value: Number(dupont.equity_multiplier || 0) },
+      { name: 'ROE (%)', value: Number(dupont.roe_percent || 0) }
+    ];
+    finDupont.setOption({
+      ...baseGrid(), tooltip: { ...baseTooltip(), trigger: 'axis' },
+      xAxis: { type: 'value', axisLabel: { color: t.textMuted }, splitLine: { lineStyle: { color: t.gridline } } },
+      yAxis: { type: 'category', data: items.map(i => i.name), axisLabel: { color: t.textSecondary }, axisTick: { show: false }, inverse: true },
+      series: [{
+        type: 'bar', data: items.map(i => i.value),
+        itemStyle: {
+          color: p => [t.seq600, t.seq500, t.seq400, t.seq300][p.dataIndex],
+          borderRadius: [0, 4, 4, 0]
+        },
+        barMaxWidth: 28,
+        label: { show: true, position: 'right', color: t.textSecondary, fontSize: 11, formatter: p => typeof p.value === 'number' ? p.value.toFixed(2) : '' }
+      }]
+    }, true);
+  }
+}
+
+// ===== Render: Price Forecast =====
+function renderPrice(data) {
+  const t = getEChartsTheme();
+  const payload = JSON.parse(document.getElementById('priceJson').value);
+  const records = payload.records || [];
+  const forecasts = data.forecasts || [];
+  const volatility = data.volatility || {};
+
+  // Stat tiles
+  const statsEl = document.getElementById('priceStats');
+  const trendEmoji = volatility.trend === 'up' ? '📈' : volatility.trend === 'down' ? '📉' : '➡️';
+  const trendClass = volatility.trend === 'up' ? 'up' : volatility.trend === 'down' ? 'down' : 'stable';
+  statsEl.innerHTML = `
+    <div class="stat-tile"><div class="stat-label">趋势方向</div><div class="stat-value">${trendEmoji} ${volatility.trend === 'up' ? '上升' : volatility.trend === 'down' ? '下降' : '稳定'}</div></div>
+    <div class="stat-tile"><div class="stat-label">线性斜率</div><div class="stat-value">${Number(volatility.slope || 0).toFixed(4)}</div></div>
+    <div class="stat-tile"><div class="stat-label">价格波动范围</div><div class="stat-value">${Number(volatility.price_range || 0).toFixed(2)}</div></div>
+    <div class="stat-tile"><div class="stat-label">相对波动 (%)</div><div class="stat-value">${Number(volatility.relative_range_percent || 0).toFixed(2)}%</div></div>
+  `;
+
+  // Forecast chart with confidence band
+  const priceChart = initChart('priceForecastChart');
+  if (priceChart) {
+    const histDates = records.map(r => r.date);
+    const histPrices = records.map(r => Number(r.price));
+    const fcDates = forecasts.map(f => f.date);
+    const fcValues = forecasts.map(f => Number(f.value));
+    const fcLowers = forecasts.map(f => Number(f.lower));
+    const fcUppers = forecasts.map(f => Number(f.upper));
+
+    priceChart.setOption({
+      ...baseGrid(), tooltip: { ...baseTooltip(), trigger: 'axis', valueFormatter: v => typeof v === 'number' ? v.toFixed(2) : v },
+      legend: { data: ['历史价格', '预测值', '置信区间'], textStyle: { color: t.textSecondary }, bottom: 0, itemWidth: 20, itemHeight: 3 },
+      xAxis: { type: 'category', data: [...histDates, ...fcDates], axisLabel: { color: t.textMuted, rotate: 30, fontSize: 10 }, axisTick: { show: false } },
+      yAxis: { type: 'value', axisLabel: { color: t.textMuted, formatter: formatCurrency }, splitLine: { lineStyle: { color: t.gridline } } },
+      series: [
+        {
+          name: '置信区间', type: 'line',
+          data: [...Array(histDates.length).fill(null), ...fcUppers],
+          lineStyle: { opacity: 0 }, symbol: 'none',
+          areaStyle: { color: t.isDark ? 'rgba(57,135,229,0.08)' : 'rgba(42,120,214,0.10)' },
+          stack: 'confidence', stackStrategy: 'all',
+          silent: true, z: 0
+        },
+        {
+          name: '置信区间', type: 'line',
+          data: [...Array(histDates.length).fill(null), ...fcLowers.map((v, i) => fcUppers[i] - v)],
+          lineStyle: { opacity: 0 }, symbol: 'none',
+          areaStyle: { color: t.surface1 },
+          stack: 'confidence',
+          silent: true, z: 0
+        },
+        {
+          name: '历史价格', type: 'line',
+          data: [...histPrices, ...Array(fcDates.length).fill(null)],
+          lineStyle: { width: 2, color: t.s1 }, symbol: 'circle', symbolSize: 8,
+          itemStyle: { color: t.s1, borderColor: t.surface1, borderWidth: 2 },
+          z: 2
+        },
+        {
+          name: '预测值', type: 'line',
+          data: [...Array(histDates.length - 1).fill(null), histPrices[histPrices.length - 1], ...fcValues],
+          lineStyle: { width: 2, color: t.s6, type: 'dashed' },
+          symbol: 'diamond', symbolSize: 10,
+          itemStyle: { color: t.s6, borderColor: t.surface1, borderWidth: 2 },
+          z: 2
+        }
+      ]
+    }, true);
+  }
+
+  // Forecast table
+  const tbody = document.querySelector('#priceTable tbody');
+  tbody.innerHTML = forecasts.map(f => `
+    <tr>
+      <td>第 ${f.step} 步</td>
+      <td>${f.date}</td>
+      <td style="font-weight:600;">${Number(f.value).toFixed(2)}</td>
+      <td>${Number(f.lower).toFixed(2)}</td>
+      <td>${Number(f.upper).toFixed(2)}</td>
+    </tr>
+  `).join('');
+}
+
+// ===== Render: Business Metrics =====
+function renderBusiness(data) {
+  const t = getEChartsTheme();
+
+  // Stat tiles
+  document.getElementById('bizNetProfit').textContent = data.net_profit != null ? formatCurrency(data.net_profit) : '—';
+  if (data.cost_ratios) {
+    document.getElementById('bizSalesRatio').innerHTML = Number(data.cost_ratios.sales_cost_ratio).toFixed(2) + '%';
+    document.getElementById('bizDeliveryRatio').innerHTML = Number(data.cost_ratios.delivery_cost_ratio).toFixed(2) + '%';
+    document.getElementById('bizOperatingRatio').innerHTML = Number(data.cost_ratios.operating_cost_ratio).toFixed(2) + '%';
+  }
+
+  // Cost ratio vs target chart
+  const bizChart = initChart('bizCostChart');
+  if (bizChart && data.cost_ratios && data.target_comparisons) {
+    const labels = ['销售成本率', '交付成本率', '运营成本率'];
+    const actuals = [
+      Number(data.cost_ratios.sales_cost_ratio),
+      Number(data.cost_ratios.delivery_cost_ratio),
+      Number(data.cost_ratios.operating_cost_ratio)
+    ];
+    const targets = [
+      Number(data.target_comparisons.sales_cost_ratio?.target || 0),
+      Number(data.target_comparisons.delivery_cost_ratio?.target || 0),
+      Number(data.target_comparisons.operating_cost_ratio?.target || 0)
+    ];
+    const exceeded = [
+      data.target_comparisons.sales_cost_ratio?.is_exceeded,
+      data.target_comparisons.delivery_cost_ratio?.is_exceeded,
+      data.target_comparisons.operating_cost_ratio?.is_exceeded
+    ];
+
+    bizChart.setOption({
+      ...baseGrid(), tooltip: { ...baseTooltip(), trigger: 'axis', valueFormatter: v => v.toFixed(2) + '%' },
+      legend: { data: ['实际值', '目标上限'], textStyle: { color: t.textSecondary }, bottom: 0, itemWidth: 20, itemHeight: 3 },
+      xAxis: { type: 'value', axisLabel: { color: t.textMuted, formatter: v => v + '%' }, splitLine: { lineStyle: { color: t.gridline } }, max: 100 },
+      yAxis: { type: 'category', data: labels, axisLabel: { color: t.textSecondary }, axisTick: { show: false } },
+      series: [
+        {
+          name: '实际值', type: 'bar', data: actuals.map((v, i) => ({
+            value: v,
+            itemStyle: { color: exceeded[i] ? t.statusCritical : t.s1, borderRadius: [0, 4, 4, 0] }
+          })), barMaxWidth: 24, barGap: '30%',
+          label: { show: true, position: 'right', color: t.textSecondary, fontSize: 11, formatter: p => p.value.toFixed(1) + '%' },
+          markLine: {
+            silent: true, symbol: 'none',
+            lineStyle: { type: 'dashed', width: 1.5, color: t.s6 },
+            data: targets.map((v, i) => ({ yAxis: labels[i], x: v })),
+            label: { formatter: '{c}%', fontSize: 10, color: t.s6 }
+          }
+        }
+      ]
+    }, true);
+  }
+
+  // Alert cards
+  const alerts = data.alert_candidates || [];
+  const alertCard = document.getElementById('bizAlertCard');
+  const alertList = document.getElementById('bizAlerts');
+  if (alerts.length > 0) {
+    alertCard.style.display = '';
+    const labelMap = { sales_cost_ratio: '销售成本率', delivery_cost_ratio: '交付成本率', operating_cost_ratio: '运营成本率' };
+    alertList.innerHTML = alerts.map(a => `
+      <div class="alert-item ${Number(a.excess) > 5 ? 'critical' : ''}">
+        <span class="alert-metric">${labelMap[a.metric] || a.metric}</span>
+        <span class="alert-values">
+          <span>实际: <strong>${Number(a.actual).toFixed(2)}%</strong></span>
+          <span>目标: ${Number(a.target).toFixed(2)}%</span>
+        </span>
+        <span class="alert-excess">超出 +${Number(a.excess).toFixed(2)}%</span>
+      </div>
+    `).join('');
+  } else {
+    alertCard.style.display = 'none';
+  }
+}
+
+// ===== AI Narrative =====
+async function requestNarrative(tab) {
+  const data = lastResult[tab];
+  if (!data) { showToast('请先提交分析', 'error'); return; }
+
+  const cardId = tab === 'financial' ? 'finNarrative' : tab === 'price' ? 'priceNarrative' : 'bizNarrative';
+  const bodyId = tab === 'financial' ? 'finNarrBody' : tab === 'price' ? 'priceNarrBody' : 'bizNarrBody';
+  const card = document.getElementById(cardId);
+  const body = document.getElementById(bodyId);
+  card.style.display = '';
+  card.classList.add('loading');
+  body.innerHTML = '<div class="narrative-placeholder">⏳ AI 正在分析中...</div>';
+
+  try {
+    const res = await fetch(API_BASE + '/v1/analysis-jobs/narrate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    card.classList.remove('loading');
+    if (result.narrative) {
+      body.innerHTML = result.narrative;
+    } else {
+      body.innerHTML = '<div class="narrative-placeholder">⚠️ AI 解读不可用：' + (result.reason || '未知错误') + '</div>';
+    }
+  } catch (e) {
+    card.classList.remove('loading');
+    body.innerHTML = '<div class="narrative-placeholder">⚠️ 请求失败：' + e.message + '</div>';
+  }
+}
+
+// Auto-trigger narrative after analysis result
+function autoNarrate(tab) {
+  if (lastResult[tab]) requestNarrative(tab);
+}
+
+// ===== Window resize =====
+window.addEventListener('resize', () => {
+  Object.values(echartsInstances).forEach(inst => inst?.resize());
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+{
+  "protocol_version": "1.0",
+  "message_id": "msg-data-persist-demo-001",
+  "request_id": "req-data-persist-demo-001",
+  "trace_id": "trace-data-persist-demo-001",
+  "parent_request_id": "req-workflow-demo-001",
+  "source": {
+    "layer": "business_engine",
+    "module": "workflow-execution"
+  },
+  "target": {
+    "layer": "business_engine",
+    "module": "data-operation",
+    "capability": "data.persist"
+  },
+  "actor": {
+    "tenant_id": "tenant-demo",
+    "user_id": "manager_all",
+    "authenticated": true
+  },
+  "context": {
+    "account_id": "manager_all",
+    "project_id": "project-demo",
+    "conversation_id": "conversation-demo-001",
+    "file_id": null,
+    "object_id": "object-demo-001",
+    "workflow_instance_id": "workflow-demo-001"
+  },
+  "request_type": "task.dispatch",
+  "action": "data.persist",
+  "idempotency_key": "idem-data-persist-demo-001",
+  "payload": {
+    "business_type": "business_note",
+    "data_labels": ["demo", "business-data", "manual-test"],
+    "company_codes": ["TEST-A"],
+    "storage_class": "fixed",
+    "retention_policy_ref": "retention-policy-demo-v1",
+    "content": {
+      "title": "联调示例业务记录",
+      "body": "该对象由流程执行引擎派发，数据操作引擎登记后经 L1.7 数据模块保存。"
+    }
+  },
+  "expected_response": {
+    "mode": "sync"
+  }
+}

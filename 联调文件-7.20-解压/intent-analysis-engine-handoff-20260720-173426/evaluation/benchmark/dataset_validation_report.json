@@ -1,0 +1,21 @@
+{
+  "total": 300,
+  "by_split": {
+    "blind_test": 60,
+    "train": 180,
+    "validation": 60
+  },
+  "by_intent_category": {
+    "ambiguous_request": 30,
+    "colloquial_expression": 30,
+    "context_dependency": 30,
+    "future_scope": 30,
+    "insufficient_information": 30,
+    "long_text_requirement": 30,
+    "multi_task_request": 30,
+    "negation_expression": 30,
+    "omitted_expression": 30,
+    "short_instruction": 30
+  },
+  "ids_are_unique": true
+}

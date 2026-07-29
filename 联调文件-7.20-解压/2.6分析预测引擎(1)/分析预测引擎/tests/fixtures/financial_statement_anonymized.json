@@ -1,0 +1,47 @@
+{
+  "schema_version": "v1",
+  "trace_id": "scenario-financial-001",
+  "analysis_type": "financial_statement",
+  "records": [
+    {
+      "period": "2025-06",
+      "source_record_id": "anon-fin-2025-06",
+      "metrics": {
+        "revenue": "1000000.00",
+        "net_income": "100000.00",
+        "total_assets": "2000000.00",
+        "equity": "1000000.00"
+      }
+    },
+    {
+      "period": "2026-04",
+      "source_record_id": "anon-fin-2026-04",
+      "metrics": {
+        "revenue": "1200000.00",
+        "net_income": "120000.00",
+        "total_assets": "2200000.00",
+        "equity": "1100000.00"
+      }
+    },
+    {
+      "period": "2026-05",
+      "source_record_id": "anon-fin-2026-05",
+      "metrics": {
+        "revenue": "1250000.00",
+        "net_income": "125000.00",
+        "total_assets": "2250000.00",
+        "equity": "1125000.00"
+      }
+    },
+    {
+      "period": "2026-06",
+      "source_record_id": "anon-fin-2026-06",
+      "metrics": {
+        "revenue": "1500000.00",
+        "net_income": "150000.00",
+        "total_assets": "2500000.00",
+        "equity": "1250000.00"
+      }
+    }
+  ]
+}

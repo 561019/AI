@@ -1,0 +1,2 @@
+-- approval template stage columns are added idempotently in audit.EnsureSchema
+-- because embedded migrations are replayed on every local/dev SQLite startup.

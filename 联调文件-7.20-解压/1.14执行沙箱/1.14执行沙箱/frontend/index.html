@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>1.14 执行沙箱能力包</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="mark">1.14</div>
+        <div>
+          <h1>执行沙箱</h1>
+          <p>L1 能力包</p>
+        </div>
+      </div>
+
+      <div class="sidebar-runtime">
+        <span class="health-dot" id="sidebarHealthDot"></span>
+        <div>
+          <strong id="sidebarHealthText">正在连接服务</strong>
+          <small>Docker 隔离运行时</small>
+        </div>
+      </div>
+
+      <nav class="main-nav" aria-label="模块功能">
+        <button class="nav active" data-view="run"><span>01</span><b>运行任务</b><small>任务创建工作台</small></button>
+        <button class="nav" data-view="demo"><span>02</span><b>平台链路</b><small>相邻模块联调</small></button>
+        <button class="nav" data-view="verification"><span>03</span><b>验收演示</b><small>现场真实验证</small></button>
+        <button class="nav" data-view="monitor"><span>04</span><b>沙箱监控</b><small>实例运行态势</small></button>
+        <button class="nav" data-view="tasks"><span>05</span><b>执行记录</b><small>全过程可追溯</small></button>
+        <button class="nav" data-view="policy"><span>06</span><b>安全边界</b><small>控制与责任矩阵</small></button>
+        <button class="nav" data-view="delivery"><span>07</span><b>交付中心</b><small>材料与联调准备</small></button>
+      </nav>
+
+      <div class="sidebar-foot">
+        <span>运行环境</span>
+        <strong>nlp / 10.60.66.97</strong>
+        <small>当前实现：Docker</small>
+      </div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div class="topbar-title">
+          <span id="pageEyebrow">TASK CONTROL</span>
+          <h2 id="pageTitle">任务创建工作台</h2>
+          <p id="pageSubtitle">配置任务输入与隔离策略，提交后由服务器创建独立 Docker 容器执行。</p>
+        </div>
+        <div class="topbar-actions">
+          <div class="refresh-meta"><span>数据刷新</span><strong id="lastRefresh">--:--:--</strong></div>
+          <button id="refresh" class="secondary-button" title="刷新全部运行数据">刷新数据</button>
+        </div>
+      </header>
+
+      <div id="systemStrip" class="system-strip">
+        <div><span class="strip-dot online"></span><small>API 服务</small><strong id="apiState">检查中</strong></div>
+        <div><small>执行引擎</small><strong id="runtimeState">DockerTemplateExecutor</strong></div>
+        <div><small>隔离策略</small><strong>独立容器 / 用后销毁</strong></div>
+        <div><small>交付范围</small><strong>L1 1.14 能力包</strong></div>
+      </div>
+
+      <div class="workspace">
+        <section id="run" class="view active">
+          <div class="page-heading">
+            <div>
+              <span class="section-kicker">CREATE & EXECUTE</span>
+              <h3>把业务任务送入真实隔离环境</h3>
+              <p>输入任务参数后，后端执行权限预检、资源策略挂载、Docker 隔离运行、结果取回与销毁留痕。</p>
+            </div>
+            <span class="scope-badge live">可现场执行</span>
+          </div>
+          <div id="runOverview" class="executive-metrics"></div>
+
+          <div class="workbench-grid">
+            <div class="panel task-compose-panel">
+              <div class="panel-heading">
+                <div><span>任务输入</span><h3>创建沙箱任务</h3></div>
+                <span class="step-chip">STEP 01</span>
+              </div>
+              <label for="scenario">汉和业务场景</label>
+              <select id="scenario"></select>
+              <label for="payload">任务输入 JSON</label>
+              <textarea id="payload" spellcheck="false">{
+  "actor": "demo-user",
+  "agent": "demo-agent",
+  "timeout_seconds": 10,
+  "input": {}
+}</textarea>
+              <button id="submit" class="primary-action">启动隔离执行</button>
+            </div>
+
+            <div class="panel execution-profile-panel">
+              <div class="panel-heading">
+                <div><span>执行配置</span><h3>本次任务策略</h3></div>
+                <span class="step-chip">STEP 02</span>
+              </div>
+              <div id="scenarioInfo"></div>
+              <div class="execution-route">
+                <div><b>1</b><span>接收任务<small>生成 task_id</small></span></div>
+                <i></i>
+                <div><b>2</b><span>创建容器<small>挂载资源策略</small></span></div>
+                <i></i>
+                <div><b>3</b><span>取回结果<small>销毁并留痕</small></span></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="runReceipt" class="panel run-receipt summary-empty">尚未提交任务。本页会显示服务器返回的任务编号、Docker 运行时、业务结果和执行轨迹。</div>
+        </section>
+
+        <section id="demo" class="view">
+          <div class="page-heading">
+            <div>
+              <span class="section-kicker">INTEGRATION CHAIN</span>
+              <h3>平台调用链路验证</h3>
+              <p>以汉和岗位场景验证任务从平台入口到沙箱结果回传的完整链路，并明确 mock 与真实能力边界。</p>
+            </div>
+            <span class="scope-badge joint">联调就绪</span>
+          </div>
+
+          <div class="integration-rail" aria-label="平台链路">
+            <div><span>01</span><strong>任务输入</strong><small>真实 API</small></div><i></i>
+            <div><span>02</span><strong>账号解析</strong><small>当前 mock</small></div><i></i>
+            <div><span>03</span><strong>权限预检</strong><small>当前 mock</small></div><i></i>
+            <div><span>04</span><strong>ERP/OA 取数</strong><small>当前 mock</small></div><i></i>
+            <div class="core"><span>05</span><strong>Docker 沙箱</strong><small>真实执行</small></div><i></i>
+            <div><span>06</span><strong>成本计量</strong><small>当前 mock</small></div><i></i>
+            <div><span>07</span><strong>审计回传</strong><small>真实留痕</small></div>
+          </div>
+
+          <div class="demo-layout">
+            <div class="panel">
+              <div class="panel-heading"><div><span>场景入口</span><h3>岗位联调用例</h3></div><span class="count-chip">3 CASES</span></div>
+              <div id="demoList" class="demo-list">正在加载...</div>
+            </div>
+            <div class="panel demo-result-panel">
+              <div class="panel-heading"><div><span>运行回执</span><h3>链路执行结果</h3></div><span class="step-chip">LIVE</span></div>
+              <div id="demoResult" class="summary-empty">选择左侧岗位场景并运行后，这里展示各模块返回状态、task_id、业务输出和原始证据。</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="verification" class="view">
+          <div class="panel verification-control-panel">
+            <div class="verification-title-row">
+              <div>
+                <span class="section-kicker">LIVE ACCEPTANCE</span>
+                <h3>执行沙箱现场验收中心</h3>
+                <p class="plain-note">每次验证均在服务器重新执行 Docker、网络、浏览器、权限或业务场景探针。</p>
+              </div>
+              <div class="runtime-indicator"><i></i><span>Docker runtime online</span></div>
+            </div>
+            <div id="verificationCapabilitySummary" class="verification-capability-summary"></div>
+            <div class="toolbar"><button id="runAllVerification">一键运行全部验收</button></div>
+            <div id="verificationList" class="verification-list">正在加载...</div>
+          </div>
+          <div class="panel">
+            <div class="result-title-row">
+              <div><span class="section-kicker">LIVE EXECUTION & EVIDENCE</span><h3>实时执行与验收证据</h3></div>
+              <span class="result-hint">运行状态 / 真实命令 / 返回证据</span>
+            </div>
+            <div id="verificationResult" class="verification-result">请选择一项验收演示。</div>
+          </div>
+        </section>
+
+        <section id="monitor" class="view">
+          <div class="page-heading">
+            <div>
+              <span class="section-kicker">RUNTIME OBSERVABILITY</span>
+              <h3>沙箱运行监控台</h3>
+              <p>集中查看任务实例状态、资源配额、权限结论、耗时成本与最后审计事件。</p>
+            </div>
+            <span class="scope-badge live">实时数据</span>
+          </div>
+          <div id="monitorSummary" class="executive-metrics"></div>
+          <div id="monitorHealthBand" class="monitor-health-band"></div>
+          <div class="monitor-layout">
+            <div class="panel monitor-list-panel">
+              <div class="panel-heading"><div><span>实例队列</span><h3>最近沙箱任务</h3></div><span id="monitorCount" class="count-chip">0 ITEMS</span></div>
+              <div id="monitorList" class="monitor-list"></div>
+            </div>
+            <div class="panel monitor-detail-panel">
+              <div class="panel-heading"><div><span>实例证据</span><h3>生命周期与资源策略</h3></div><span class="step-chip">TRACE</span></div>
+              <div id="monitorDetail" class="summary-empty">选择一个实例查看。</div>
+              <details class="raw-evidence"><summary>展开实例原始数据</summary><div id="monitorJson" class="annotated-placeholder">选择一个实例查看。</div></details>
+            </div>
+          </div>
+        </section>
+
+        <section id="tasks" class="view">
+          <div class="page-heading">
+            <div>
+              <span class="section-kicker">AUDIT & TRACEABILITY</span>
+              <h3>执行记录与证据追溯</h3>
+              <p>每条任务保留输入、执行器、资源限制、平台检查、业务输出、成本和审计事件。</p>
+            </div>
+            <span class="scope-badge record">全程留痕</span>
+          </div>
+          <div id="taskOverview" class="executive-metrics"></div>
+          <div class="task-toolbar">
+            <div class="segmented" id="taskFilters">
+              <button class="active" data-task-filter="all">全部</button>
+              <button data-task-filter="success">成功</button>
+              <button data-task-filter="failed">失败</button>
+              <button data-task-filter="denied">已拒绝</button>
+              <button data-task-filter="timeout">超时</button>
+            </div>
+            <span id="taskRecordCount">0 条记录</span>
+          </div>
+          <div class="task-audit-layout">
+            <div class="panel task-list-panel">
+              <div class="panel-heading"><div><span>任务台账</span><h3>最近执行记录</h3></div></div>
+              <div id="taskList"></div>
+            </div>
+            <div class="panel task-detail-panel">
+              <div class="panel-heading"><div><span>任务详情</span><h3>链路、结果与证据</h3></div><span class="step-chip">AUDIT</span></div>
+              <div id="taskSummary" class="summary-empty">请选择一条任务。</div>
+              <details class="raw-evidence"><summary>展开任务原始 JSON 证据</summary><div id="taskDetail" class="annotated-placeholder">请选择一条任务。</div></details>
+            </div>
+          </div>
+        </section>
+
+        <section id="policy" class="view">
+          <div class="page-heading">
+            <div>
+              <span class="section-kicker">SECURITY & BOUNDARY</span>
+              <h3>安全控制与模块边界</h3>
+              <p>区分本模块真实承担的隔离职责、相邻模块输入以及当前联调替身，避免扩大完成口径。</p>
+            </div>
+            <span class="scope-badge secure">默认拒绝</span>
+          </div>
+          <div id="policyOverview" class="executive-metrics"></div>
+
+          <div class="boundary-matrix">
+            <div class="boundary-column owned">
+              <div class="boundary-head"><span>本模块实现</span><strong>L1 1.14 执行沙箱</strong></div>
+              <ul>
+                <li><b>隔离执行</b><span>独立 Docker 容器承载任务</span></li>
+                <li><b>资源控制</b><span>CPU、内存、超时与强制清理</span></li>
+                <li><b>网络控制</b><span>默认禁网与域名白名单网关</span></li>
+                <li><b>结果留痕</b><span>结果取回、日志、审计与销毁记录</span></li>
+              </ul>
+            </div>
+            <div class="boundary-divider"><span>接口契约</span></div>
+            <div class="boundary-column adjacent">
+              <div class="boundary-head"><span>相邻模块输入</span><strong>当前以 mock 完成链路验证</strong></div>
+              <ul>
+                <li><b>1.8 账号网关</b><span>岗位、部门、角色权限</span></li>
+                <li><b>1.9 安全合规</b><span>出站、凭据与审计策略</span></li>
+                <li><b>1.10 系统接口</b><span>ERP/OA/数据库业务数据</span></li>
+                <li><b>1.12 成本管控</b><span>计量接口与成本规则</span></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="policy-grid">
+            <div class="panel"><div class="panel-heading"><div><span>运行基线</span><h3>策略与就绪检查</h3></div><span class="step-chip">POLICY</span></div><div id="policyDetail" class="annotated-placeholder">正在加载...</div></div>
+            <div class="panel"><div class="panel-heading"><div><span>方案覆盖</span><h3>研发方案合规清单</h3></div><span id="complianceCount" class="count-chip">0 ITEMS</span></div><div id="complianceList" class="compliance-list">正在加载...</div></div>
+          </div>
+          <div class="panel"><div class="panel-heading"><div><span>客观结论</span><h3>验收检查矩阵</h3></div><div class="panel-actions"><span id="acceptanceCount" class="count-chip">WAITING</span><button id="runPolicyAcceptance" class="compact-button">运行客观验收</button></div></div><div id="acceptanceList" class="compliance-list acceptance-matrix"><div class="acceptance-ready"><strong>等待现场复核</strong><span>点击“运行客观验收”后，服务器将重新执行完整检查并返回本次结果。</span></div></div></div>
+        </section>
+
+        <section id="delivery" class="view">
+          <div class="page-heading">
+            <div>
+              <span class="section-kicker">DELIVERY READINESS</span>
+              <h3>L1 能力包交付中心</h3>
+              <p>汇总模块说明、边界、接口、场景测试、客观证据、报告归档和联调契约。</p>
+            </div>
+            <span class="scope-badge delivery">可交付验证</span>
+          </div>
+
+          <div class="delivery-command-band">
+            <div><span>当前交付口径</span><strong>可演示 · 可测试 · 可验证 · 可被平台调用</strong><small>Docker 版 L1 1.14 能力包</small></div>
+            <div class="toolbar">
+              <button id="generateReport">生成验证报告</button>
+              <button id="generateConcurrencyReport" class="secondary-button">运行并发测试</button>
+              <button id="generateExport" class="secondary-button">更新证据包</button>
+              <a class="button-link" href="/api/delivery/export.zip">下载证据包</a>
+            </div>
+          </div>
+          <div id="deliverySummary" class="executive-metrics"></div>
+          <div id="deliveryActionResult" class="delivery-action-result">报告和证据包保存在服务器项目的 docs/evidence 目录。</div>
+
+          <div class="delivery-grid">
+            <div class="panel"><div class="panel-heading"><div><span>交付项</span><h3>能力包清单</h3></div><span class="step-chip">READY</span></div><div id="deliveryChecklist" class="compliance-list">正在加载...</div></div>
+            <div class="panel"><div class="panel-heading"><div><span>证明材料</span><h3>证据文件</h3></div><span class="step-chip">EVIDENCE</span></div><div id="deliveryEvidence" class="evidence-list">正在加载...</div></div>
+          </div>
+          <div class="panel"><div class="panel-heading"><div><span>平台对接</span><h3>联调接口矩阵</h3></div><span class="count-chip">7 CONTRACTS</span></div><div id="deliveryContracts" class="contract-grid">正在加载...</div></div>
+          <div class="panel"><div class="panel-heading"><div><span>测试归档</span><h3>验证与并发报告</h3></div><span class="step-chip">ARCHIVE</span></div><div id="deliveryReports" class="evidence-list">正在加载...</div></div>
+        </section>
+      </div>
+    </main>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

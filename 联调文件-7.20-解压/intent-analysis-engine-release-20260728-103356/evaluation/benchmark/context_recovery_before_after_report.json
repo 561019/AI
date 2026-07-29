@@ -1,0 +1,97 @@
+{
+  "before_report": "evaluation\\benchmark\\validation_report_context_recovery_before.json",
+  "after_report": "evaluation\\benchmark\\validation_report_context_recovery_after.json",
+  "added_rule_count": 0,
+  "added_semantic_examples_count": 0,
+  "metrics": {
+    "task_type_accuracy": {
+      "before": 0.8378378378378378,
+      "after": 0.8783783783783784
+    },
+    "task_type_accuracy_delta": 0.04054054054054057,
+    "task_recall": {
+      "before": 0.8603603603603603,
+      "after": 0.9009009009009009
+    },
+    "task_recall_delta": 0.04054054054054057,
+    "context_recovery_accuracy": {
+      "before": 0.5,
+      "after": 1.0
+    },
+    "context_recovery_accuracy_delta": 0.5,
+    "forbidden_task_rate": {
+      "before": 0.0,
+      "after": 0.0
+    },
+    "forbidden_task_rate_delta": 0.0,
+    "false_positive_rate": {
+      "before": 0.0,
+      "after": 0.0
+    },
+    "false_positive_rate_delta": 0.0,
+    "future_scope_false_positive": {
+      "before": 0.0,
+      "after": 0.0
+    },
+    "future_scope_false_positive_delta": 0.0,
+    "future_scope_false_positive_rate": {
+      "before": 0.0,
+      "after": 0.0
+    },
+    "future_scope_false_positive_rate_delta": 0.0,
+    "negation_accuracy": {
+      "before": 1.0,
+      "after": 1.0
+    },
+    "negation_accuracy_delta": 0.0,
+    "negation_false_positive_rate": {
+      "before": 0.0,
+      "after": 0.0
+    },
+    "negation_false_positive_rate_delta": 0.0,
+    "clarification_accuracy": {
+      "before": 0.8108108108108109,
+      "after": 0.8513513513513513
+    },
+    "clarification_accuracy_delta": 0.04054054054054046,
+    "clarification_decision_accuracy": {
+      "before": 0.8108108108108109,
+      "after": 0.8513513513513513
+    },
+    "clarification_decision_accuracy_delta": 0.04054054054054046,
+    "clarification_field_accuracy": {
+      "before": 0.7837837837837838,
+      "after": 0.7837837837837838
+    },
+    "clarification_field_accuracy_delta": 0.0,
+    "clarification_question_accuracy": {
+      "before": 1.0,
+      "after": 1.0
+    },
+    "clarification_question_accuracy_delta": 0.0,
+    "no_unnecessary_clarification_question_accuracy": {
+      "before": 0.7678571428571429,
+      "after": 0.8214285714285714
+    },
+    "no_unnecessary_clarification_question_accuracy_delta": 0.05357142857142849,
+    "clarification_recovery_accuracy": {
+      "before": 1.0,
+      "after": 1.0
+    },
+    "clarification_recovery_accuracy_delta": 0.0
+  },
+  "improved_cases": [
+    "BENCH-VALIDATION-046",
+    "BENCH-VALIDATION-047",
+    "BENCH-VALIDATION-048"
+  ],
+  "regressed_cases": [],
+  "task_type_improved_cases": [
+    "BENCH-VALIDATION-046",
+    "BENCH-VALIDATION-047",
+    "BENCH-VALIDATION-048"
+  ],
+  "task_type_regressed_cases": [],
+  "rollback_required": false,
+  "final_recommendation": "Keep changes. Remaining failures are not safe L1/L2 expansion candidates; prioritize input validation, context resolution, negation/future-scope filtering, or L3/clarification."
+}

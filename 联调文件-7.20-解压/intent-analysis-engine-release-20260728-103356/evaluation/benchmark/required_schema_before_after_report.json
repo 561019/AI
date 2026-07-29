@@ -1,0 +1,121 @@
+{
+  "before_report": "evaluation\\benchmark\\validation_report_required_schema_before.json",
+  "after_report": "evaluation\\benchmark\\validation_report_required_schema_after.json",
+  "after_failure_report": "evaluation\\error_analysis\\failure_report_required_schema_after.json",
+  "comparison": {
+    "total": {
+      "before": 84,
+      "after": 87,
+      "delta": 3
+    },
+    "passed": {
+      "before": 70,
+      "after": 81,
+      "delta": 11
+    },
+    "task_type_exact_accuracy": {
+      "before": 0.9404761904761905,
+      "after": 0.9425287356321839,
+      "delta": 0.0020525451559934016
+    },
+    "task_count_accuracy": {
+      "before": 0.9523809523809523,
+      "after": 0.9540229885057471,
+      "delta": 0.0016420361247947435
+    },
+    "clarification_accuracy": {
+      "before": 0.9047619047619048,
+      "after": 0.9655172413793104,
+      "delta": 0.06075533661740562
+    },
+    "clarification_decision_accuracy": {
+      "before": 0.9047619047619048,
+      "after": 0.9655172413793104,
+      "delta": 0.06075533661740562
+    },
+    "clarification_field_accuracy": {
+      "before": 0.8452380952380952,
+      "after": 0.9540229885057471,
+      "delta": 0.10878489326765184
+    },
+    "missing_inputs_accuracy": {
+      "before": 0.8452380952380952,
+      "after": 0.9540229885057471,
+      "delta": 0.10878489326765184
+    },
+    "missing_input_precision": {
+      "before": 0.8571428571428571,
+      "after": 0.9540229885057471,
+      "delta": 0.09688013136288998
+    },
+    "missing_input_recall": {
+      "before": 0.8690476190476191,
+      "after": 0.9540229885057471,
+      "delta": 0.084975369458128
+    },
+    "over_clarification_rate": {
+      "before": 0.08333333333333333,
+      "after": 0.022988505747126436,
+      "delta": -0.06034482758620689
+    },
+    "clarification_recovery_accuracy": {
+      "before": 1.0,
+      "after": 1.0,
+      "delta": 0.0
+    },
+    "context_recovery_accuracy": {
+      "before": 1.0,
+      "after": 1.0,
+      "delta": 0.0
+    },
+    "false_positive_rate": {
+      "before": 0.0,
+      "after": 0.0,
+      "delta": 0.0
+    },
+    "macro_recall": {
+      "before": 0.9603174603174603,
+      "after": 0.9616858237547893,
+      "delta": 0.0013683634373289344
+    },
+    "macro_f1": {
+      "before": 0.9543650793650794,
+      "after": 0.9559386973180077,
+      "delta": 0.001573617952928319
+    },
+    "task_recovery_accuracy": {
+      "before": 0.9603174603174603,
+      "after": 0.9616858237547893,
+      "delta": 0.0013683634373289344
+    }
+  },
+  "schema_task_types": [
+    "RULE_CALCULATION_COMMISSION",
+    "DATA_QUERY_FETCH",
+    "DATA_AGGREGATION_SUMMARY",
+    "DATA_ANALYSIS_PROBLEM",
+    "DOCUMENT_GENERATE",
+    "PROCESS_HANDLE",
+    "WORKFLOW_START",
+    "EXTERNAL_SYSTEM_SUBMIT",
+    "RULE_CALCULATION_GENERAL",
+    "DATA_ANALYSIS_FORECAST",
+    "DATA_ANALYSIS_YOY",
+    "DATA_ANALYSIS_MOM",
+    "EXTERNAL_DATA_FETCH",
+    "DOCUMENT_TABLE_PARSE",
+    "FILE_STRUCTURE_EXTRACT",
+    "MONITORING_REMINDER",
+    "DIGITAL_ASSET_ACCRUAL_VOUCHER",
+    "QUESTION_ANSWER"
+  ],
+  "after_failure_types": {
+    "NEED_L3_OR_CLARIFICATION": 5,
+    "UNNECESSARY_REQUIRED_INPUT": 1
+  },
+  "notes": [
+    "blind_test was not used or modified.",
+    "Before report has 84 validation cases; after report has 87 validation cases after adding schema validation samples.",
+    "New missing_input_precision, missing_input_recall, and over_clarification_rate are derived for the before report from failed_cases because that report predates the metric fields."
+  ]
+}

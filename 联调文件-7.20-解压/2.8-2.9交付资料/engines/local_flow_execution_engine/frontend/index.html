@@ -1,0 +1,1024 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>本地简化流程执行引擎</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --line: #d7e0ea;
+      --text: #16283a;
+      --muted: #607286;
+      --blue: #1f6fa9;
+      --green: #23835b;
+      --red: #b23b3b;
+      --amber: #a56a16;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.5 "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+    }
+    header {
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+    }
+    h1 { margin: 0; font-size: 20px; }
+    .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .badge {
+      border: 1px solid var(--line);
+      background: #f7fbff;
+      border-radius: 999px;
+      padding: 6px 12px;
+      color: var(--blue);
+      font-weight: 700;
+    }
+    main {
+      display: grid;
+      grid-template-columns: minmax(320px, 420px) 1fr;
+      gap: 16px;
+      padding: 16px;
+      min-height: calc(100vh - 64px);
+    }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      min-width: 0;
+    }
+    h2 {
+      margin: 0 0 12px;
+      font-size: 16px;
+    }
+    label {
+      display: block;
+      margin: 10px 0 4px;
+      color: #2b4055;
+      font-weight: 700;
+      font-size: 12px;
+    }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid #c7d4e2;
+      border-radius: 6px;
+      padding: 9px 10px;
+      font: inherit;
+      color: var(--text);
+      background: #fbfdff;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 128px;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .checkrow {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 10px;
+      color: #2b4055;
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .checkrow input { width: auto; }
+    .buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+    button {
+      border: 0;
+      border-radius: 6px;
+      padding: 9px 14px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      background: #e9eff5;
+      color: #183047;
+    }
+    button.primary { background: var(--blue); color: #fff; }
+    button.good { background: var(--green); color: #fff; }
+    button.bad { background: var(--red); color: #fff; }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fbfdff;
+    }
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+    .metric strong {
+      display: block;
+      font-size: 18px;
+      color: var(--blue);
+      word-break: break-word;
+    }
+    .visual-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      background: #fbfdff;
+    }
+    .visual-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .visual-head h2 { margin: 0; }
+    .legend {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      display: inline-block;
+      background: #b7c4d1;
+    }
+    .dot.done { background: var(--green); }
+    .dot.wait { background: var(--amber); }
+    .dot.fail { background: var(--red); }
+    .flow-map {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      padding: 2px 4px 8px 2px;
+    }
+    .flow-node {
+      position: relative;
+      flex: 1 1 140px;
+      min-height: 94px;
+      border: 1px solid #cbd7e2;
+      border-radius: 8px;
+      padding: 10px;
+      background: #f7fafc;
+      color: #294156;
+    }
+    .flow-node:not(:last-child)::after {
+      content: ">";
+      position: absolute;
+      right: -12px;
+      top: 36px;
+      color: #8ea1b4;
+      font-weight: 900;
+    }
+    .flow-node .node-title {
+      font-weight: 900;
+      margin-bottom: 6px;
+      color: #183047;
+    }
+    .flow-node .node-meta {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      word-break: break-word;
+    }
+    .flow-node.completed {
+      background: #ecf8f0;
+      border-color: #9bd1b2;
+    }
+    .flow-node.completed .node-title { color: var(--green); }
+    .flow-node.active,
+    .flow-node.waiting {
+      background: #fff7e8;
+      border-color: #e6c27f;
+    }
+    .flow-node.active .node-title,
+    .flow-node.waiting .node-title { color: var(--amber); }
+    .flow-node.failed {
+      background: #fff0ef;
+      border-color: #e5aaa5;
+    }
+    .flow-node.failed .node-title { color: var(--red); }
+    .flow-node.skipped {
+      background: #f1f4f7;
+      border-style: dashed;
+      color: #718294;
+    }
+    .flow-node.pending {
+      background: #f7fafc;
+      border-color: #d7e0ea;
+    }
+    .engine-map .flow-node {
+      flex-basis: 152px;
+      min-height: 88px;
+    }
+    .visual-note {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .result-box {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 12px;
+      background: #fbfdff;
+    }
+    .result-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .result-toolbar h2 { margin: 0; }
+    .result-badge {
+      border: 1px solid #c7d4e2;
+      border-radius: 999px;
+      padding: 5px 9px;
+      color: var(--blue);
+      background: #f2f7fb;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .result-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .result-field {
+      border: 1px solid #dbe5ee;
+      border-radius: 8px;
+      background: #fff;
+      padding: 11px;
+      min-width: 0;
+    }
+    .result-field.wide { grid-column: 1 / -1; }
+    .result-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .result-text {
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #1b3146;
+      line-height: 1.65;
+    }
+    .result-empty {
+      color: var(--muted);
+      padding: 12px;
+      border: 1px dashed #c7d4e2;
+      border-radius: 8px;
+      background: #f8fbff;
+    }
+    .media-preview {
+      display: grid;
+      gap: 10px;
+    }
+    .media-preview img,
+    .media-preview video {
+      max-width: 100%;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #eef3f7;
+    }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 8px 0 10px;
+    }
+    .tabs button {
+      padding: 7px 10px;
+      border: 1px solid #c7d4e2;
+      background: #f8fbff;
+    }
+    .tabs button.active {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #fff;
+    }
+    pre {
+      margin: 0;
+      padding: 12px;
+      background: #f8fbff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      min-height: 420px;
+      max-height: calc(100vh - 250px);
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font: 12px/1.55 Consolas, "Microsoft YaHei", monospace;
+    }
+    .note {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 10px;
+    }
+    .status-ok { color: var(--green); }
+    .status-warn { color: var(--amber); }
+    .status-bad { color: var(--red); }
+    @media (max-width: 980px) {
+      main { grid-template-columns: 1fr; }
+      .summary { grid-template-columns: repeat(2, 1fr); }
+      .visual-head { align-items: flex-start; flex-direction: column; }
+      .result-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>本地简化流程执行引擎</h1>
+      <div class="sub">只面向内容产出 / 多媒体联调：登记流程、派发子任务、接收结果、真人确认</div>
+    </div>
+    <div class="badge" id="healthBadge">检查中</div>
+  </header>
+  <main>
+    <section>
+      <h2>流程输入</h2>
+      <label>当前真人</label>
+      <select id="actorId">
+        <option value="U001">U001 · 产品推广专员</option>
+        <option value="U002">U002 · 内容运营</option>
+        <option value="U003">U003 · 管理员</option>
+      </select>
+      <div class="row">
+        <div>
+          <label>流程类型</label>
+          <select id="workflowType">
+            <option value="media_only">多媒体单节点</option>
+            <option value="content_then_media">内容产出 + 多媒体</option>
+            <option value="hot_case_batch">批量爆款生成（内容产出 + 多媒体）</option>
+            <option value="hot_case_sample_then_batch">爆款打样确认后批量生成</option>
+            <option value="expert_agent_plan">专家分身生成方案（案例一）</option>
+            <option value="skill_promotion_authorization">技能推广授权（案例一）</option>
+          </select>
+        </div>
+        <div>
+          <label>真人确认</label>
+          <select id="reviewPolicy">
+            <option value="always">生成后确认</option>
+            <option value="none">直接返回</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>任务类型</label>
+          <select id="taskType">
+            <option value="multimedia_poster">multimedia_poster</option>
+            <option value="product_video">product_video</option>
+            <option value="hot_case_reuse">hot_case_reuse</option>
+            <option value="video_editing">video_editing</option>
+            <option value="fixed_short_video">fixed_short_video</option>
+            <option value="text_to_speech">text_to_speech</option>
+            <option value="media_processing">media_processing</option>
+          </select>
+        </div>
+        <div>
+          <label>能力接口位</label>
+          <select id="capabilityId">
+            <option value="text_to_image">text_to_image · 文生图（首批，可联调方案/提示词）</option>
+            <option value="text_to_video">text_to_video · 文生视频（预留接口位）</option>
+            <option value="video_editing">video_editing · 视频剪接（首批，可联调剪辑方案）</option>
+            <option value="fixed_short_video">fixed_short_video · 固定类别短视频制作（首批，可联调分镜/脚本）</option>
+            <option value="digital_human">digital_human · 数字人制作（预留接口位）</option>
+            <option value="text_to_speech">text_to_speech · 文字转语音（首批，可联调语音方案）</option>
+            <option value="media_processing">media_processing · 音画合成与媒体处理（首批，可联调处理方案）</option>
+            <option value="music_sound">music_sound · 音乐音效生成（预留接口位）</option>
+            <option value="multilingual_version">multilingual_version · 多语种翻译版本（预留接口位）</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>批量数量</label>
+          <input id="batchCount" type="number" min="1" max="5" value="3">
+        </div>
+        <div>
+          <label>爆款案例引用</label>
+          <input id="hotCaseRefs" value="HOT-CASE-001">
+        </div>
+      </div>
+      <label>L4 原始任务 / 已确认结构化任务</label>
+      <textarea id="requirement">请根据智能监测设备的产品资料、品牌规范、Logo、产品图和爆款海报案例，生成一份可用于文生图的产品宣传海报制作方案和提示词。</textarea>
+      <div class="checkrow">
+        <input id="useLlm" type="checkbox" checked>
+        <span>真实调用文本大模型生成方案/提示词（不是直接生成图片）</span>
+      </div>
+      <div class="buttons">
+        <button class="primary" id="runBtn">启动流程并派发多媒体</button>
+        <button id="refreshBtn">刷新历史</button>
+        <button id="resetBtn">清空流程</button>
+      </div>
+      <h2 style="margin-top:20px;">联调配置</h2>
+      <label>MEDIA_BASE</label>
+      <input id="mediaBase" value="http://127.0.0.1:8013">
+      <div class="buttons">
+        <button id="saveConfigBtn">保存配置</button>
+        <button id="healthBtn">检查连接</button>
+      </div>
+      <label>CONTENT_BASE</label>
+      <input id="contentBase" value="http://127.0.0.1:8011">
+      <div class="note">图文任务会先真实调用内容产出 v0.2 生成文字初稿，再调用多媒体 v1.1 生成图片、视频、语音或媒体处理方案；当前不会返回真实媒体文件。</div>
+    </section>
+    <section>
+      <div class="summary">
+        <div class="metric"><span>流程编号</span><strong id="mInstance">-</strong></div>
+        <div class="metric"><span>流程状态</span><strong id="mStatus">-</strong></div>
+        <div class="metric"><span>出口</span><strong id="mExit">-</strong></div>
+        <div class="metric"><span>内容产出任务</span><strong id="mContent">-</strong></div>
+        <div class="metric"><span>多媒体任务</span><strong id="mMedia">-</strong></div>
+      </div>
+      <div id="decisionBox" class="buttons" style="display:none;margin-bottom:10px;">
+        <button class="good" id="approveBtn">确认通过</button>
+        <button class="bad" id="rejectBtn">驳回</button>
+      </div>
+      <div class="result-box">
+        <div class="result-toolbar">
+          <h2>生成结果展示</h2>
+          <span class="result-badge" id="resultTypeBadge">等待生成</span>
+        </div>
+        <div id="resultDisplay" class="result-empty">流程运行后，这里会优先展示排版后的提示词、图片或视频结果。</div>
+      </div>
+      <div class="visual-card">
+        <div class="visual-head">
+          <h2>主流程派发图</h2>
+          <div class="legend">
+            <span><i class="dot done"></i>完成</span>
+            <span><i class="dot wait"></i>运行/等待</span>
+            <span><i class="dot fail"></i>失败</span>
+            <span><i class="dot"></i>未执行/预留</span>
+          </div>
+        </div>
+        <div class="flow-map" id="flowMap"></div>
+        <div class="visual-note" id="flowNote">等待启动流程。</div>
+      </div>
+      <div class="visual-card">
+        <div class="visual-head">
+          <h2>内容产出内部执行图</h2>
+          <div class="legend">文字初稿承办链路</div>
+        </div>
+        <div class="flow-map engine-map" id="contentEngineMap"></div>
+        <div class="visual-note" id="contentEngineNote">图文任务启用后显示内容产出内部步骤。</div>
+      </div>
+      <div class="visual-card">
+        <div class="visual-head">
+          <h2>多媒体生成内部执行图</h2>
+          <div class="legend">多媒体能力承办链路</div>
+        </div>
+        <div class="flow-map engine-map" id="engineMap"></div>
+        <div class="visual-note" id="engineNote">多媒体节点执行后显示内部步骤；当前不会进入真实图片生成模型。</div>
+      </div>
+      <div class="tabs">
+        <button class="active" data-tab="events">流程日志</button>
+        <button data-tab="nodes">节点</button>
+        <button data-tab="content">内容产出结果</button>
+        <button data-tab="media">方案/提示词结果</button>
+        <button data-tab="refs">引用来源</button>
+        <button data-tab="raw">完整 JSON</button>
+      </div>
+      <pre id="output">等待启动流程。</pre>
+    </section>
+  </main>
+  <script>
+    let current = null;
+    let currentTab = "events";
+
+    const $ = (id) => document.getElementById(id);
+    const output = $("output");
+    const CAPABILITY_OUTPUT_TYPES = {
+      text_to_image: "image_plan",
+      text_to_video: "video_plan",
+      video_editing: "video_edit_plan",
+      fixed_short_video: "short_video_plan",
+      digital_human: "digital_human_plan",
+      text_to_speech: "speech_plan",
+      media_processing: "media_processing_plan",
+      music_sound: "music_sound_plan",
+      multilingual_version: "multilingual_plan"
+    };
+    const CAPABILITY_TASK_TYPES = {
+      text_to_image: "multimedia_poster",
+      text_to_video: "product_video",
+      video_editing: "video_editing",
+      fixed_short_video: "fixed_short_video",
+      digital_human: "product_video",
+      text_to_speech: "text_to_speech",
+      media_processing: "media_processing",
+      music_sound: "product_video",
+      multilingual_version: "product_video"
+    };
+
+    function show(value) {
+      output.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+    }
+
+    async function api(path, options = {}) {
+      const res = await fetch(path, {
+        headers: {"Content-Type": "application/json; charset=utf-8"},
+        ...options
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(JSON.stringify(data, null, 2));
+      return data;
+    }
+
+    function render(instance) {
+      current = instance;
+      $("mInstance").textContent = instance?.instance_id || "-";
+      $("mStatus").textContent = instance?.status || "-";
+      $("mExit").textContent = instance?.exit_type || "-";
+      const contentIds = Object.values(instance?.artifacts?.content_task_ids || {}).filter(Boolean);
+      const mediaIds = Object.values(instance?.artifacts?.media_task_ids || {}).filter(Boolean);
+      $("mContent").textContent = contentIds.length ? `${contentIds.length} 个：${contentIds.join(", ")}` : (instance?.artifacts?.content_task_id || "-");
+      $("mMedia").textContent = mediaIds.length ? `${mediaIds.length} 个：${mediaIds.join(", ")}` : (instance?.artifacts?.media_task_id || "-");
+      const pending = (instance?.human_tasks || []).find(x => x.status === "pending");
+      $("decisionBox").style.display = pending ? "flex" : "none";
+      renderVisual(instance);
+      renderResultDisplay(instance);
+      if (currentTab === "events") show(instance?.events || []);
+      if (currentTab === "nodes") show(instance?.nodes || []);
+      if (currentTab === "content") show(instance?.artifacts?.content_result || null);
+      if (currentTab === "media") show(instance?.artifacts?.media_result || null);
+      if (currentTab === "refs") show(instance?.artifacts?.references || []);
+      if (currentTab === "raw") show(instance || null);
+    }
+
+    async function loadConfig() {
+      const cfg = await api("/api/config");
+      $("mediaBase").value = cfg.media_base;
+      $("contentBase").value = cfg.content_base;
+    }
+
+    async function checkHealth() {
+      try {
+        const data = await api("/health");
+        const ok = data.media_connected && data.content_connected;
+        $("healthBadge").textContent = ok ? "内容/多媒体已连接" : "连接不完整";
+        $("healthBadge").className = ok ? "badge status-ok" : "badge status-bad";
+        show(data);
+      } catch (err) {
+        $("healthBadge").textContent = "检查失败";
+        $("healthBadge").className = "badge status-bad";
+        show(String(err));
+      }
+    }
+
+    $("runBtn").onclick = async () => {
+      $("runBtn").disabled = true;
+      show("流程启动中，正在按流程派发内容产出/多媒体节点...");
+      try {
+        const workflowType = $("workflowType").value;
+        const selectedTaskType = $("taskType").value;
+        const taskType = workflowType === "expert_agent_plan"
+          ? "expert_agent_plan"
+          : workflowType === "skill_promotion_authorization"
+            ? "skill_promotion_authorization"
+            : ["hot_case_batch", "hot_case_sample_then_batch"].includes(workflowType)
+          ? "hot_case_reuse"
+          : (selectedTaskType || CAPABILITY_TASK_TYPES[$("capabilityId").value] || "multimedia_poster");
+        const req = {
+          actor_id: $("actorId").value,
+          workflow_type: workflowType,
+          requirement: $("requirement").value,
+          task_type: taskType,
+          capability_id: $("capabilityId").value,
+          output_type: CAPABILITY_OUTPUT_TYPES[$("capabilityId").value] || "media_plan",
+          top_k: 8,
+          use_llm: $("useLlm").checked,
+          review_policy: $("reviewPolicy").value,
+          batch_count: Number($("batchCount").value || 3),
+          hot_case_refs: $("hotCaseRefs").value.split(/[，,;\s]+/).map(x => x.trim()).filter(Boolean)
+        };
+        render(await api("/api/flow/start", {method: "POST", body: JSON.stringify(req)}));
+      } catch (err) {
+        show(String(err));
+      } finally {
+        $("runBtn").disabled = false;
+      }
+    };
+
+    $("saveConfigBtn").onclick = async () => {
+      const data = await api("/api/config", {method: "POST", body: JSON.stringify({media_base: $("mediaBase").value, content_base: $("contentBase").value})});
+      show(data);
+    };
+
+    $("healthBtn").onclick = checkHealth;
+
+    $("refreshBtn").onclick = async () => {
+      const data = await api("/api/flow/list");
+      if (data.items && data.items.length) {
+        render(data.items[0]);
+      } else {
+        render(null);
+        show(data);
+      }
+    };
+
+    $("resetBtn").onclick = async () => {
+      current = null;
+      await api("/api/reset", {method: "POST", body: "{}"});
+      render(null);
+      show("已清空本地流程实例。");
+    };
+
+    $("approveBtn").onclick = async () => decide("approved");
+    $("rejectBtn").onclick = async () => decide("rejected");
+
+    async function decide(decision) {
+      const task = (current?.human_tasks || []).find(x => x.status === "pending");
+      if (!task) return;
+      const payload = {instance_id: current.instance_id, task_id: task.task_id, decision, decided_by: $("actorId").value};
+      render(await api("/api/flow/decide", {method: "POST", body: JSON.stringify(payload)}));
+    }
+
+    function statusClass(status) {
+      if (["completed", "done", "ok", "approved"].includes(status)) return "completed";
+      if (["running", "in_progress", "accepted"].includes(status)) return "active";
+      if (["waiting", "waiting_human", "pending_human"].includes(status)) return "waiting";
+      if (["failed", "rejected", "error"].includes(status)) return "failed";
+      if (["skipped", "mock", "placeholder"].includes(status)) return "skipped";
+      return "pending";
+    }
+
+    function flowNode(title, status, meta) {
+      return `<div class="flow-node ${statusClass(status)}">
+        <div class="node-title">${escapeHtml(title)}</div>
+        <div class="node-meta">${escapeHtml(meta || status || "未执行")}</div>
+      </div>`;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, ch => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      }[ch]));
+    }
+
+    function eventStatus(events, stepName) {
+      const matched = [...(events || [])].reverse().find(x => x.step === stepName);
+      if (!matched) return {status: "pending", detail: "未执行"};
+      return {status: matched.status === "ok" ? "completed" : "failed", detail: matched.detail || matched.status};
+    }
+
+    function renderVisual(instance) {
+      if (!instance) {
+        $("flowMap").innerHTML = [
+          flowNode("L4/测试入口", "pending", "等待任务"),
+          flowNode("流程执行引擎", "pending", "等待登记"),
+          flowNode("内容产出", "pending", "预留"),
+          flowNode("多媒体生成", "pending", "等待派发"),
+          flowNode("真人确认", "pending", "等待结果"),
+          flowNode("结果返回", "pending", "未完成")
+        ].join("");
+        $("engineMap").innerHTML = [
+          flowNode("创建任务", "pending", "未执行"),
+          flowNode("知识库取材", "pending", "未执行"),
+          flowNode("渲染上下文", "pending", "未执行"),
+        flowNode("文本LLM/Mock", "pending", "未执行"),
+        flowNode("返回方案/提示词", "pending", "未执行")
+        ].join("");
+        $("contentEngineMap").innerHTML = [
+          flowNode("接收子任务", "pending", "未执行"),
+          flowNode("字段/权限校验", "pending", "未执行"),
+          flowNode("取资料与模板", "pending", "未执行"),
+          flowNode("模型调度", "pending", "未执行"),
+          flowNode("生成文字初稿", "pending", "未执行"),
+          flowNode("交回流程", "pending", "未执行")
+        ].join("");
+        $("flowNote").textContent = "等待启动流程。";
+        $("contentEngineNote").textContent = "内容产出节点执行后显示内部步骤。";
+        $("engineNote").textContent = "多媒体节点执行后显示内部步骤。";
+        return;
+      }
+
+      const nodes = instance.nodes || [];
+      const contentNodes = nodes.filter(x => x.node_id === "content_prepare" || String(x.node_id || "").startsWith("hot_content_"));
+      const mediaNodes = nodes.filter(x => x.node_id === "media_generate" || String(x.node_id || "").startsWith("hot_media_"));
+      const aggregateStatus = (items, emptyStatus = "pending") => {
+        if (!items.length) return emptyStatus;
+        if (items.some(x => x.status === "failed")) return "failed";
+        if (items.every(x => x.status === "completed")) return "completed";
+        if (items.some(x => x.status === "running")) return "running";
+        return items[0]?.status || emptyStatus;
+      };
+      const contentNode = contentNodes[contentNodes.length - 1];
+      const mediaNode = mediaNodes[mediaNodes.length - 1];
+      const pendingHuman = (instance.human_tasks || []).find(x => x.status === "pending");
+      const decidedHuman = (instance.human_tasks || []).find(x => x.status === "done");
+      const contentStatus = contentNodes.length ? aggregateStatus(contentNodes) : "skipped";
+      const contentMeta = contentNodes.length > 1
+        ? `${contentNodes.filter(x => x.status === "completed").length}/${contentNodes.length} 个内容节点完成`
+        : (contentNode ? (contentNode.result?.summary || contentNode.status) : "当前流程未启用");
+      let humanStatus = "pending";
+      let humanMeta = "等待多媒体结果";
+      if (pendingHuman) {
+        humanStatus = "waiting";
+        humanMeta = pendingHuman.summary || "等待真人确认";
+      } else if (decidedHuman) {
+        humanStatus = decidedHuman.decision === "approved" ? "completed" : "failed";
+        humanMeta = decidedHuman.decision === "approved" ? "已确认通过" : "已驳回";
+      } else if (instance.request?.review_policy === "none") {
+        humanStatus = "skipped";
+        humanMeta = "配置为直接返回";
+      }
+      const finalStatus = instance.status === "completed" ? "completed" : (instance.status === "failed" ? "failed" : "pending");
+      const finalMeta = instance.status === "completed" ? "流程完成" : (instance.status === "failed" ? "流程失败" : "等待后续处理");
+      $("flowMap").innerHTML = [
+        flowNode("L4/测试入口", "completed", instance.source_module || "local_l4_demo"),
+        flowNode("流程执行引擎", "completed", `${instance.instance_id} 已登记`),
+        flowNode("内容产出", contentStatus, contentMeta),
+        flowNode(
+          "多媒体生成",
+          mediaNodes.length ? aggregateStatus(mediaNodes) : "pending",
+          mediaNodes.length > 1 ? `${mediaNodes.filter(x => x.status === "completed").length}/${mediaNodes.length} 个多媒体节点完成` : (mediaNode?.result?.task_id || "等待派发")
+        ),
+        flowNode("真人确认", humanStatus, humanMeta),
+        flowNode("结果返回", finalStatus, finalMeta)
+      ].join("");
+      $("flowNote").textContent = instance.truth_note || "绿色表示已完成，黄色表示正在运行或等待，红色表示失败。";
+
+      renderContentEngineMap(contentNode?.result);
+
+      const media = instance.artifacts?.media_result;
+      if (!media) {
+        $("engineMap").innerHTML = [
+          flowNode("创建任务", "pending", "等待多媒体节点"),
+          flowNode("知识库取材", "pending", "等待多媒体节点"),
+          flowNode("渲染上下文", "pending", "等待多媒体节点"),
+          flowNode("文本LLM/Mock", "pending", "等待多媒体节点"),
+          flowNode("返回方案/提示词", "pending", "等待多媒体节点")
+        ].join("");
+        $("engineNote").textContent = "多媒体节点尚未返回结果。";
+        return;
+      }
+      const createTask = eventStatus(media.events, "receive_subtask");
+      const kbTask = eventStatus(media.events, "kb_task_materials");
+      const renderXml = eventStatus(media.events, "render_xml_context");
+      const llmCall = eventStatus(media.events, "llm_call");
+      const resultStatus = media.status === "completed" ? "completed" : (media.status === "llm_failed" ? "failed" : "pending");
+      $("engineMap").innerHTML = [
+        flowNode("创建任务", createTask.status, media.task_id || createTask.detail),
+        flowNode("知识库取材", kbTask.status, kbTask.detail),
+        flowNode("渲染上下文", renderXml.status, renderXml.detail),
+        flowNode("文本LLM/Mock", llmCall.status, `${llmCall.detail}；mode=${media.llm_result?.mode || "-"}`),
+        flowNode("返回方案/提示词", resultStatus, media.status || "等待返回")
+      ].join("");
+      $("engineNote").textContent = media.truth_note || "内部图来自多媒体 v1.1 返回的 events 字段；当前没有真实图片/视频产物。";
+    }
+
+    function contentStageStatus(result, stageIndex, fallbackDetail) {
+      if (!result) return {status: "pending", detail: "等待内容产出节点"};
+      if (result.status === "blocked_permission" || result.status === "unable_to_handle" || result.status === "returned_for_completion") {
+        return {status: stageIndex <= result.current_step_index ? "failed" : "pending", detail: result.blocking_reason || result.status};
+      }
+      if (stageIndex <= result.current_step_index) return {status: "completed", detail: fallbackDetail};
+      if (stageIndex === result.current_step_index + 1 && !["completed", "pending_human_confirmation"].includes(result.status)) {
+        return {status: "running", detail: fallbackDetail};
+      }
+      return {status: "pending", detail: "未执行"};
+    }
+
+    function renderContentEngineMap(content) {
+      if (!content) {
+        $("contentEngineMap").innerHTML = [
+          flowNode("接收子任务", "pending", "等待内容产出节点"),
+          flowNode("字段/权限校验", "pending", "等待内容产出节点"),
+          flowNode("取资料与模板", "pending", "等待内容产出节点"),
+          flowNode("模型调度", "pending", "等待内容产出节点"),
+          flowNode("生成文字初稿", "pending", "等待内容产出节点"),
+          flowNode("交回流程", "pending", "等待内容产出节点")
+        ].join("");
+        $("contentEngineNote").textContent = "当前流程未启用或尚未返回内容产出结果。";
+        return;
+      }
+      const receive = contentStageStatus(content, 3, content.task_id || "已接收");
+      const check = contentStageStatus(content, 4, "字段、权限、模板通过");
+      const context = contentStageStatus(content, 6, content.content_mode?.content_type_label || "已取资料与模板");
+      const dispatch = contentStageStatus(content, 7, content.model_dispatch?.model_task_id || "经 1.5 调度");
+      const draft = contentStageStatus(content, 8, `${content.drafts?.length || 0} 份文字初稿`);
+      const ret = ["completed", "pending_human_confirmation"].includes(content.status)
+        ? {status: "completed", detail: content.status === "completed" ? "已交回流程" : "待真人确认"}
+        : contentStageStatus(content, 10, content.status || "等待返回");
+      $("contentEngineMap").innerHTML = [
+        flowNode("接收子任务", receive.status, receive.detail),
+        flowNode("字段/权限校验", check.status, check.detail),
+        flowNode("取资料与模板", context.status, context.detail),
+        flowNode("模型调度", dispatch.status, dispatch.detail),
+        flowNode("生成文字初稿", draft.status, draft.detail),
+        flowNode("交回流程", ret.status, ret.detail)
+      ].join("");
+      $("contentEngineNote").textContent = "内容产出只负责文字初稿；图片、视频、音频和画面方案交由多媒体节点承办。";
+    }
+
+    function parseDisplayJson(raw) {
+      if (!raw) return null;
+      let text = String(raw).trim();
+      const fence = text.match(/```(?:json)?\s*([\s\S]*?)(?:```|$)/i);
+      if (fence) text = fence[1].trim();
+      if (text.includes("{")) text = text.slice(text.indexOf("{"));
+      const strictText = text.includes("}") ? text.slice(0, text.lastIndexOf("}") + 1) : text;
+      for (const candidate of [strictText, repairJsonText(strictText)]) {
+        try { return JSON.parse(candidate); } catch {}
+      }
+      const partial = {};
+      ["title", "capability_id", "output_type", "production_brief", "visual_brief", "positive_prompt", "negative_prompt"].forEach(key => {
+        const value = extractJsonStringField(text, key);
+        if (value) partial[key] = value;
+      });
+      const notes = extractJsonArrayStrings(text, "compliance_notes");
+      if (notes.length) partial.compliance_notes = notes;
+      return Object.keys(partial).length ? partial : null;
+    }
+
+    function repairJsonText(text) {
+      let repaired = String(text || "").trim().replace(/,+$/, "");
+      const stack = [];
+      let inString = false;
+      let escaped = false;
+      for (const ch of repaired) {
+        if (escaped) { escaped = false; continue; }
+        if (ch === "\\") { escaped = true; continue; }
+        if (ch === '"') { inString = !inString; continue; }
+        if (inString) continue;
+        if (ch === "{") stack.push("}");
+        if (ch === "[") stack.push("]");
+        if ((ch === "}" || ch === "]") && stack[stack.length - 1] === ch) stack.pop();
+      }
+      return repaired + stack.reverse().join("");
+    }
+
+    function extractJsonStringField(text, key) {
+      const pattern = new RegExp(`"${key}"\\s*:\\s*"((?:\\\\.|[^"\\\\])*)"`, "s");
+      const match = String(text || "").match(pattern);
+      if (!match) return "";
+      try { return JSON.parse(`"${match[1]}"`); } catch { return match[1]; }
+    }
+
+    function extractJsonArrayStrings(text, key) {
+      const pattern = new RegExp(`"${key}"\\s*:\\s*\\[([\\s\\S]*?)(?:\\]|$)`, "s");
+      const match = String(text || "").match(pattern);
+      if (!match) return [];
+      return [...match[1].matchAll(/"((?:\\.|[^"\\])*)"/g)].map(item => {
+        try { return JSON.parse(`"${item[1]}"`); } catch { return item[1]; }
+      });
+    }
+
+    function renderResultDisplay(instance) {
+      const box = $("resultDisplay");
+      const badge = $("resultTypeBadge");
+      const media = instance?.artifacts?.media_result;
+      const mediaResults = Object.entries(instance?.artifacts?.media_results_by_node || {}).filter(([, item]) => item);
+      if (!media) {
+        badge.textContent = "等待生成";
+        box.className = "result-empty";
+        box.textContent = "流程运行后，这里会优先展示排版后的提示词、图片或视频结果。";
+        return;
+      }
+      if (mediaResults.length > 1) {
+        badge.textContent = "批量爆款方案";
+        box.className = "result-grid";
+        box.innerHTML = mediaResults.map(([nodeId, item], index) => {
+          const itemRaw = item.llm_result?.content || "";
+          const itemParsed = item.llm_result?.parsed_json || parseDisplayJson(itemRaw) || {};
+          const title = itemParsed.title || `第 ${index + 1} 版方案`;
+          const plan = itemParsed.production_brief || itemParsed.visual_brief || itemParsed.brief || "";
+          const prompt = itemParsed.positive_prompt || itemParsed.prompt || "";
+          return resultField(`第 ${index + 1} 版 · ${nodeId}`, `${title}\n\n${plan}\n\n提示词：${prompt}`, "wide");
+        }).join("");
+        return;
+      }
+      const raw = media.llm_result?.content || "";
+      const parsed = media.llm_result?.parsed_json || parseDisplayJson(raw);
+      const imageUrl = media.artifact_url || media.image_url || parsed?.image_url || parsed?.artifact_url;
+      const videoUrl = media.video_url || parsed?.video_url;
+      box.className = "result-grid";
+      if (videoUrl) {
+        badge.textContent = "视频结果";
+        box.innerHTML = `<div class="result-field wide media-preview"><div class="result-label">视频预览</div><video controls src="${escapeHtml(videoUrl)}"></video></div>`;
+        return;
+      }
+      if (imageUrl) {
+        badge.textContent = "图片结果";
+        box.innerHTML = `<div class="result-field wide media-preview"><div class="result-label">图片预览</div><img src="${escapeHtml(imageUrl)}" alt="生成图片"></div>`;
+        return;
+      }
+      if (media.status === "unable_to_handle" || media.llm_result?.mode === "reserved_interface") {
+        badge.textContent = "无法办理/接口预留";
+        box.innerHTML = [
+          resultField("当前结果", "接口位已登记，但当前版本未挂接具体实现方案。", "wide"),
+          resultField("原因说明", media.error || media.llm_result?.reason || "当前能力接口位暂不可办理。", "wide")
+        ].join("");
+        return;
+      }
+      badge.textContent = media.llm_result?.mode === "real_llm" ? "文本 LLM 方案" : "Mock 方案";
+      if (parsed && typeof parsed === "object") {
+        const title = parsed.title || "未命名方案";
+        const plan = parsed.production_brief || parsed.visual_brief || parsed.brief || "";
+        const positive = parsed.positive_prompt || parsed.prompt || "";
+        const negative = parsed.negative_prompt || "";
+        const compliance = Array.isArray(parsed.compliance_notes) ? parsed.compliance_notes.join("\n") : (parsed.compliance_notes || "");
+        box.innerHTML = [
+          resultField("标题", title, "wide"),
+          resultField("方案内容", plan, "wide"),
+          resultField("生成/处理提示词", positive),
+          resultField("反向提示词", negative),
+          resultField("合规/审核提示", compliance, "wide")
+        ].join("");
+      } else {
+        box.innerHTML = resultField("LLM 原始返回", raw || "LLM 没有返回可展示文本。", "wide");
+      }
+    }
+
+    function formatDisplayValue(value) {
+      if (value === null || value === undefined || value === "") return "-";
+      if (Array.isArray(value)) {
+        if (!value.length) return "-";
+        return value.map((item, index) => {
+          const text = formatDisplayValue(item);
+          return typeof item === "object" && item !== null ? `${index + 1}. ${text.replace(/\n/g, "\n   ")}` : `${index + 1}. ${text}`;
+        }).join("\n");
+      }
+      if (typeof value === "object") {
+        const labels = {
+          style: "风格",
+          composition: "构图",
+          color_scheme: "配色",
+          layout: "版式",
+          tone: "调性",
+          used_contexts: "使用 context",
+          context_details: "context 用途"
+        };
+        return Object.entries(value).map(([key, item]) => {
+          const label = labels[key] || key;
+          const text = formatDisplayValue(item);
+          return `${label}：${text.replace(/\n/g, "\n  ")}`;
+        }).join("\n");
+      }
+      return String(value);
+    }
+
+    function resultField(label, value, extraClass = "") {
+      return `<div class="result-field ${extraClass}">
+        <div class="result-label">${escapeHtml(label)}</div>
+        <div class="result-text">${escapeHtml(formatDisplayValue(value))}</div>
+      </div>`;
+    }
+
+    document.querySelectorAll(".tabs button").forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll(".tabs button").forEach(x => x.classList.remove("active"));
+        btn.classList.add("active");
+        currentTab = btn.dataset.tab;
+        render(current);
+      };
+    });
+
+    async function loadLatest() {
+      const data = await api("/api/flow/list");
+      if (data.items && data.items.length) render(data.items[0]);
+    }
+
+    loadConfig().then(checkHealth).then(loadLatest);
+    renderVisual(null);
+  </script>
+</body>
+</html>

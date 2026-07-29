@@ -1,0 +1,16 @@
+mode,from_table,from_field,to_table,to_field,cardinality,purpose
+remote,Casdoor/JWT,user_id,persons,id,同一主键,实名账号档案镜像；user_id=actor_id=person_id
+remote,persons,id,person_position_assignments,person_id,1:N,真人当前及历史任职
+remote,positions,id,person_position_assignments,position_id,1:N over time,岗位席位任职
+remote,positions,id,position_standard_permissions,position_id,1:N,岗位标准权限
+remote,persons,id,person_manager_edges,person_id,N:1 active per domain,被管理人唯一直属上级
+remote,persons,id,person_manager_edges,manager_person_id,1:N,管理树向下范围
+remote,persons,id,data_delegations,from_person_id,1:N,权限转授人
+remote,persons,id,data_delegations,to_person_id,1:N,权限接收人
+remote,persons,id,data_registry,owner_person_id,1:N,数据责任真人
+remote,data_registry,id,data_delegations,resource_id,1:N,数据级转授
+remote,permission_decisions,actor_id,Casdoor/JWT,user_id,N:1,权限决策追溯账号
+local,positions,id,person_position_assignments,position_id,1:N over time,兼容岗位任职
+local,person_position_assignments,user_id,Casdoor/JWT,user_id,N:1,历史兼容字段；新数据要求 person_id=user_id
+local,positions,id,position_standard_resources,position_id,1:N,兼容岗位标配
+local,data_records,id,delegations,resource_id,1:N,兼容数据转授

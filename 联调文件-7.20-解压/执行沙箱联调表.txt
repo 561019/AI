@@ -1,0 +1,155 @@
+模块名称：L1.14 执行沙箱
+负责人：刘卓
+当前交付口径：Docker 运行时能力包；Cube Sandbox、微虚拟机属于后续增强，不作为当前 Docker 能力包的运行时。
+当前联调服务器：http://10.60.66.97:8765
+当前正式平台接口：POST /api/v1/layer-interface/messages
+当前正式查询接口：GET /api/v1/layer-interface/messages/{request_id}
+当前运行时：DockerTemplateExecutor / DockerAdhocExecutor
+
+一、我提供给其他模块的能力：
+1. 独立环境隔离（核心功能一）
+   - 程序运行：能力编号 CAP.SANDBOX.CODE.RUN，动作 sandbox.code.run。L2 提交 AI 临时生成的 Python 程序和输入，本模块按任务动态创建独立 Docker 容器运行；任务间不共享容器、文件目录或网络。
+   - 网页打开：能力编号 CAP.SANDBOX.BROWSER.RUN，动作 sandbox.browser.run。L2 提交已批准白名单 URL，本模块按任务动态创建内部网络、egress-proxy、Chromium 容器和结果目录。
+   - 隔离证据：代码任务默认 network=none；浏览器任务只能进入本次内部网络；宿主机未挂载文件不可读取；容器结束后删除容器、代理和内部网络。
+
+2. 资源上限（核心功能二）
+   - 每次代码/浏览器任务均可指定 timeout_seconds、memory_mb、cpu_cores；后端限定时长 1-300 秒、内存 64-4096MB、CPU 0.1-8 核。
+   - Docker 实际执行参数包含 CPU、内存、进程数上限和超时清理；跑飞程序到时会被停止并清理，不会无限占用服务器。
+   - 返回证据包含实际 limits、duration_ms、cost/usage 字段和生命周期日志。
+
+3. 越权防护（核心功能三）
+   - 程序容器固定默认断网、只读根文件系统、移除 Linux capabilities、禁止提权、限制进程数；调用方不能传 Docker 命令或改变这些安全参数。
+   - 浏览器容器不能直连外网，必须通过 egress-proxy；非白名单 URL 在提交时拒绝，浏览器运行过程中的非白名单连接由代理返回 403。
+   - 任务执行前解析真人、公司范围和场景权限；权限不足时 Docker 不启动，资源成本为 0。
+   - 当前边界：Docker 为容器隔离，不等同于 Cube/KVM/microVM；正式行为准入、真人权限和安全策略仍需接 1.4、1.8、1.9。
+
+4. 向外连接管控与留痕（核心功能四）
+   - 代码任务默认无网络，出站请求数为 0。
+   - 浏览器任务动态启动专用 egress-proxy，只允许安全合规登记的域名；审计记录访问时间、方法、目标 host、URL、允许/拒绝、HTTP 状态和耗时。
+   - 已真实验证：允许的受控页面返回 200；Chromium 对 Google 等非白名单后台连接被代理记录并返回 403；直连绕过失败。
+   - 外发正文审计：代理已支持 POST/PUT/PATCH，记录正文长度、SHA256、Content-Type、目标、允许/拒绝和状态；不记录原文，避免把敏感正文复制进审计日志。敏感字段脱敏结论需由 1.9 正式安全合规服务接入后提供。
+
+5. 固定生命周期与结果/快照（核心功能闭环）
+   - 生命周期：受理 -> 身份/权限预检 -> 秒级创建独立环境 -> 隔离执行 -> 取回结果与文件 -> 销毁容器/网络/代理 -> 审计和成本记录。
+   - 结果回传：返回 task_id、业务结果、结果文件、运行时、资源限制、日志和审计证据给发起 L2 引擎。
+   - 快照：retain_snapshot=true 时保存不可变证据快照，包含运行时、日志、结果文件 SHA256；不保留可继续运行的容器。
+
+6. 已登记场景模板执行能力（测试与验证能力）
+   - 能力编号：CAP.SANDBOX.TASK.RUN，动作 sandbox.template.run。
+   - 说明：运行 20 个汉和岗位场景模板，用于验证上述四项核心功能；模板不是完整业务系统，真实 ERP/OA/CRM 数据需要通过 1.10 接入。
+
+二、我提供的接口：
+接口1：公司标准任务提交接口（正式联调入口）
+- 路径：http://10.60.66.97:8765/api/v1/layer-interface/messages
+- 方法：POST
+- 请求头：Authorization: Bearer <platform-token>；Content-Type: application/json
+- 输入：必须使用公司 v0.3 标准消息信封，包含 protocol_version、message_id、trace_id、request_id、parent_message_id、source、target、channel、route_type、action、capability_id、capability_dictionary_version、registry_version、actor、context、idempotency_key、deadline_at、payload。
+- 来源约束：source.layer 必须为 L2；当前登记来源包括 l2.workflow_execution、l2.rule_computation、l2.external_system_connector。
+- 目标约束：target.layer=L1，target.service_code=l1.execution_sandbox；route_type=task.dispatch。
+- payload 输入类型：
+  1) CAP.SANDBOX.CODE.RUN：code、language=python、input、limits、可选 retain_snapshot；
+  2) CAP.SANDBOX.BROWSER.RUN：url、input、limits、可选 retain_snapshot；
+  3) CAP.SANDBOX.TASK.RUN：scenario_id、agent、input、limits。
+- 输出：HTTP 202 时返回 reply_type=accepted、request_id、trace_id、parent_message_id、flow.callback 上下文和查询路径；短任务也可能直接返回 success 或 failed。
+- 成功结果：reply_type=success；data 中返回真实沙箱 task_id、业务结果、结果文件和耗时；evidence 中返回 executor、Docker runtime、limits、logs、platform_checks、审计及快照信息。
+- 错误情况：invalid_platform_token、layer_route_not_allowed、source_service_not_registered、target_service_mismatch、capability_not_registered、capability_action_mismatch、invalid_deadline、trace_id_conflict、permission_denied、url_not_allowlisted、invalid_limit、failed、timeout。
+- 幂等规则：同一 idempotency_key 重试不得重复创建任务；不同请求复用同一幂等键返回冲突。
+
+接口2：公司标准任务查询接口
+- 路径：http://10.60.66.97:8765/api/v1/layer-interface/messages/{request_id}
+- 方法：GET
+- 请求头：Authorization、X-Caller-Layer、X-Engine-Id、X-Company-Id、X-Trace-Id。
+- 输入：受理响应返回的 request_id；查询时必须使用同一调用引擎、公司范围和 trace_id。
+- 输出：处理中返回 accepted/running；终态返回 success/failed；success 中带 data 和 evidence，failed 中带稳定 error code 和 retryable。
+- 错误情况：request_not_found、request_owner_mismatch、tenant_scope_mismatch、invalid_platform_token。
+
+接口3：能力目录接口
+- 路径：http://10.60.66.97:8765/api/v1/layer-interface/service-catalog
+- 方法：GET
+- 输入：无业务输入。
+- 输出：协议版本、基础模块层标识、三项 capability_id、action、允许的 L2 来源、输入约束、当前 Docker 执行器和场景目录。
+- 错误情况：服务未启动时无法连接；正常情况下返回 HTTP 200。
+
+接口4：兼容接口（不作为新平台正式入口）
+- 路径：/api/v1/layer-interface/requests、/api/tasks、/api/e2b/*
+- 方法：POST/GET
+- 输入输出：保留原有模板任务、旧演示和 E2B-like create/run/query/destroy 结构。
+- 说明：这些接口用于既有网站、独立验收和兼容测试；新平台联调必须使用接口1和接口2。
+
+三、我需要调用哪些模块：
+1. 需要调用模块：1.4 驭机制
+   - 调用目的：由 1.4 决定任务是否允许执行、最大步数、人工确认、终止策略；本模块只负责“在哪里安全运行”。
+   - 需要对方提供什么接口：任务准入/终止策略接口，至少包括 allowed、max_steps、approval_status、cancel_task 或等价字段，并携带 decision_id、trace_id。
+   - 当前是否已 mock：是。当前沙箱有执行前安全预检，但 1.4 正式行为控制尚未接入。
+
+2. 需要调用模块：1.5 大模型调度
+   - 调用目的：沙箱内智能体需要模型时，必须经统一模型入口，不得直接连接模型服务。
+   - 需要对方提供什么接口：model.generate 或公司登记的等价统一调用接口、模型凭据/句柄、限额和用量返回。
+   - 当前是否已 mock：部分。凭据 broker 和不向任务容器暴露明文凭据的机制已有，但 1.5 正式接口未接入。
+
+3. 需要调用模块：1.8 账号网关
+   - 调用目的：解析 person_id 对应的真人、岗位、部门、租户和会话身份。
+   - 需要对方提供什么接口：identity.resolve/person_id 解析接口，返回 actor、role、department、tenant_id、session_scope。
+   - 当前是否已 mock：是。当前使用 demo-user、sales-user 等 mock 身份，未知用户默认拒绝。
+
+4. 需要调用模块：1.9 安全合规
+   - 调用目的：提供出站白名单、凭据注入、敏感字段脱敏、输入输出红线和不可篡改审计规则。
+   - 需要对方提供什么接口：policy.check、egress.allowlist、credential.issue、audit.append 或公司登记的等价服务，并返回 decision_id、obligations、audit_ref。
+   - 当前是否已 mock：机制已有，正式接口未接入。当前 egress-proxy、credential broker、审计字段和白名单均能本地真实验证。
+
+5. 需要调用模块：1.10 设备与系统接口
+   - 调用目的：受控连接 ERP/OA/CRM/数据库和外部设备，沙箱本身不直接连接业务库。
+   - 需要对方提供什么接口：按 data_ref 执行限定的 system.read/system.write，返回 data_ref、artifact_ref、operation_id 和回执查询接口。
+   - 当前是否已 mock：是。当前使用 mock ERP/OA 数据完成岗位场景验证。
+
+6. 需要调用模块：1.12 成本管控
+   - 调用目的：上报每次沙箱 CPU、内存、时长、任务数和成本计量。
+   - 需要对方提供什么接口：cost.reserve、usage.report 或等价接口，明确额度、计费规则、cost_ref 和拒绝/告警结果。
+   - 当前是否已 mock：是。当前已记录 CPU、内存、耗时、任务成本单位，但使用 mock_cost_control。
+
+7. 需要调用模块：L2 流程执行引擎
+   - 调用目的：由 L2 按能力字典选择沙箱能力、组织任务、传递流程上下文、重试和恢复节点。
+   - 需要对方提供什么接口：按公司标准信封调用 POST /api/v1/layer-interface/messages，使用 idempotency_key，接收 accepted/success/failed，并按 request_id 查询或接入 flow.callback。
+   - 当前是否已 mock：接口已真实提供；L2 正式流程引擎尚未接入，当前使用标准信封真实模拟调用。
+
+四、当前 mock 的内容：
+1. 账号网关：demo-user、sales-user 的人员、岗位、部门和权限映射。
+2. 安全合规：场景权限预检、出站策略配置、凭据 broker、敏感信息脱敏规则和审计字段；其中 Docker egress-proxy 和凭据句柄机制已真实验证，正式 1.9 服务未接入。
+3. ERP/OA：库存、订单、发票、入库单、合同、采购历史等汉和岗位场景测试数据。
+4. 成本管控：根据 CPU、内存和耗时计算的 mock cost_units，正式成本记账接口未接入。
+5. 服务身份：当前使用演示 Bearer token，生产应替换为统一服务身份并轮换凭证。
+6. 主动通知：当前通过 GET 查询任务状态；监控提醒引擎的正式主动回调通道未接入。
+
+五、后续联调风险：
+1. 如果 1.8、1.9、1.10、1.12 未提供正式接口，当前只能证明机制和 Docker 运行，不能宣称身份、业务数据、安全策略和成本已完成生产联调。
+2. L2 必须按公司标准信封传递 capability_id、版本、actor、tenant_id、流程上下文和幂等键；不能继续使用旧的只含 scenario_id 的简化请求。
+3. 业务数据不得直接复制进沙箱长期保存，应由 L2/1.10 传 data_ref/artifact_ref，并由责任模块控制读取、存储、删除和审计。
+4. 当前 Docker 是容器隔离，隔离强度不等同于 Cube/KVM/microVM；高风险生产任务需由安全专项确认 Docker 是否满足要求。
+5. 浏览器只能访问白名单域名；真实外部网站能否访问还取决于 1.9 的正式出口策略、DNS、代理和网络环境。
+6. 当前 20 个场景是执行能力验证模板，不代表发票验真、真实行情、合同归档等完整业务系统已经实现。
+7. 正式接口目前支持 accepted 后查询；主动 flow.callback、失败补偿、超时恢复和旧系统 operation_id 对账需由 L2/1.10 共同完成。
+
+六、联调前我能保证什么：
+1. 本模块能独立启动：已部署在 Linux 服务器 `/home/nlp/刘卓/执行沙箱`，服务地址 `http://10.60.66.97:8765`，健康接口 `/api/health` 已验证。
+2. 本模块有测试数据：20 个汉和岗位场景模板，以及库存/订单、发票/入库单、采购计划、合同等 mock 场景数据。
+3. 本模块有测试结果截图：已有验收驾驶舱、实时命令、原始证据、浏览器沙箱和全站截图，位于项目 `work/fullsite-screenshots/` 及相关证据目录。
+4. 本模块有接口文档：`docs/COMPANY_STANDARD_INTERFACE.md`、`docs/PLATFORM_INTERFACE_SPEC.md`、`docs/API_SPEC.md`。
+5. 本模块有 mock 数据：mock 账号、权限、安全、ERP/OA、成本管控和凭据 broker，均在项目后端适配器中登记。
+6. 本模块有 README：项目根目录 `README.md`，包含启动方式、接口入口、测试方式和当前边界。
+7. 本模块有真实 Docker 运行证据：代码任务、浏览器任务、模板任务均已在服务器 Docker 中验证；证据包含 task_id、executor、limits、运行日志、审计、结果文件和可选快照。
+8. 本模块有标准信封真实调用记录：完整 v0.3 信封调用 `POST /api/v1/layer-interface/messages` 已返回 `accepted`，并能使用 request_id 查询结果。
+
+七、第一条推荐联调链路：
+场景：销售/供应链跨部门同时下单超库存预警。
+
+链路：
+1. L2 流程执行引擎根据能力字典选择 `CAP.SANDBOX.TASK.RUN`。
+2. 1.8 提供销售人员和租户身份，1.1/1.9 返回动作权限和安全结论。
+3. 1.10 返回库存/订单 data_ref，不把业务库直接暴露给沙箱。
+4. L2 按公司标准信封提交 `sandbox.template.run`。
+5. L1.14 在 Docker 中执行场景，应用 CPU/内存/时长和网络策略。
+6. L1.14 返回业务结果、结果引用、task_id、资源使用、审计和 trace_id。
+7. L2 按 accepted/success/failed 恢复流程节点，1.12 接收成本上报，L4 负责结果展示。
+
+填写结论：
+本模块自身可提供的 Docker 隔离执行、临时代码、浏览器、资源限制、结果回收、审计证据和公司标准接口已经真实具备；跨模块的正式身份、权限、安全、业务数据、成本和主动回调接口尚未全部由对方模块提供，因此本表对这些项目明确标注为“mock/待真实联调”，未虚填为已完成。

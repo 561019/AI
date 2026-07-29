@@ -1,0 +1,168 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: intent-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-intent_analysis}
+      POSTGRES_USER: ${POSTGRES_USER:-intent}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-intent}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-intent} -d ${POSTGRES_DB:-intent_analysis}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  etcd:
+    profiles: ["semantic"]
+    image: quay.io/coreos/etcd:v3.5.18
+    container_name: intent-etcd
+    command:
+      - etcd
+      - --advertise-client-urls=http://127.0.0.1:2379
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --data-dir=/etcd
+    volumes:
+      - etcd-data:/etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "--endpoints=http://127.0.0.1:2379", "endpoint", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  minio:
+    profiles: ["semantic"]
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    container_name: intent-minio
+    command: server /minio_data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/minio_data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  milvus:
+    profiles: ["semantic"]
+    image: milvusdb/milvus:v2.5.10
+    container_name: intent-milvus
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    volumes:
+      - milvus-data:/var/lib/milvus
+    depends_on:
+      etcd:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9091/healthz"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  local-model-service:
+    profiles: ["llm"]
+    build:
+      context: ./local-model-service
+    container_name: intent-local-model
+    ports:
+      - "${MODEL_SERVICE_PORT:-8001}:8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=5).read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  backend:
+    build:
+      context: ./backend
+    container_name: intent-backend
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      PYTHONPATH: /app
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://intent:intent@postgres:5432/intent_analysis}
+      MILVUS_HOST: ${MILVUS_HOST:-milvus}
+      MILVUS_PORT: ${MILVUS_PORT:-19530}
+      MILVUS_COLLECTION: ${MILVUS_COLLECTION:-intent_vectors}
+      INTENT_CAPABILITY_COLLECTION: ${INTENT_CAPABILITY_COLLECTION:-intent_capability_vectors}
+      MODEL_API_URL: ${MODEL_API_URL:-http://local-model-service:8001/v1}
+      MODEL_API_KEY: ${MODEL_API_KEY:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-bge-m3}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-1024}
+      EMBEDDING_MODEL_NAME: ${EMBEDDING_MODEL_NAME:-BAAI/bge-base-zh-v1.5}
+      EMBEDDING_LOCAL_FILES_ONLY: ${EMBEDDING_LOCAL_FILES_ONLY:-false}
+      BGE_EMBEDDING_DIMENSION: ${BGE_EMBEDDING_DIMENSION:-768}
+      VECTOR_BACKEND: ${VECTOR_BACKEND:-milvus}
+      EMBEDDING_RUNTIME: ${EMBEDDING_RUNTIME:-in_process}
+      BGE_KEEP_WARM: ${BGE_KEEP_WARM:-true}
+      RERANK_MODEL: ${RERANK_MODEL:-bge-reranker-v2-m3}
+      LLM_MODEL: ${LLM_MODEL:-qwen-32b}
+      RULE_THRESHOLD: ${RULE_THRESHOLD:-0.9}
+      SEMANTIC_THRESHOLD: ${SEMANTIC_THRESHOLD:-0.50}
+      LLM_CONFIDENCE_THRESHOLD: ${LLM_CONFIDENCE_THRESHOLD:-0.70}
+      IMPLICIT_TASK_CONFIDENCE_THRESHOLD: ${IMPLICIT_TASK_CONFIDENCE_THRESHOLD:-0.70}
+      IMPLICIT_FALLBACK_BATCH_CHARACTERS: ${IMPLICIT_FALLBACK_BATCH_CHARACTERS:-8000}
+      CONVERSATION_HISTORY_LIMIT: ${CONVERSATION_HISTORY_LIMIT:-20}
+      LONG_TEXT_CHUNK_SIZE: ${LONG_TEXT_CHUNK_SIZE:-2000}
+      LONG_TEXT_CHUNK_OVERLAP: ${LONG_TEXT_CHUNK_OVERLAP:-200}
+      LONG_TEXT_ACTIVATION_LENGTH: ${LONG_TEXT_ACTIVATION_LENGTH:-120}
+      LONG_TEXT_ACTIVATION_SENTENCES: ${LONG_TEXT_ACTIVATION_SENTENCES:-3}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  frontend:
+    profiles: ["frontend"]
+    build:
+      context: ./frontend
+    container_name: intent-frontend
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+      VITE_PROXY_TARGET: ${VITE_PROXY_TARGET:-http://backend:8000}
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5173').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres-data:
+  etcd-data:
+  minio-data:
+  milvus-data:

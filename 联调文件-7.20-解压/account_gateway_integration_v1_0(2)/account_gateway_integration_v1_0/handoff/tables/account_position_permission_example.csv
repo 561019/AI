@@ -1,0 +1,6 @@
+tenant_id,user_id,person_id,display_name,department_id,position_id,position_title,jwt_role,permission_source,resource,actions,scope,status,notes
+hanhe,user_li,user_li,Li Zhigang,dept_sales_huazhong,huazhong_region_manager,Huazhong Region Manager,staff,position_standard,/region/huazhong/:resource,read|approve,huazhong,active,实名账号ID即真人ID
+hanhe,user_fu,user_fu,Fu Shengxian,dept_sales_huazhong,huazhong_sales,Frontline Sales Staff,staff,position_standard,/sales/huazhong/opportunities,read|write,huazhong,active,实名账号ID即真人ID
+hanhe,user_huang,user_huang,Huang Wei,dept_hr,hr_source,HR Source Maintainer,hanhe_im,position_standard,/hr/source/:resource,read|write,tenant,active,实名账号ID即真人ID
+hanhe,user_id_data_owner_001,user_id_data_owner_001,Data Owner,dept_platform,data_owner,Data Owner,data_owner,data_owner,/data/owned/:dataset,read|grant,tenant,active,实名账号ID即真人ID
+hanhe,user_id_asset_pool_001,user_id_asset_pool_001,Asset Pool Operator,dept_platform,asset_pool,Asset Pool Operator,staff,position_standard,/asset-pool/catalog|/asset-pool/release,read|approve,tenant,active,实名账号ID即真人ID

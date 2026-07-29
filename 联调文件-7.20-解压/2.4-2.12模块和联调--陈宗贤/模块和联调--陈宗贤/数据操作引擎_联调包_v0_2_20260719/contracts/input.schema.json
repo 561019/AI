@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Data Operation Engine Standard Instruction Envelope",
+  "type": "object",
+  "required": ["protocol_version", "message_id", "request_id", "trace_id", "source", "target", "actor", "context", "request_type", "action", "payload", "expected_response"],
+  "properties": {
+    "protocol_version": {"const": "1.0"},
+    "message_id": {"type": "string", "minLength": 1},
+    "request_id": {"type": "string", "minLength": 1},
+    "trace_id": {"type": "string", "minLength": 1},
+    "parent_request_id": {"type": "string"},
+    "source": {
+      "type": "object",
+      "required": ["layer", "module"],
+      "properties": {
+        "layer": {"const": "business_engine"},
+        "module": {"enum": ["workflow-execution", "workflow_execution", "workflow-execution-engine"]}
+      }
+    },
+    "target": {
+      "type": "object",
+      "required": ["layer", "module", "capability"],
+      "properties": {
+        "layer": {"const": "business_engine"},
+        "module": {"enum": ["data-operation", "data_operation"]},
+        "capability": {"enum": ["data.collect", "data.consolidate", "data.persist", "data.search", "data.read", "data.update", "data.delete", "data.trace"]}
+      }
+    },
+    "actor": {
+      "type": "object",
+      "required": ["tenant_id", "user_id", "authenticated"],
+      "properties": {
+        "tenant_id": {"type": "string", "minLength": 1},
+        "user_id": {"type": "string", "minLength": 1},
+        "authenticated": {"const": true}
+      }
+    },
+    "context": {
+      "type": "object",
+      "required": ["account_id", "project_id"],
+      "properties": {
+        "account_id": {"type": "string", "minLength": 1},
+        "project_id": {"type": "string", "minLength": 1},
+        "conversation_id": {"type": ["string", "null"]},
+        "file_id": {"type": ["string", "null"]},
+        "object_id": {"type": ["string", "null"]},
+        "workflow_instance_id": {"type": ["string", "null"]}
+      }
+    },
+    "request_type": {"const": "task.dispatch"},
+    "action": {"enum": ["data.collect", "data.consolidate", "data.persist", "data.search", "data.read", "data.update", "data.delete", "data.trace"]},
+    "payload": {"type": "object"},
+    "expected_response": {"type": "object", "required": ["mode"], "properties": {"mode": {"enum": ["sync", "async"]}}},
+    "idempotency_key": {"type": "string"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"action": {"enum": ["data.collect", "data.consolidate", "data.persist", "data.update", "data.delete"]}}},
+      "then": {"required": ["idempotency_key"]}
+    }
+  ],
+  "description": "运行时适配服务会执行与此模式等价的字段校验。data.search 还要求 payload.business_context.permission_decision_id、query_spec 和明确 company_codes。"
+}

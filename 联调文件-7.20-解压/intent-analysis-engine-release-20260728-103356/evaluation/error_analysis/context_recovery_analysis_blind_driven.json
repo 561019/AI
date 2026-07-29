@@ -1,0 +1,324 @@
+{
+  "source_report": "evaluation\\benchmark\\blind_test_benchmark_raw.json",
+  "split": "blind_test",
+  "blind_text_policy": "Raw blind_test text is intentionally redacted from this report; use case_id, task labels, and abstract failure type only for optimization planning.",
+  "blind_case_development_policy": {
+    "do_not_add_blind_case_to_validation": true,
+    "do_not_add_keyword_rules_from_blind_case": true,
+    "allowed_use": "aggregate failure classification and abstract validation planning only"
+  },
+  "total_cases": 60,
+  "overall_full_pass": {
+    "passed": 33,
+    "total": 60,
+    "rate": 0.55
+  },
+  "context_related_total": 12,
+  "context_related_passed": 2,
+  "context_related_failed": 10,
+  "context_related_pass_rate": 0.16666666666666666,
+  "context_recovery_pass_rate": 0.0,
+  "context_dependency": {
+    "total": 6,
+    "passed": 0,
+    "failed": 6,
+    "pass_rate": 0.0
+  },
+  "failure_classification_counts": {
+    "CONTEXT_NOT_FOUND": 0,
+    "CONTEXT_PRIORITY_ERROR": 0,
+    "CONTEXT_MATCH_ERROR": 5,
+    "ELLIPSIS_PARSE_ERROR": 5,
+    "CONTEXT_CONFLICT_ERROR": 0,
+    "CLARIFICATION_MISSING": 0
+  },
+  "main_problem_types": [
+    "ELLIPSIS_PARSE_ERROR",
+    "CONTEXT_MATCH_ERROR"
+  ],
+  "failure_cases": [
+    {
+      "case_id": "BENCH-BLIND_TEST-019",
+      "text_sha256_12": "4993213c266c",
+      "text_redacted": true,
+      "intent_category": "omitted_expression",
+      "expected_task_types": [
+        "DATA_FILTER"
+      ],
+      "actual_task_types": [],
+      "required_clarification": false,
+      "actual_clarification": true,
+      "expected_missing_inputs": [],
+      "actual_missing_inputs": [],
+      "context_sources": [
+        "conversation"
+      ],
+      "context_task_types": [
+        "DATA_FILTER"
+      ],
+      "ellipsis_type": "repeat_or_incremental",
+      "failure_type": "ELLIPSIS_PARSE_ERROR",
+      "failure_reason": "Context exists, but the expression did not recover a task from the recent context.",
+      "suggested_optimization_direction": "Improve abstract ellipsis-family detection in validation before changing production rules."
+    },
+    {
+      "case_id": "BENCH-BLIND_TEST-021",
+      "text_sha256_12": "63c0ca28aeb9",
+      "text_redacted": true,
+      "intent_category": "omitted_expression",
+      "expected_task_types": [
+        "DATA_FILTER"
+      ],
+      "actual_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "required_clarification": false,
+      "actual_clarification": true,
+      "expected_missing_inputs": [],
+      "actual_missing_inputs": [
+        "analysis_object"
+      ],
+      "context_sources": [
+        "conversation"
+      ],
+      "context_task_types": [
+        "DATA_FILTER"
+      ],
+      "ellipsis_type": "continue_followup",
+      "failure_type": "CONTEXT_MATCH_ERROR",
+      "failure_reason": "Context exists, but the recovered task type does not match the expected recent task.",
+      "suggested_optimization_direction": "Validate that context recovery can override misleading short-expression L1/L2 matches."
+    },
+    {
+      "case_id": "BENCH-BLIND_TEST-023",
+      "text_sha256_12": "8f5237e5c027",
+      "text_redacted": true,
+      "intent_category": "omitted_expression",
+      "expected_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "actual_task_types": [],
+      "required_clarification": false,
+      "actual_clarification": true,
+      "expected_missing_inputs": [],
+      "actual_missing_inputs": [],
+      "context_sources": [
+        "conversation"
+      ],
+      "context_task_types": [
+        "WORKFLOW_START"
+      ],
+      "ellipsis_type": "continue_followup",
+      "failure_type": "ELLIPSIS_PARSE_ERROR",
+      "failure_reason": "Context exists, but the expression did not recover a task from the recent context.",
+      "suggested_optimization_direction": "Improve abstract ellipsis-family detection in validation before changing production rules."
+    },
+    {
+      "case_id": "BENCH-BLIND_TEST-024",
+      "text_sha256_12": "be7e3f2b9c4a",
+      "text_redacted": true,
+      "intent_category": "omitted_expression",
+      "expected_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "actual_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "required_clarification": true,
+      "actual_clarification": true,
+      "expected_missing_inputs": [
+        "data_source"
+      ],
+      "actual_missing_inputs": [
+        "analysis_object"
+      ],
+      "context_sources": [
+        "conversation"
+      ],
+      "context_task_types": [
+        "WORKFLOW_START"
+      ],
+      "ellipsis_type": "also_or_variant",
+      "failure_type": "CONTEXT_MATCH_ERROR",
+      "failure_reason": "Context exists, but the recovered task type does not match the expected recent task.",
+      "suggested_optimization_direction": "Validate that context recovery can override misleading short-expression L1/L2 matches."
+    },
+    {
+      "case_id": "BENCH-BLIND_TEST-043",
+      "text_sha256_12": "641ee686ded9",
+      "text_redacted": true,
+      "intent_category": "context_dependency",
+      "expected_task_types": [
+        "DOCUMENT_TABLE_PARSE"
+      ],
+      "actual_task_types": [],
+      "required_clarification": false,
+      "actual_clarification": true,
+      "expected_missing_inputs": [],
+      "actual_missing_inputs": [],
+      "context_sources": [
+        "conversation"
+      ],
+      "context_task_types": [
+        "DOCUMENT_TABLE_PARSE"
+      ],
+      "ellipsis_type": "repeat_or_incremental",
+      "failure_type": "ELLIPSIS_PARSE_ERROR",
+      "failure_reason": "Context exists, but the expression did not recover a task from the recent context.",
+      "suggested_optimization_direction": "Improve abstract ellipsis-family detection in validation before changing production rules."
+    },
+    {
+      "case_id": "BENCH-BLIND_TEST-044",
+      "text_sha256_12": "4f98b8d14688",
+      "text_redacted": true,
+      "intent_category": "context_dependency",
+      "expected_task_types": [
+        "DOCUMENT_TABLE_PARSE"
+      ],
+      "actual_task_types": [],
+      "required_clarification": false,
+      "actual_clarification": true,
+      "expected_missing_inputs": [],
+      "actual_missing_inputs": [],
+      "context_sources": [
+        "conversation"
+      ],
+      "context_task_types": [
+        "DOCUMENT_TABLE_PARSE"
+      ],
+      "ellipsis_type": "repeat_or_incremental",
+      "failure_type": "ELLIPSIS_PARSE_ERROR",
+      "failure_reason": "Context exists, but the expression did not recover a task from the recent context.",
+      "suggested_optimization_direction": "Improve abstract ellipsis-family detection in validation before changing production rules."
+    },
+    {
+      "case_id": "BENCH-BLIND_TEST-045",
+      "text_sha256_12": "cb727a0d4d20",
+      "text_redacted": true,
+      "intent_category": "context_dependency",
+      "expected_task_types": [
+        "DOCUMENT_TABLE_PARSE"
+      ],
+      "actual_task_types": [],
+      "required_clarification": false,
+      "actual_clarification": true,
+      "expected_missing_inputs": [],
+      "actual_missing_inputs": [],
+      "context_sources": [
+        "conversation"
+      ],
+      "context_task_types": [
+        "DOCUMENT_TABLE_PARSE"
+      ],
+      "ellipsis_type": "repeat_or_incremental",
+      "failure_type": "ELLIPSIS_PARSE_ERROR",
+      "failure_reason": "Context exists, but the expression did not recover a task from the recent context.",
+      "suggested_optimization_direction": "Improve abstract ellipsis-family detection in validation before changing production rules."
+    },
+    {
+      "case_id": "BENCH-BLIND_TEST-046",
+      "text_sha256_12": "3ed687ad6a17",
+      "text_redacted": true,
+      "intent_category": "context_dependency",
+      "expected_task_types": [
+        "PROCESS_HANDLE"
+      ],
+      "actual_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "required_clarification": false,
+      "actual_clarification": true,
+      "expected_missing_inputs": [],
+      "actual_missing_inputs": [
+        "data_source"
+      ],
+      "context_sources": [
+        "conversation"
+      ],
+      "context_task_types": [
+        "PROCESS_HANDLE"
+      ],
+      "ellipsis_type": "repeat_or_incremental",
+      "failure_type": "CONTEXT_MATCH_ERROR",
+      "failure_reason": "Context exists, but the recovered task type does not match the expected recent task.",
+      "suggested_optimization_direction": "Validate that context recovery can override misleading short-expression L1/L2 matches."
+    },
+    {
+      "case_id": "BENCH-BLIND_TEST-047",
+      "text_sha256_12": "f1226ca275a6",
+      "text_redacted": true,
+      "intent_category": "context_dependency",
+      "expected_task_types": [
+        "PROCESS_HANDLE"
+      ],
+      "actual_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "required_clarification": false,
+      "actual_clarification": true,
+      "expected_missing_inputs": [],
+      "actual_missing_inputs": [
+        "data_source"
+      ],
+      "context_sources": [
+        "conversation"
+      ],
+      "context_task_types": [
+        "PROCESS_HANDLE"
+      ],
+      "ellipsis_type": "repeat_or_incremental",
+      "failure_type": "CONTEXT_MATCH_ERROR",
+      "failure_reason": "Context exists, but the recovered task type does not match the expected recent task.",
+      "suggested_optimization_direction": "Validate that context recovery can override misleading short-expression L1/L2 matches."
+    },
+    {
+      "case_id": "BENCH-BLIND_TEST-048",
+      "text_sha256_12": "f89d04eb4159",
+      "text_redacted": true,
+      "intent_category": "context_dependency",
+      "expected_task_types": [
+        "PROCESS_HANDLE"
+      ],
+      "actual_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "required_clarification": false,
+      "actual_clarification": true,
+      "expected_missing_inputs": [],
+      "actual_missing_inputs": [
+        "data_source"
+      ],
+      "context_sources": [
+        "conversation"
+      ],
+      "context_task_types": [
+        "PROCESS_HANDLE"
+      ],
+      "ellipsis_type": "repeat_or_incremental",
+      "failure_type": "CONTEXT_MATCH_ERROR",
+      "failure_reason": "Context exists, but the recovered task type does not match the expected recent task.",
+      "suggested_optimization_direction": "Validate that context recovery can override misleading short-expression L1/L2 matches."
+    }
+  ],
+  "validation_optimization_suggestions": [
+    {
+      "failure_type": "ELLIPSIS_PARSE_ERROR",
+      "abstract_validation_case": "Generic continue/repeat expression with valid recent conversation task.",
+      "expected_behavior": "Bind to the nearest related task; preserve task_id/task_type.",
+      "development_constraint": "Do not add single blind phrase keywords."
+    },
+    {
+      "failure_type": "CONTEXT_MATCH_ERROR",
+      "abstract_validation_case": "Short follow-up text has its own weak L1/L2 interpretation, but recent context contains a stronger task identity.",
+      "expected_behavior": "Use recent context task identity before accepting misleading standalone match.",
+      "development_constraint": "Validate by task-family behavior, not by blind case wording."
+    }
+  ],
+  "expected_metric_impact": {
+    "context_recovery_accuracy": "Expected to improve after validation-driven context matching changes.",
+    "false_positive_rate": "Should remain flat; no positive L1/L2 expansion is proposed.",
+    "clarification_accuracy": "May improve if no-context omitted expressions stay in clarification.",
+    "task_type_exact_accuracy": "Expected to improve on context_dependency and omitted_expression without broad task recall expansion."
+  },
+  "next_step": "Use the new abstract validation cases to verify a context resolver change, then re-run validation. Do not use blind_test again until final sealed acceptance."
+}

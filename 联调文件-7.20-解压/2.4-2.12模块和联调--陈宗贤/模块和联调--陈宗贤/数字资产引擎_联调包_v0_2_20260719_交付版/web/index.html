@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <title>南宁汉和数字资产引擎</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="主导航">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">DA</div>
+        <div>
+          <strong>数字资产引擎</strong>
+          <span>L2 第 12 引擎 · MVP</span>
+        </div>
+      </div>
+
+      <nav id="sideNav" class="side-nav">
+        <a href="#overview" data-view="overview" class="active"><span>01</span>总览</a>
+        <a href="#l4" data-view="l4"><span>02</span>L4 场景验证</a>
+        <a href="#runtime" data-view="runtime"><span>03</span>固定工具联调 Mock</a>
+        <a href="#create" data-view="create"><span>04</span>创建资产</a>
+        <a href="#catalog" data-view="catalog"><span>05</span>资产目录</a>
+        <a href="#workflows" data-view="workflows"><span>06</span>审批与采纳</a>
+        <a href="#sources" data-view="sources"><span>07</span>知识源入库</a>
+        <a href="#registry" data-view="registry"><span>08</span>功能登记</a>
+        <a href="#audit" data-view="audit"><span>09</span>审计与验证</a>
+      </nav>
+
+      <div class="boundary-card">
+        <strong>MVP 边界</strong>
+        <p>本演示验证资产登记、审批、权限与留痕；固定工具仅用于联调 Mock。数字资产引擎不承担解析、内容生成、规则计算或业务数据读写。</p>
+      </div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <div>
+          <div class="eyebrow">南宁汉和 AI 平台 / 数字资产治理</div>
+          <h1>数字资产引擎控制台</h1>
+          <p>资源能否调用与业务数据能否读取分开判定；全部写操作由服务端授权。</p>
+        </div>
+        <div class="actor-switcher">
+          <label for="actorSelect">1.8 身份 Mock · 当前操作真人</label>
+          <select id="actorSelect" aria-label="切换当前操作真人"></select>
+          <small id="actorContext">正在读取服务端身份上下文…</small>
+        </div>
+      </header>
+
+      <div id="connectionBanner" class="connection-banner hidden" role="status"></div>
+      <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+      <main id="mainContent">
+        <section id="overview" class="view active" aria-labelledby="overviewTitle">
+          <div class="page-heading">
+            <div>
+              <span class="page-kicker">治理工作台</span>
+              <h2 id="overviewTitle">总览</h2>
+              <p>从服务端权限过滤后的数据中，查看当前真人能看到的资产、待办和治理风险。</p>
+            </div>
+            <div class="heading-actions">
+              <button type="button" class="secondary" data-jump="catalog">进入资产目录</button>
+              <button type="button" class="primary" data-jump="runtime">查看固定工具联调</button>
+            </div>
+          </div>
+          <div id="overviewStats" class="stats-grid"></div>
+          <div class="dashboard-grid">
+            <section class="panel span-2">
+              <div class="panel-head">
+                <div><h3>治理闭环</h3><p>个人成果先在个人岗位级启用；扩大范围必须进入固定审批。</p></div>
+              </div>
+              <div class="governance-flow">
+                <article><span>1</span><strong>创建草稿</strong><p>登记 Agent、技能、知识库及责任人、标签和边界。</p></article>
+                <i>→</i>
+                <article><span>2</span><strong>个人启用</strong><p>仅创建人使用，不属于公共发布。</p></article>
+                <i>→</i>
+                <article><span>3</span><strong>提交采纳/发布</strong><p>固定模板定位审批岗位，再按岗找真人。</p></article>
+                <i>→</i>
+                <article><span>4</span><strong>公共资产</strong><p>资源可调用后，数据仍按当前真人二次判权。</p></article>
+              </div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><div><h3>我的待办</h3><p>仅显示服务端判定可处理的流程。</p></div></div>
+              <div id="overviewTasks" class="compact-list"></div>
+            </section>
+            <section class="panel span-2">
+              <div class="panel-head"><div><h3>最近可见资产</h3><p>列表结果已经过服务端身份与范围过滤。</p></div></div>
+              <div id="overviewAssets" class="asset-card-grid"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><div><h3>边界检查</h3><p>演示时必须说清楚的三条规则。</p></div></div>
+              <ul class="rule-list">
+                <li><b>不设超级管理员</b><span>平台运维只能维护技术元数据。</span></li>
+                <li><b>不自动决定审批人</b><span>固定模板写审批岗位，运行时按岗找真人。</span></li>
+                <li><b>不把文件存在引擎本体</b><span>引擎只登记对象、状态、关系与处理结果。</span></li>
+              </ul>
+            </section>
+          </div>
+        </section>
+
+        <section id="l4" class="view" aria-labelledby="l4Title">
+          <div class="page-heading">
+            <div>
+              <span class="page-kicker">L4 → L2 → L1 调用证据</span>
+              <h2 id="l4Title">L4 场景验证</h2>
+              <p>验证 L4 请求如何定位数字资产、经过资源与数据两次判定并转交下游。这里只验证治理与调用边界，不伪造文档解析、问答、内容生成或计算结果。</p>
+            </div>
+          </div>
+
+          <div id="l4ScenarioCards" class="scenario-grid"></div>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div><h3>发起 L4 请求</h3><p>当前真人由 1.8 身份 Mock 提供；服务端生成追踪编号并决定即时结果、受理回执或拒绝原因。</p></div>
+              <span class="badge info">L4 唯一发起端</span>
+            </div>
+            <form id="l4RequestForm" class="form-grid">
+              <label><span>应用场景 *</span><select name="scenarioCode" id="l4ScenarioSelect" required></select></label>
+              <label><span>请求类型 *</span><select name="requestMode" id="l4RequestMode"><option value="natural_language">自然语言 → 意图分析 Mock</option><option value="formatted">格式化请求 → 服务目录直达</option></select></label>
+              <label><span>请求来源层</span><input name="sourceLayer" value="L4" readonly /></label>
+              <label><span>目标服务代码</span><input id="l4ServiceCode" readonly /></label>
+              <label class="full"><span>L4 请求内容 *</span><textarea name="requestText" id="l4RequestText" rows="4" required></textarea></label>
+              <div class="form-actions full">
+                <button class="primary" type="submit">发起并验证调用</button>
+                <span class="form-note">自然语言识别为预设 Mock；来源、身份、服务、资源和数据权限由服务端真实判定。</span>
+              </div>
+            </form>
+          </section>
+
+          <section id="l4ResultPanel" class="panel detail-panel hidden">
+            <div class="panel-head"><div><h3>本次标准回复</h3><p id="l4ResultBoundary"></p></div><button type="button" class="ghost" id="closeL4Result">收起</button></div>
+            <div id="l4ResponseSummary" class="l4-response-summary"></div>
+            <div id="l4DecisionGrid" class="decision-grid"></div>
+            <div class="panel-head compact-head"><div><h3>层间调用链</h3><p>每一步都来自本次服务端请求记录。</p></div></div>
+            <div id="l4Route" class="route-timeline"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head"><div><h3>当前真人最近请求</h3><p>切换真人后只显示本人请求；平台运维仅看到脱敏技术元数据。</p></div></div>
+            <div class="table-wrap"><table class="data-table l4-table"><thead><tr><th>追踪编号</th><th>场景 / 服务</th><th>请求类型</th><th>标准回复</th><th>判定代码</th><th>时间</th><th>操作</th></tr></thead><tbody id="l4RequestRows"></tbody></table></div>
+          </section>
+        </section>
+
+        <section id="runtime" class="view" aria-labelledby="runtimeTitle">
+          <div class="page-heading">
+            <div>
+              <span class="page-kicker">固定实现联调证据</span>
+              <h2 id="runtimeTitle">固定工具联调 Mock</h2>
+              <p>白名单固定工具会真实运行，但流程执行、规则/内容引擎均为本项目内联调适配。数字资产引擎只返回登记的 Agent、Skill 与 implementation_ref，不承担业务执行。</p>
+            </div>
+          </div>
+          <div class="runtime-layout">
+            <section class="panel">
+              <div class="panel-head"><div><h3>发酵参数异常检查</h3><p>Agent 只负责组合关系；白名单固定工具在本地受控执行。该卡用于验证 implementation_ref 可被下游适配器接收，不代表数字资产引擎直接处理业务。</p></div><span class="badge info">联调 Mock</span></div>
+              <form id="runtimeForm" class="form-grid">
+                <label class="full"><span>调用目标 *</span><select id="runtimeTargetSelect" name="targetId" required></select></label>
+                <label><span>温度（°C）*</span><input name="temperature" type="number" step="0.1" value="34" required /></label>
+                <label><span>pH *</span><input name="ph" type="number" step="0.1" value="6.5" required /></label>
+                <label><span>溶氧（%）*</span><input name="oxygen" type="number" step="0.1" value="12" required /></label>
+                <label><span>规则边界</span><input value="温度 28–32°C；pH 6–7；溶氧 20–100%" readonly /></label>
+                <div class="form-actions full"><button class="primary" type="submit">执行并生成证据</button><span class="form-note">默认输入会产生温度、溶氧两项异常，便于演示真人确认。</span></div>
+              </form>
+            </section>
+            <section id="runtimeResult" class="panel runtime-result"><div class="empty-state">尚未执行。选择 Agent 或技能后提交真实参数。</div></section>
+          </div>
+          <section class="panel">
+            <div class="panel-head"><div><h3>当前真人最近执行</h3><p>切换真人后不会看到上一位真人的输入输出；平台运维只看脱敏技术元数据。</p></div></div>
+            <div class="table-wrap"><table class="data-table"><thead><tr><th>追踪编号</th><th>调用链</th><th>工具版本</th><th>结论</th><th>真人确认</th><th>时间</th></tr></thead><tbody id="executionRows"></tbody></table></div>
+          </section>
+        </section>
+
+        <section id="create" class="view" aria-labelledby="createTitle">
+          <div class="page-heading">
+            <div><span class="page-kicker">资产工作台</span><h2 id="createTitle">创建资产</h2><p>登记册只管理 Agent、技能、知识库三类资产。标签只用于说明和检索；权限由外部权限管理模块按当前真人实时判定。</p></div>
+          </div>
+          <div id="assetTypeCards" class="type-grid"></div>
+          <section class="panel">
+            <div class="panel-head"><div><h3 id="assetFormTitle">创建数字资产草稿</h3><p>所有字段将提交到后端；前端不会预判或改写权限结果。</p></div></div>
+            <form id="assetForm" class="form-grid">
+              <label><span>资产名称 *</span><input name="name" required maxlength="80" placeholder="例如：发酵异常识别技能" /></label>
+              <label><span>资产类型 *</span><select name="type" id="assetTypeSelect"></select></label>
+              <label><span>登记范围 *</span><select name="scope" id="assetScopeSelect"></select></label>
+              <label><span>检索标签</span><input name="tags" placeholder="例如：发酵,工艺检查,研发" /></label>
+              <label class="full"><span>说明 *</span><textarea name="description" required rows="4" placeholder="说明用途、适用边界以及不负责什么"></textarea></label>
+              <label><span>所属部门</span><input name="department" id="assetDepartment" readonly /></label>
+                <div id="skillDevelopmentFields" class="full hidden skill-development-grid">
+                  <label><span>Skill 创建方式 *</span>
+                    <select name="skillCreationMode" id="skillCreationMode">
+                      <option value="bind_existing">绑定已有实现，随后运行固定测试</option>
+                      <option value="request_development">没有现成实现，登记研发需求</option>
+                    </select>
+                  </label>
+                  <label id="skillToolField"><span>固定工具及版本 *</span><select name="toolBinding" id="assetToolSelect"></select></label>
+                  <label><span>输入定义 *</span><input name="inputDefinition" placeholder="例如：发酵批次记录、温度、pH、时间" /></label>
+                  <label><span>输出定义 *</span><input name="outputDefinition" placeholder="例如：异常项、证据、风险等级、待确认标记" /></label>
+                  <label class="full"><span>验收标准 *</span><textarea name="acceptanceCriteria" rows="3" placeholder="例如：固定测试集全部通过；结果可追溯；高风险结果必须真人确认"></textarea></label>
+                  <label id="skillCandidateSourceField" class="full hidden"><span>候选实现来源</span>
+                    <select name="candidateSource">
+                      <option value="undecided">待分派</option>
+                      <option value="evolution">L1 进化机制生成代码候选</option>
+                      <option value="developer">研发人员实现</option>
+                      <option value="existing_api">对接已有 API / 工具</option>
+                      <option value="workflow">由流程编排组合已有能力</option>
+                    </select>
+                  </label>
+                  <div class="full panel model-evaluation-fields">
+                    <div class="panel-head"><div><h3>主备模型评测登记</h3><p>固定工具测试与模型评测是两组独立证据；未完整登记主力和备用模型评测，Skill 不可启用或发布。</p></div></div>
+                    <div class="form-grid">
+                      <label><span>主力模型</span><input name="primaryModelId" placeholder="例如：model-primary" /></label>
+                      <label><span>主力模型版本</span><input name="primaryModelVersion" placeholder="例如：2026-07" /></label>
+                      <label><span>备用模型</span><input name="backupModelId" placeholder="例如：model-backup" /></label>
+                      <label><span>备用模型版本</span><input name="backupModelVersion" placeholder="例如：2026-06" /></label>
+                      <label><span>评测集引用</span><input name="modelDatasetRef" placeholder="dataset://skill-eval/v1" /></label>
+                      <label><span>指标名称</span><input name="modelMetricName" value="pass_rate" /></label>
+                      <label><span>主力指标值</span><input name="primaryMetricValue" type="number" min="0" max="1" step="0.01" placeholder="0.93" /></label>
+                      <label><span>备用指标值</span><input name="backupMetricValue" type="number" min="0" max="1" step="0.01" placeholder="0.88" /></label>
+                    </div>
+                  </div>
+                  <div id="skillDevelopmentNotice" class="masked-notice full">需求草稿只是研发任务，不具备执行能力，不能个人启用、发布，也不能被 Agent 绑定。实现进入固定工具登记库后，必须回到资产详情“绑定实现”并运行固定测试。</div>
+                </div>
+              <div id="agentSkillField" class="full hidden agent-config-grid">
+                <label><span>入口 Skill *</span><select name="entrySkillId" id="agentEntrySkillSelect"></select></label>
+                <label><span>可用 Skill *</span><select name="skillIds" id="agentSkillSelect" multiple size="4"></select></label>
+                <label><span>关联知识库</span><select name="knowledgeBaseIds" id="agentKnowledgeBaseSelect" multiple size="4"></select></label>
+              </div>
+              <label class="full"><span>人工确认规则</span><input name="humanReviewRule" placeholder="例如：输出仅作为建议，须由工艺工程师确认" /></label>
+              <div class="form-actions full">
+                <button class="primary" type="submit">创建草稿并登记</button>
+                <span class="form-note">部门级/公司级资产创建后仍是草稿，必须提交固定审批。</span>
+              </div>
+            </form>
+          </section>
+        </section>
+
+        <section id="catalog" class="view" aria-labelledby="catalogTitle">
+          <div class="page-heading">
+            <div><span class="page-kicker">统一资产登记册</span><h2 id="catalogTitle">资产目录</h2><p>“我创建的”是贡献关系，“我的个人岗位级”是当前作用域，两者不是一回事。</p></div>
+          </div>
+          <section class="panel">
+            <div id="catalogModes" class="segmented" role="tablist">
+              <button type="button" data-mode="personal" class="active">我的个人岗位级</button>
+              <button type="button" data-mode="created">我创建的</button>
+              <button type="button" data-mode="maintained">我维护的</button>
+              <button type="button" data-mode="department">本部门公共</button>
+              <button type="button" data-mode="all">全部可见</button>
+            </div>
+            <div class="filter-row">
+              <label class="search-field"><span class="sr-only">搜索</span><input id="catalogSearch" placeholder="搜索资产编号、名称、负责人或登记标签" /></label>
+              <select id="catalogTypeFilter" aria-label="按类型筛选"></select>
+              <select id="catalogStatusFilter" aria-label="按状态筛选"></select>
+              <button type="button" class="ghost" id="clearCatalogFilters">清空筛选</button>
+              <span id="catalogCount" class="count-label"></span>
+            </div>
+            <div class="table-wrap"><table class="data-table"><thead><tr><th>资产</th><th>类型</th><th>部门 / 责任人</th><th>范围</th><th>状态</th><th>版本</th><th>更新时间</th><th class="actions-col">操作</th></tr></thead><tbody id="catalogRows"></tbody></table></div>
+          </section>
+          <section id="assetDetail" class="panel detail-panel hidden"></section>
+        </section>
+
+        <section id="workflows" class="view" aria-labelledby="workflowTitle">
+          <div class="page-heading">
+            <div><span class="page-kicker">固定流程模板</span><h2 id="workflowTitle">审批与采纳</h2><p>AI 只识别流程模板；审批岗位由制度预设，系统按岗位定位当前真人，不能由提交人指定。</p></div>
+          </div>
+          <div id="workflowStats" class="stats-grid compact"></div>
+          <section class="panel">
+            <div class="panel-head"><div><h3>流程实例</h3><p>采纳员工个人成果与扩大公共范围都必须留下独立流程记录。</p></div></div>
+            <div id="workflowList" class="workflow-list"></div>
+          </section>
+        </section>
+
+        <section id="sources" class="view" aria-labelledby="sourcesTitle">
+          <div class="page-heading">
+            <div><span class="page-kicker">知识源处理状态</span><h2 id="sourcesTitle">知识源入库</h2><p>只有文档及可检索素材进入解析/索引链路；知识库是容器，技能和 Agent 只登记配置与依赖关系。</p></div>
+            <button type="button" class="primary" id="openSourceForm">上传知识源原件</button>
+          </div>
+          <section id="sourceFormPanel" class="panel hidden">
+            <div class="panel-head"><div><h3>上传并登记知识源</h3><p>原件写入对象存储适配目录，本引擎登记引用并生成待文档解析任务。</p></div></div>
+            <p class="form-note">仅知识库草稿的责任人/维护人可登记知识源；已发布知识库不能直接改写，本 MVP 以新草稿版本承接后续资料。</p>
+            <form id="sourceForm" class="form-grid">
+              <label><span>所属知识库 *</span><select name="assetId" id="sourceAssetSelect" required></select></label>
+              <label><span>知识源文件 *</span><input name="file" type="file" required accept=".docx,.xlsx,.pptx,.pdf,.png,.jpg,.jpeg,.txt" /></label>
+              <label class="full"><span>来源说明</span><input name="description" placeholder="资料来源、责任人及适用范围" /></label>
+              <div class="form-actions full"><button class="primary" type="submit">上传原件并登记</button><button class="ghost" type="button" id="cancelSourceForm">取消</button><span class="form-note">单文件最大 10 MB；解析仍由文档表格解析引擎承担。</span></div>
+            </form>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><div><h3>处理记录</h3><p>对象存储、元数据与向量索引是同一知识源的不同技术形态，不是三份独立资产。</p></div></div>
+            <div class="table-wrap"><table class="data-table"><thead><tr><th>记录 / 知识库</th><th>文件</th><th>对象存储</th><th>元数据</th><th>向量索引</th><th>解析状态</th><th>说明</th><th>操作</th></tr></thead><tbody id="sourceRows"></tbody></table></div>
+          </section>
+        </section>
+
+        <section id="registry" class="view" aria-labelledby="registryTitle">
+          <div class="page-heading">
+            <div><span class="page-kicker">L2 服务目录</span><h2 id="registryTitle">功能登记</h2><p>只登记已批准、已验证且可调度的 Agent 与技能；知识库是依赖资产，文件是知识源或附件，都不是第四类资产。</p></div>
+          </div>
+          <section class="panel">
+            <div class="panel-head"><div><h3>已登记功能</h3><p>登记仅表示功能可被发现，不代表调用者自动获得底层数据权限。</p></div></div>
+            <div id="registryList" class="registry-grid"></div>
+          </section>
+        </section>
+
+        <section id="audit" class="view" aria-labelledby="auditTitle">
+          <div class="page-heading">
+            <div><span class="page-kicker">1.9 安全合规</span><h2 id="auditTitle">审计与验证</h2><p>记录真人、动作、资产、结果与拒绝原因；服务端拒绝是验证权限机制有效的证据。</p></div>
+            <button type="button" class="danger-outline" id="resetDemo">重置演示数据</button>
+          </div>
+          <section class="panel">
+            <div class="panel-head"><div><h3>关键边界验证</h3><p>以下结果来自当前服务端能力矩阵和审计记录，不是前端按钮隐藏的假象。</p></div></div>
+            <div id="verificationCards" class="verification-grid"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><div><h3>统一调用链证据</h3><p>创建请求必须带流程任务信封；数字资产引擎只接收流程执行引擎经本层对内通道派发的任务。</p></div></div>
+            <div class="table-wrap"><table class="data-table"><thead><tr><th>任务编号</th><th>流程实例</th><th>追踪编号</th><th>服务代码</th><th>状态</th><th>时间</th></tr></thead><tbody id="flowTaskRows"></tbody></table></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><div><h3>基础模块调用证据</h3><p>账号网关、权限管理和安全合规均为外部模块 Mock；资产标签不参与权限判定。</p></div></div>
+            <div class="table-wrap"><table class="data-table"><thead><tr><th>请求编号</th><th>动作</th><th>资产</th><th>账号网关</th><th>权限模块</th><th>安全合规</th><th>模式</th></tr></thead><tbody id="foundationCallRows"></tbody></table></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><div><h3>操作留痕</h3><p>当前真人只能看到服务端允许查看的审计信息。</p></div></div>
+            <div class="table-wrap"><table class="data-table"><thead><tr><th>时间</th><th>请求编号</th><th>真人</th><th>动作</th><th>资产</th><th>结果</th><th>原因</th></tr></thead><tbody id="auditRows"></tbody></table></div>
+          </section>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-backdrop" data-close-modal></div>
+    <section class="modal-card">
+      <header><div><span class="page-kicker">资产操作</span><h2 id="modalTitle">确认操作</h2></div><button type="button" class="icon-button" data-close-modal aria-label="关闭">×</button></header>
+      <div id="modalBody"></div>
+    </section>
+  </div>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>

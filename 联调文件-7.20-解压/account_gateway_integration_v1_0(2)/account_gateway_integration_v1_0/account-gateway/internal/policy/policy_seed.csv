@@ -1,0 +1,24 @@
+p, 10, hanhe_admin, /admin/:resource, *, *, *, allow, 295, platform admin emergency audit console
+p, 20, hanhe_admin, /audit/:resource, read, *, *, allow, 295, platform admin reads audit evidence
+p, 30, hanhe_admin, /personnel/:resource, read, *, *, deny, 246, platform admin cannot read HR source data
+p, 40, hanhe_admin, /asset-pool/:resource, export, *, *, deny, 328, platform admin cannot export asset pool data
+p, 10, huazhong_region_manager, /region/huazhong/:resource, read, huazhong, *, allow, 295, regional manager views huazhong scope
+p, 20, huazhong_region_manager, /region/huazhong/:resource, approve, huazhong, *, allow, 30, regional manager approves in own region
+p, 30, huazhong_region_manager, /region/:region/:resource, read, *, *, deny, 30, regional manager denied outside bound region
+p, 40, huazhong_region_manager, /sales/private/:resource, read, huazhong, user_id_sales_001, deny, 246, regional manager cannot read salesperson private HR record
+p, 10, huazhong_sales, /sales/huazhong/opportunities, read, huazhong, user_id_sales_001, allow, 30, salesperson reads own pipeline
+p, 20, huazhong_sales, /sales/huazhong/opportunities, write, huazhong, user_id_sales_001, allow, 30, salesperson updates own pipeline
+p, 30, huazhong_sales, /sales/huazhong/opportunities, read, huazhong, *, deny, 30, salesperson denied peer pipeline
+p, 40, huazhong_sales, /region/huazhong/report, approve, huazhong, *, deny, 295, salesperson cannot approve regional report
+p, 10, hr_source, /hr/source/:resource, read, *, user_id_hr_source_001, allow, 246, HR source reads assigned source record
+p, 20, hr_source, /hr/source/:resource, write, *, user_id_hr_source_001, allow, 246, HR source maintains assigned source record
+p, 30, hr_source, /hr/source/:resource, read, *, *, deny, 246, HR source denied other HR source records
+p, 40, hr_source, /asset-pool/:resource, read, *, *, deny, 328, HR source denied asset pool access
+p, 10, data_owner, /data/owned/:dataset, read, *, user_id_data_owner_001, allow, 328, data owner reads owned dataset
+p, 20, data_owner, /data/owned/:dataset, grant, *, user_id_data_owner_001, allow, 328, data owner grants governed dataset access
+p, 30, data_owner, /data/owned/:dataset, export, *, user_id_data_owner_001, deny, 328, data owner denied direct export without asset workflow
+p, 40, data_owner, /hr/source/:resource, write, *, *, deny, 246, data owner denied HR source mutation
+p, 10, asset_pool, /asset-pool/catalog, read, *, user_id_asset_pool_001, allow, 328, asset pool reads managed catalog
+p, 20, asset_pool, /asset-pool/release, approve, *, user_id_asset_pool_001, allow, 328, asset pool approves governed release
+p, 30, asset_pool, /asset-pool/release, approve, *, *, deny, 328, asset pool denied release for non-owned pool
+p, 40, asset_pool, /region/:region/:resource, approve, *, *, deny, 295, asset pool cannot approve regional business actions

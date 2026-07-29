@@ -1,0 +1,851 @@
+{
+  "total": 30,
+  "full_pass_rate": 1.0,
+  "task_type_accuracy": 1.0,
+  "clarification_accuracy": 1.0,
+  "decomposition_accuracy": 1.0,
+  "false_positive_rate_on_no_task_cases": 0.0,
+  "false_positive_count_on_no_task_cases": 0,
+  "no_task_case_count": 5,
+  "context_recovery_accuracy": 1.0,
+  "context_case_count": 8,
+  "single": {
+    "total": 20,
+    "full_pass_rate": 1.0,
+    "task_type_accuracy": 1.0,
+    "clarification_accuracy": 1.0,
+    "decomposition_accuracy": 1.0,
+    "passed_cases": 20
+  },
+  "long_dialogue": {
+    "total": 10,
+    "full_pass_rate": 1.0,
+    "task_type_accuracy": 1.0,
+    "clarification_accuracy": 1.0,
+    "decomposition_accuracy": 1.0,
+    "passed_cases": 10
+  },
+  "by_category": {
+    "context_ambiguous": {
+      "total": 1,
+      "full_pass_rate": 1.0,
+      "task_type_accuracy": 1.0,
+      "clarification_accuracy": 1.0,
+      "decomposition_accuracy": 1.0,
+      "passed_cases": 1
+    },
+    "context_ellipsis": {
+      "total": 2,
+      "full_pass_rate": 1.0,
+      "task_type_accuracy": 1.0,
+      "clarification_accuracy": 1.0,
+      "decomposition_accuracy": 1.0,
+      "passed_cases": 2
+    },
+    "context_missing": {
+      "total": 1,
+      "full_pass_rate": 1.0,
+      "task_type_accuracy": 1.0,
+      "clarification_accuracy": 1.0,
+      "decomposition_accuracy": 1.0,
+      "passed_cases": 1
+    },
+    "context_override": {
+      "total": 1,
+      "full_pass_rate": 1.0,
+      "task_type_accuracy": 1.0,
+      "clarification_accuracy": 1.0,
+      "decomposition_accuracy": 1.0,
+      "passed_cases": 1
+    },
+    "context_reference": {
+      "total": 5,
+      "full_pass_rate": 1.0,
+      "task_type_accuracy": 1.0,
+      "clarification_accuracy": 1.0,
+      "decomposition_accuracy": 1.0,
+      "passed_cases": 5
+    },
+    "low_information": {
+      "total": 1,
+      "full_pass_rate": 1.0,
+      "task_type_accuracy": 1.0,
+      "clarification_accuracy": 1.0,
+      "decomposition_accuracy": 1.0,
+      "passed_cases": 1
+    },
+    "scope_filter": {
+      "total": 2,
+      "full_pass_rate": 1.0,
+      "task_type_accuracy": 1.0,
+      "clarification_accuracy": 1.0,
+      "decomposition_accuracy": 1.0,
+      "passed_cases": 2
+    },
+    "single_business": {
+      "total": 12,
+      "full_pass_rate": 1.0,
+      "task_type_accuracy": 1.0,
+      "clarification_accuracy": 1.0,
+      "decomposition_accuracy": 1.0,
+      "passed_cases": 12
+    },
+    "single_multitask": {
+      "total": 5,
+      "full_pass_rate": 1.0,
+      "task_type_accuracy": 1.0,
+      "clarification_accuracy": 1.0,
+      "decomposition_accuracy": 1.0,
+      "passed_cases": 5
+    }
+  },
+  "failed_cases": [],
+  "rows": [
+    {
+      "id": "UNSEEN-S-001",
+      "kind": "single",
+      "category": "single_business",
+      "text": "麻烦把一季度华南各门店回款金额拉出来。",
+      "expected_tasks": [
+        "DATA_QUERY_FETCH"
+      ],
+      "actual_tasks": [
+        "DATA_QUERY_FETCH"
+      ],
+      "expected_clarification": true,
+      "actual_clarification": true,
+      "missing_inputs": [
+        [
+          "data_source"
+        ]
+      ],
+      "clarification_questions": [
+        "请提供数据来源（例如数据库、文件或业务系统）。"
+      ],
+      "analysis_level": 1,
+      "selected_by": "rule",
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-S-002",
+      "kind": "single",
+      "category": "single_business",
+      "text": "把三月份逾期超过45天的客户挑出来。",
+      "expected_tasks": [
+        "DATA_FILTER"
+      ],
+      "actual_tasks": [
+        "DATA_FILTER"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        []
+      ],
+      "clarification_questions": [],
+      "analysis_level": 1,
+      "selected_by": "rule",
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-S-003",
+      "kind": "single",
+      "category": "single_business",
+      "text": "按客户等级汇总本周新增线索数量。",
+      "expected_tasks": [
+        "DATA_AGGREGATION_SUMMARY"
+      ],
+      "actual_tasks": [
+        "DATA_AGGREGATION_SUMMARY"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        []
+      ],
+      "clarification_questions": [],
+      "analysis_level": 1,
+      "selected_by": "rule",
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-S-004",
+      "kind": "single",
+      "category": "single_business",
+      "text": "帮我做一下本月费用环比。",
+      "expected_tasks": [
+        "DATA_ANALYSIS_MOM"
+      ],
+      "actual_tasks": [
+        "DATA_ANALYSIS_MOM"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        []
+      ],
+      "clarification_questions": [],
+      "analysis_level": 1,
+      "selected_by": "rule",
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-S-005",
+      "kind": "single",
+      "category": "single_business",
+      "text": "照新版绩效规则算一下客服奖金。",
+      "expected_tasks": [
+        "RULE_CALCULATION_GENERAL"
+      ],
+      "actual_tasks": [
+        "RULE_CALCULATION_GENERAL"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        []
+      ],
+      "clarification_questions": [],
+      "analysis_level": 1,
+      "selected_by": "rule",
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-S-006",
+      "kind": "single",
+      "category": "single_business",
+      "text": "用最新提成规则重新核一下上季度销售提成。",
+      "expected_tasks": [
+        "RULE_CALCULATION_COMMISSION"
+      ],
+      "actual_tasks": [
+        "RULE_CALCULATION_COMMISSION"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        []
+      ],
+      "clarification_questions": [],
+      "analysis_level": 1,
+      "selected_by": "rule",
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-S-007",
+      "kind": "single",
+      "category": "single_multitask",
+      "text": "把上周客服投诉整理成问题清单，再给出整改建议。",
+      "expected_tasks": [
+        "COMPLAINT_INFORMATION_ORGANIZE",
+        "DATA_ANALYSIS_PROBLEM",
+        "IMPROVEMENT_PLAN_GENERATE"
+      ],
+      "actual_tasks": [
+        "COMPLAINT_INFORMATION_ORGANIZE",
+        "DATA_ANALYSIS_PROBLEM",
+        "IMPROVEMENT_PLAN_GENERATE"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        [],
+        [],
+        []
+      ],
+      "clarification_questions": [],
+      "analysis_level": 3,
+      "selected_by": "rule",
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-S-008",
+      "kind": "single",
+      "category": "single_business",
+      "text": "查一下公司加班餐补标准。",
+      "expected_tasks": [
+        "QUESTION_ANSWER"
+      ],
+      "actual_tasks": [
+        "QUESTION_ANSWER"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        []
+      ],
+      "clarification_questions": [],
+      "analysis_level": 1,
+      "selected_by": "rule",
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-S-009",
+      "kind": "single",
+      "category": "single_business",
+      "text": "写一封通知，让各部门周五前提交预算说明。",
+      "expected_tasks": [
+        "CONTENT_GENERATE"
+      ],
+      "actual_tasks": [
+        "CONTENT_GENERATE"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        []
+      ],
+      "clarification_questions": [],
+      "analysis_level": 1,
+      "selected_by": "rule",
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-S-010",
+      "kind": "single",
+      "category": "single_business",
+      "text": "生成门店开业宣传海报。",
+      "expected_tasks": [
+        "MULTIMEDIA_GENERATE"
+      ],
+      "actual_tasks": [
+        "MULTIMEDIA_GENERATE"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        []
+      ],
+      "clarification_questions": [],
+      "analysis_level": 1,
+      "selected_by": "rule",
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-S-011",
+      "kind": "single",
+      "category": "single_business",
+      "text": "启动供应商准入审批。",
+      "expected_tasks": [
+        "WORKFLOW_START"
+      ],
+      "actual_tasks": [
+        "WORKFLOW_START"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        []
+      ],
+      "clarification_questions": [],
+      "analysis_level": 1,
+      "selected_by": "rule",
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-S-012",
+      "kind": "single",
+      "category": "single_business",
+      "text": "合同还有15天到期时提醒法务。",
+      "expected_tasks": [
+        "MONITORING_REMINDER"
+      ],
+      "actual_tasks": [
+        "MONITORING_REMINDER"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        []
+      ],
+      "clarification_questions": [],
+      "analysis_level": 1,
+      "selected_by": "rule",
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-S-013",
+      "kind": "single",
+      "category": "scope_filter",
+      "text": "不要现在分析销售数据，下周再说。",
+      "expected_tasks": [],
+      "actual_tasks": [],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [],
+      "clarification_questions": [],
+      "analysis_level": 1,
+      "selected_by": null,
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-S-014",
+      "kind": "single",
+      "category": "scope_filter",
+      "text": "先不用生成报告，也不要查数据。",
+      "expected_tasks": [],
+      "actual_tasks": [],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [],
+      "clarification_questions": [],
+      "analysis_level": 1,
+      "selected_by": null,
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-S-015",
+      "kind": "single",
+      "category": "low_information",
+      "text": "这个处理一下。",
+      "expected_tasks": [],
+      "actual_tasks": [],
+      "expected_clarification": true,
+      "actual_clarification": true,
+      "missing_inputs": [],
+      "clarification_questions": [
+        "请明确需要处理的业务对象和具体动作。"
+      ],
+      "analysis_level": 1,
+      "selected_by": null,
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-S-016",
+      "kind": "single",
+      "category": "single_multitask",
+      "text": "把ERP里的采购入库记录取出来，筛出未匹配发票的，再提交到OA。",
+      "expected_tasks": [
+        "EXTERNAL_DATA_FETCH",
+        "DATA_FILTER",
+        "EXTERNAL_SYSTEM_SUBMIT"
+      ],
+      "actual_tasks": [
+        "EXTERNAL_DATA_FETCH",
+        "DATA_FILTER",
+        "EXTERNAL_SYSTEM_SUBMIT"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        [],
+        [],
+        []
+      ],
+      "clarification_questions": [],
+      "analysis_level": 1,
+      "selected_by": null,
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-S-017",
+      "kind": "single",
+      "category": "single_multitask",
+      "text": "统计一下各区域销售额并按金额倒序排列。",
+      "expected_tasks": [
+        "DATA_AGGREGATION_SUMMARY",
+        "DATA_SORT"
+      ],
+      "actual_tasks": [
+        "DATA_AGGREGATION_SUMMARY",
+        "DATA_SORT"
+      ],
+      "expected_clarification": true,
+      "actual_clarification": true,
+      "missing_inputs": [
+        [
+          "statistical_range"
+        ],
+        []
+      ],
+      "clarification_questions": [
+        "请确认统计范围（例如时间范围、组织范围）。"
+      ],
+      "analysis_level": 1,
+      "selected_by": null,
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-S-018",
+      "kind": "single",
+      "category": "single_multitask",
+      "text": "分析客户流失原因并预测下季度流失风险。",
+      "expected_tasks": [
+        "DATA_ANALYSIS_PROBLEM",
+        "DATA_ANALYSIS_FORECAST"
+      ],
+      "actual_tasks": [
+        "DATA_ANALYSIS_PROBLEM",
+        "DATA_ANALYSIS_FORECAST"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        [],
+        []
+      ],
+      "clarification_questions": [],
+      "analysis_level": 1,
+      "selected_by": null,
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-S-019",
+      "kind": "single",
+      "category": "single_multitask",
+      "text": "解析发票附件并提取金额、税号字段。",
+      "expected_tasks": [
+        "DOCUMENT_TABLE_PARSE",
+        "FILE_STRUCTURE_EXTRACT"
+      ],
+      "actual_tasks": [
+        "DOCUMENT_TABLE_PARSE",
+        "FILE_STRUCTURE_EXTRACT"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        [],
+        []
+      ],
+      "clarification_questions": [],
+      "analysis_level": 1,
+      "selected_by": null,
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-S-020",
+      "kind": "single",
+      "category": "single_business",
+      "text": "根据本月提成计算结果生成计提凭证。",
+      "expected_tasks": [
+        "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+      ],
+      "actual_tasks": [
+        "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        []
+      ],
+      "clarification_questions": [],
+      "analysis_level": 1,
+      "selected_by": "rule",
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-D-001",
+      "kind": "dialogue",
+      "category": "context_ellipsis",
+      "text": "再算一遍。",
+      "expected_tasks": [
+        "RULE_CALCULATION_COMMISSION"
+      ],
+      "actual_tasks": [
+        "RULE_CALCULATION_COMMISSION"
+      ],
+      "expected_clarification": true,
+      "actual_clarification": true,
+      "missing_inputs": [
+        [
+          "calculation_policy"
+        ]
+      ],
+      "clarification_questions": [
+        "请提供计算规则或适用政策。"
+      ],
+      "analysis_level": 1,
+      "selected_by": "context_recovery",
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-D-002",
+      "kind": "dialogue",
+      "category": "context_ellipsis",
+      "text": "继续修改。",
+      "expected_tasks": [
+        "DOCUMENT_GENERATE"
+      ],
+      "actual_tasks": [
+        "DOCUMENT_GENERATE"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        []
+      ],
+      "clarification_questions": [],
+      "analysis_level": 1,
+      "selected_by": "context_recovery",
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-D-003",
+      "kind": "dialogue",
+      "category": "context_ambiguous",
+      "text": "继续处理。",
+      "expected_tasks": [],
+      "actual_tasks": [],
+      "expected_clarification": true,
+      "actual_clarification": true,
+      "missing_inputs": [],
+      "clarification_questions": [
+        "请明确要继续处理的上一轮任务或业务对象。"
+      ],
+      "analysis_level": 1,
+      "selected_by": null,
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-D-004",
+      "kind": "dialogue",
+      "category": "context_missing",
+      "text": "重新看看。",
+      "expected_tasks": [],
+      "actual_tasks": [],
+      "expected_clarification": true,
+      "actual_clarification": true,
+      "missing_inputs": [],
+      "clarification_questions": [
+        "请明确要继续处理的上一轮任务或业务对象。"
+      ],
+      "analysis_level": 1,
+      "selected_by": null,
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-D-005",
+      "kind": "dialogue",
+      "category": "context_reference",
+      "text": "再筛一版高价值的。",
+      "expected_tasks": [
+        "DATA_FILTER"
+      ],
+      "actual_tasks": [
+        "DATA_FILTER"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        []
+      ],
+      "clarification_questions": [],
+      "analysis_level": 1,
+      "selected_by": "context_recovery",
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-D-006",
+      "kind": "dialogue",
+      "category": "context_reference",
+      "text": "这个字段结构也提一下。",
+      "expected_tasks": [
+        "FILE_STRUCTURE_EXTRACT"
+      ],
+      "actual_tasks": [
+        "FILE_STRUCTURE_EXTRACT"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        []
+      ],
+      "clarification_questions": [],
+      "analysis_level": 2,
+      "selected_by": "semantic",
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-D-007",
+      "kind": "dialogue",
+      "category": "context_reference",
+      "text": "和去年同期比一下。",
+      "expected_tasks": [
+        "DATA_ANALYSIS_YOY"
+      ],
+      "actual_tasks": [
+        "DATA_ANALYSIS_YOY"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        []
+      ],
+      "clarification_questions": [],
+      "analysis_level": 2,
+      "selected_by": "semantic",
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-D-008",
+      "kind": "dialogue",
+      "category": "context_reference",
+      "text": "按这个生成整改方案。",
+      "expected_tasks": [
+        "IMPROVEMENT_PLAN_GENERATE"
+      ],
+      "actual_tasks": [
+        "IMPROVEMENT_PLAN_GENERATE"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        []
+      ],
+      "clarification_questions": [],
+      "analysis_level": 1,
+      "selected_by": "rule",
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-D-009",
+      "kind": "dialogue",
+      "category": "context_reference",
+      "text": "上面那个结果每天提醒我。",
+      "expected_tasks": [
+        "MONITORING_REMINDER"
+      ],
+      "actual_tasks": [
+        "MONITORING_REMINDER"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        []
+      ],
+      "clarification_questions": [],
+      "analysis_level": 1,
+      "selected_by": "rule",
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    },
+    {
+      "id": "UNSEEN-D-010",
+      "kind": "dialogue",
+      "category": "context_override",
+      "text": "不用了，改成生成销售日报。",
+      "expected_tasks": [
+        "DOCUMENT_GENERATE"
+      ],
+      "actual_tasks": [
+        "DOCUMENT_GENERATE"
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "missing_inputs": [
+        []
+      ],
+      "clarification_questions": [],
+      "analysis_level": 1,
+      "selected_by": "rule",
+      "task_type_pass": true,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "passed": true
+    }
+  ],
+  "run_mode": {
+    "semantic_mode": "local",
+    "llm_mode": "off",
+    "semantic_threshold": 0.5
+  },
+  "sample_duplicate_check": {
+    "checked_against": [
+      "evaluation/dataset/intent_test_dataset.json",
+      "evaluation/conversation_dataset.json",
+      "evaluation/long_text_dataset.json",
+      "evaluation/benchmark/datasets/train/*.jsonl",
+      "evaluation/benchmark/datasets/validation/*.jsonl"
+    ],
+    "blind_test_used": false,
+    "exact_duplicate_count": 0,
+    "exact_duplicates": []
+  }
+}

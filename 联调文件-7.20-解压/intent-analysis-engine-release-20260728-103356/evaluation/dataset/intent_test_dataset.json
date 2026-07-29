@@ -1,0 +1,1042 @@
+[
+  {
+    "id": "RULE-001",
+    "case_type": "规则明确请求",
+    "text": "解析上传的销售明细Excel表格",
+    "expected_engine_code": "ENG_DOCUMENT_TABLE_PARSING",
+    "expected_task_type": "DOCUMENT_TABLE_PARSE",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-002",
+    "case_type": "规则明确请求",
+    "text": "提取这个Excel的字段结构",
+    "expected_engine_code": "ENG_DOCUMENT_TABLE_PARSING",
+    "expected_task_type": "FILE_STRUCTURE_EXTRACT",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-003",
+    "case_type": "规则明确请求",
+    "text": "读取合同附件里的表格",
+    "expected_engine_code": "ENG_DOCUMENT_TABLE_PARSING",
+    "expected_task_type": "DOCUMENT_TABLE_PARSE",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-004",
+    "case_type": "规则明确请求",
+    "text": "识别发票文件里的单据内容",
+    "expected_engine_code": "ENG_DOCUMENT_TABLE_PARSING",
+    "expected_task_type": "DOCUMENT_TABLE_PARSE",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-005",
+    "case_type": "规则明确请求",
+    "text": "从CRM系统获取客户资料",
+    "expected_engine_code": "ENG_EXTERNAL_SYSTEM_CONNECTOR",
+    "expected_task_type": "EXTERNAL_DATA_FETCH",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-006",
+    "case_type": "规则明确请求",
+    "text": "拉取ERP里的订单明细",
+    "expected_engine_code": "ENG_EXTERNAL_SYSTEM_CONNECTOR",
+    "expected_task_type": "EXTERNAL_DATA_FETCH",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-007",
+    "case_type": "规则明确请求",
+    "text": "把审批结果回传到OA",
+    "expected_engine_code": "ENG_EXTERNAL_SYSTEM_CONNECTOR",
+    "expected_task_type": "EXTERNAL_SYSTEM_SUBMIT",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-008",
+    "case_type": "规则明确请求",
+    "text": "推送客户资料到CRM",
+    "expected_engine_code": "ENG_EXTERNAL_SYSTEM_CONNECTOR",
+    "expected_task_type": "EXTERNAL_SYSTEM_SUBMIT",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-009",
+    "case_type": "规则明确请求",
+    "text": "根据本月提成计算结果生成计提凭证",
+    "expected_engine_code": "ENG_DIGITAL_ASSET",
+    "expected_task_type": "DIGITAL_ASSET_ACCRUAL_VOUCHER",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-010",
+    "case_type": "规则明确请求",
+    "text": "根据计算结果创建会计凭证",
+    "expected_engine_code": "ENG_DIGITAL_ASSET",
+    "expected_task_type": "DIGITAL_ASSET_ACCRUAL_VOUCHER",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-011",
+    "case_type": "规则明确请求",
+    "text": "生成一张新品发布海报",
+    "expected_engine_code": "ENG_MULTIMEDIA_GENERATION",
+    "expected_task_type": "MULTIMEDIA_GENERATE",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-012",
+    "case_type": "规则明确请求",
+    "text": "制作活动宣传图",
+    "expected_engine_code": "ENG_MULTIMEDIA_GENERATION",
+    "expected_task_type": "MULTIMEDIA_GENERATE",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-013",
+    "case_type": "规则明确请求",
+    "text": "发起采购审批流程",
+    "expected_engine_code": "ENG_WORKFLOW_EXECUTION",
+    "expected_task_type": "WORKFLOW_START",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-014",
+    "case_type": "规则明确请求",
+    "text": "我提交报销审批流程",
+    "expected_engine_code": "ENG_WORKFLOW_EXECUTION",
+    "expected_task_type": "WORKFLOW_START",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-015",
+    "case_type": "规则明确请求",
+    "text": "库存低于100时提醒我",
+    "expected_engine_code": "ENG_MONITORING_REMINDER",
+    "expected_task_type": "MONITORING_REMINDER",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-016",
+    "case_type": "规则明确请求",
+    "text": "合同到期前通知我",
+    "expected_engine_code": "ENG_MONITORING_REMINDER",
+    "expected_task_type": "MONITORING_REMINDER",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-017",
+    "case_type": "规则明确请求",
+    "text": "生成销售数据透视表",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "DATA_ANALYSIS_PIVOT",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-018",
+    "case_type": "规则明确请求",
+    "text": "按区域分类求和销售额",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "DATA_ANALYSIS_GROUP_SUM",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-019",
+    "case_type": "规则明确请求",
+    "text": "分析本月销售额同比变化",
+    "expected_engine_code": "ENG_ANALYTICS_FORECASTING",
+    "expected_task_type": "DATA_ANALYSIS_YOY",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-020",
+    "case_type": "规则明确请求",
+    "text": "分析本月销售额环比变化",
+    "expected_engine_code": "ENG_ANALYTICS_FORECASTING",
+    "expected_task_type": "DATA_ANALYSIS_MOM",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-021",
+    "case_type": "规则明确请求",
+    "text": "分析销售波动原因",
+    "expected_engine_code": "ENG_ANALYTICS_FORECASTING",
+    "expected_task_type": "DATA_ANALYSIS_PROBLEM",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-022",
+    "case_type": "规则明确请求",
+    "text": "预测下季度销售额趋势",
+    "expected_engine_code": "ENG_ANALYTICS_FORECASTING",
+    "expected_task_type": "DATA_ANALYSIS_FORECAST",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-023",
+    "case_type": "规则明确请求",
+    "text": "根据销售提成政策用销售数据计算上个月销售提成",
+    "expected_engine_code": "ENG_RULE_CALCULATION",
+    "expected_task_type": "RULE_CALCULATION_COMMISSION",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-024",
+    "case_type": "规则明确请求",
+    "text": "根据公式计算本月费用",
+    "expected_engine_code": "ENG_RULE_CALCULATION",
+    "expected_task_type": "RULE_CALCULATION_GENERAL",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-025",
+    "case_type": "规则明确请求",
+    "text": "按销售额排名",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "DATA_SORT",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-026",
+    "case_type": "规则明确请求",
+    "text": "筛选高风险订单",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "DATA_FILTER",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-027",
+    "case_type": "规则明确请求",
+    "text": "查询本月销售明细",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "DATA_QUERY_FETCH",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-028",
+    "case_type": "规则明确请求",
+    "text": "按区域汇总本月销售金额",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "DATA_AGGREGATION_SUMMARY",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-029",
+    "case_type": "规则明确请求",
+    "text": "解释一下销售政策",
+    "expected_engine_code": "ENG_KNOWLEDGE_QA",
+    "expected_task_type": "QUESTION_ANSWER",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-030",
+    "case_type": "规则明确请求",
+    "text": "写一份会议通知",
+    "expected_engine_code": "ENG_CONTENT_OUTPUT",
+    "expected_task_type": "CONTENT_GENERATE",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-031",
+    "case_type": "规则明确请求",
+    "text": "生成经营分析报告",
+    "expected_engine_code": "ENG_CONTENT_OUTPUT",
+    "expected_task_type": "DOCUMENT_GENERATE",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-032",
+    "case_type": "规则明确请求",
+    "text": "生成销售改进方案",
+    "expected_engine_code": "ENG_CONTENT_OUTPUT",
+    "expected_task_type": "IMPROVEMENT_PLAN_GENERATE",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-033",
+    "case_type": "规则明确请求",
+    "text": "导出销售报表",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "DATA_QUERY_FETCH",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-034",
+    "case_type": "规则明确请求",
+    "text": "办理报销流程",
+    "expected_engine_code": "ENG_WORKFLOW_EXECUTION",
+    "expected_task_type": "PROCESS_HANDLE",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "RULE-035",
+    "case_type": "规则明确请求",
+    "text": "过滤无效客户记录",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "DATA_FILTER",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "SEM-001",
+    "case_type": "语义表达变化",
+    "text": "帮我看看销售人员奖金怎么算",
+    "expected_engine_code": "ENG_RULE_CALCULATION",
+    "expected_task_type": "RULE_CALCULATION_COMMISSION",
+    "should_clarify": true,
+    "expected_source": "level2_semantic"
+  },
+  {
+    "id": "SEM-002",
+    "case_type": "语义表达变化",
+    "text": "能不能帮我看看销售人员奖金怎么算",
+    "expected_engine_code": "ENG_RULE_CALCULATION",
+    "expected_task_type": "RULE_CALCULATION_COMMISSION",
+    "should_clarify": true,
+    "expected_source": "level2_semantic"
+  },
+  {
+    "id": "SEM-003",
+    "case_type": "语义表达变化",
+    "text": "销售人员的奖金怎么核出来",
+    "expected_engine_code": "ENG_RULE_CALCULATION",
+    "expected_task_type": "RULE_CALCULATION_COMMISSION",
+    "should_clarify": true,
+    "expected_source": "level2_semantic"
+  },
+  {
+    "id": "SEM-004",
+    "case_type": "语义表达变化",
+    "text": "各区域销售奖金该怎么分配",
+    "expected_engine_code": "ENG_RULE_CALCULATION",
+    "expected_task_type": "RULE_CALCULATION_COMMISSION",
+    "should_clarify": true,
+    "expected_source": "level2_semantic"
+  },
+  {
+    "id": "SEM-005",
+    "case_type": "语义表达变化",
+    "text": "销售团队奖金怎么确认",
+    "expected_engine_code": "ENG_RULE_CALCULATION",
+    "expected_task_type": "RULE_CALCULATION_COMMISSION",
+    "should_clarify": true,
+    "expected_source": "level2_semantic"
+  },
+  {
+    "id": "SEM-006",
+    "case_type": "语义表达变化",
+    "text": "最近经营情况怎么样",
+    "expected_engine_code": "ENG_ANALYTICS_FORECASTING",
+    "expected_task_type": "DATA_ANALYSIS_PROBLEM",
+    "should_clarify": true,
+    "expected_source": "level2_semantic"
+  },
+  {
+    "id": "SEM-007",
+    "case_type": "语义表达变化",
+    "text": "经营表现好不好",
+    "expected_engine_code": "ENG_ANALYTICS_FORECASTING",
+    "expected_task_type": "DATA_ANALYSIS_PROBLEM",
+    "should_clarify": true,
+    "expected_source": "level2_semantic"
+  },
+  {
+    "id": "SEM-008",
+    "case_type": "语义表达变化",
+    "text": "看看业务情况有什么问题",
+    "expected_engine_code": "ENG_ANALYTICS_FORECASTING",
+    "expected_task_type": "DATA_ANALYSIS_PROBLEM",
+    "should_clarify": true,
+    "expected_source": "level2_semantic"
+  },
+  {
+    "id": "SEM-009",
+    "case_type": "语义表达变化",
+    "text": "和去年同期相比怎么样",
+    "expected_engine_code": "ENG_ANALYTICS_FORECASTING",
+    "expected_task_type": "DATA_ANALYSIS_YOY",
+    "should_clarify": true,
+    "expected_source": "level2_semantic"
+  },
+  {
+    "id": "SEM-010",
+    "case_type": "语义表达变化",
+    "text": "和上个月相比怎么样",
+    "expected_engine_code": "ENG_ANALYTICS_FORECASTING",
+    "expected_task_type": "DATA_ANALYSIS_MOM",
+    "should_clarify": true,
+    "expected_source": "level2_semantic"
+  },
+  {
+    "id": "SEM-011",
+    "case_type": "语义表达变化",
+    "text": "未来三个月收入大概会怎样",
+    "expected_engine_code": "ENG_ANALYTICS_FORECASTING",
+    "expected_task_type": "DATA_ANALYSIS_FORECAST",
+    "should_clarify": true,
+    "expected_source": "level2_semantic"
+  },
+  {
+    "id": "SEM-012",
+    "case_type": "语义表达变化",
+    "text": "合同附件里有表格吗",
+    "expected_engine_code": "ENG_DOCUMENT_TABLE_PARSING",
+    "expected_task_type": "DOCUMENT_TABLE_PARSE",
+    "should_clarify": true,
+    "expected_source": "level2_semantic"
+  },
+  {
+    "id": "SEM-013",
+    "case_type": "语义表达变化",
+    "text": "附件目录结构是什么样",
+    "expected_engine_code": "ENG_DOCUMENT_TABLE_PARSING",
+    "expected_task_type": "FILE_STRUCTURE_EXTRACT",
+    "should_clarify": true,
+    "expected_source": "level2_semantic"
+  },
+  {
+    "id": "SEM-014",
+    "case_type": "语义表达变化",
+    "text": "客户名单给我看一下",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "DATA_QUERY_FETCH",
+    "should_clarify": true,
+    "expected_source": "level2_semantic"
+  },
+  {
+    "id": "SEM-015",
+    "case_type": "语义表达变化",
+    "text": "产品数量分组看看",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "DATA_ANALYSIS_GROUP_SUM",
+    "should_clarify": true,
+    "expected_source": "level2_semantic"
+  },
+  {
+    "id": "SEM-016",
+    "case_type": "语义表达变化",
+    "text": "做一张经营数据透视表",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "DATA_ANALYSIS_PIVOT",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "SEM-017",
+    "case_type": "语义表达变化",
+    "text": "梳理投诉信息",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "COMPLAINT_INFORMATION_ORGANIZE",
+    "should_clarify": true,
+    "expected_source": "level2_semantic"
+  },
+  {
+    "id": "SEM-018",
+    "case_type": "语义表达变化",
+    "text": "起草一封客户邮件",
+    "expected_engine_code": "ENG_CONTENT_OUTPUT",
+    "expected_task_type": "CONTENT_GENERATE",
+    "should_clarify": true,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "SEM-019",
+    "case_type": "语义表达变化",
+    "text": "起草整改计划",
+    "expected_engine_code": "ENG_CONTENT_OUTPUT",
+    "expected_task_type": "IMPROVEMENT_PLAN_GENERATE",
+    "should_clarify": true,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "SEM-020",
+    "case_type": "语义表达变化",
+    "text": "合同到期前通知我一下",
+    "expected_engine_code": "ENG_MONITORING_REMINDER",
+    "expected_task_type": "MONITORING_REMINDER",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "MULTI-001",
+    "case_type": "多任务请求",
+    "text": "把上个月各区域销售提成算出来，生成计提凭证",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "DATA_QUERY_FETCH",
+    "should_clarify": false,
+    "expected_source": "task_decomposer",
+    "expected_tasks": [
+      {
+        "engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+        "task_type": "DATA_QUERY_FETCH"
+      },
+      {
+        "engine_code": "ENG_RULE_CALCULATION",
+        "task_type": "RULE_CALCULATION_COMMISSION"
+      },
+      {
+        "engine_code": "ENG_DIGITAL_ASSET",
+        "task_type": "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+      }
+    ]
+  },
+  {
+    "id": "MULTI-002",
+    "case_type": "多任务请求",
+    "text": "把上月销售提成算出来并生成计提凭证",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "DATA_QUERY_FETCH",
+    "should_clarify": false,
+    "expected_source": "task_decomposer",
+    "expected_tasks": [
+      {
+        "engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+        "task_type": "DATA_QUERY_FETCH"
+      },
+      {
+        "engine_code": "ENG_RULE_CALCULATION",
+        "task_type": "RULE_CALCULATION_COMMISSION"
+      },
+      {
+        "engine_code": "ENG_DIGITAL_ASSET",
+        "task_type": "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+      }
+    ]
+  },
+  {
+    "id": "MULTI-003",
+    "case_type": "多任务请求",
+    "text": "整理客户投诉并生成改进方案",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "COMPLAINT_INFORMATION_ORGANIZE",
+    "should_clarify": false,
+    "expected_source": "task_decomposer",
+    "expected_tasks": [
+      {
+        "engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+        "task_type": "COMPLAINT_INFORMATION_ORGANIZE"
+      },
+      {
+        "engine_code": "ENG_ANALYTICS_FORECASTING",
+        "task_type": "DATA_ANALYSIS_PROBLEM"
+      },
+      {
+        "engine_code": "ENG_CONTENT_OUTPUT",
+        "task_type": "IMPROVEMENT_PLAN_GENERATE"
+      }
+    ]
+  },
+  {
+    "id": "MULTI-004",
+    "case_type": "多任务请求",
+    "text": "先整理客户投诉，再生成改进方案",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "COMPLAINT_INFORMATION_ORGANIZE",
+    "should_clarify": false,
+    "expected_source": "task_decomposer",
+    "expected_tasks": [
+      {
+        "engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+        "task_type": "COMPLAINT_INFORMATION_ORGANIZE"
+      },
+      {
+        "engine_code": "ENG_ANALYTICS_FORECASTING",
+        "task_type": "DATA_ANALYSIS_PROBLEM"
+      },
+      {
+        "engine_code": "ENG_CONTENT_OUTPUT",
+        "task_type": "IMPROVEMENT_PLAN_GENERATE"
+      }
+    ]
+  },
+  {
+    "id": "MULTI-005",
+    "case_type": "多任务请求",
+    "text": "客户投诉整理一下并输出改进方案",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "COMPLAINT_INFORMATION_ORGANIZE",
+    "should_clarify": false,
+    "expected_source": "task_decomposer",
+    "expected_tasks": [
+      {
+        "engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+        "task_type": "COMPLAINT_INFORMATION_ORGANIZE"
+      },
+      {
+        "engine_code": "ENG_ANALYTICS_FORECASTING",
+        "task_type": "DATA_ANALYSIS_PROBLEM"
+      },
+      {
+        "engine_code": "ENG_CONTENT_OUTPUT",
+        "task_type": "IMPROVEMENT_PLAN_GENERATE"
+      }
+    ]
+  },
+  {
+    "id": "MULTI-006",
+    "case_type": "多任务请求",
+    "text": "上个月销售提成计算完后生成计提凭证",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "DATA_QUERY_FETCH",
+    "should_clarify": false,
+    "expected_source": "task_decomposer",
+    "expected_tasks": [
+      {
+        "engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+        "task_type": "DATA_QUERY_FETCH"
+      },
+      {
+        "engine_code": "ENG_RULE_CALCULATION",
+        "task_type": "RULE_CALCULATION_COMMISSION"
+      },
+      {
+        "engine_code": "ENG_DIGITAL_ASSET",
+        "task_type": "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+      }
+    ]
+  },
+  {
+    "id": "MULTI-007",
+    "case_type": "多任务请求",
+    "text": "销售提成算好以后生成计提凭证",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "DATA_QUERY_FETCH",
+    "should_clarify": true,
+    "expected_source": "task_decomposer",
+    "expected_tasks": [
+      {
+        "engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+        "task_type": "DATA_QUERY_FETCH"
+      },
+      {
+        "engine_code": "ENG_RULE_CALCULATION",
+        "task_type": "RULE_CALCULATION_COMMISSION"
+      },
+      {
+        "engine_code": "ENG_DIGITAL_ASSET",
+        "task_type": "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+      }
+    ]
+  },
+  {
+    "id": "MULTI-008",
+    "case_type": "多任务请求",
+    "text": "请整理客户投诉，分析问题，然后生成改进方案",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "COMPLAINT_INFORMATION_ORGANIZE",
+    "should_clarify": false,
+    "expected_source": "task_decomposer",
+    "expected_tasks": [
+      {
+        "engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+        "task_type": "COMPLAINT_INFORMATION_ORGANIZE"
+      },
+      {
+        "engine_code": "ENG_ANALYTICS_FORECASTING",
+        "task_type": "DATA_ANALYSIS_PROBLEM"
+      },
+      {
+        "engine_code": "ENG_CONTENT_OUTPUT",
+        "task_type": "IMPROVEMENT_PLAN_GENERATE"
+      }
+    ]
+  },
+  {
+    "id": "MULTI-009",
+    "case_type": "多任务请求",
+    "text": "把各区域销售提成算出来，生成计提凭证",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "DATA_QUERY_FETCH",
+    "should_clarify": true,
+    "expected_source": "task_decomposer",
+    "expected_tasks": [
+      {
+        "engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+        "task_type": "DATA_QUERY_FETCH"
+      },
+      {
+        "engine_code": "ENG_RULE_CALCULATION",
+        "task_type": "RULE_CALCULATION_COMMISSION"
+      },
+      {
+        "engine_code": "ENG_DIGITAL_ASSET",
+        "task_type": "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+      }
+    ]
+  },
+  {
+    "id": "MULTI-010",
+    "case_type": "多任务请求",
+    "text": "客户投诉先整理再出改进方案",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "COMPLAINT_INFORMATION_ORGANIZE",
+    "should_clarify": false,
+    "expected_source": "task_decomposer",
+    "expected_tasks": [
+      {
+        "engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+        "task_type": "COMPLAINT_INFORMATION_ORGANIZE"
+      },
+      {
+        "engine_code": "ENG_ANALYTICS_FORECASTING",
+        "task_type": "DATA_ANALYSIS_PROBLEM"
+      },
+      {
+        "engine_code": "ENG_CONTENT_OUTPUT",
+        "task_type": "IMPROVEMENT_PLAN_GENERATE"
+      }
+    ]
+  },
+  {
+    "id": "MISS-001",
+    "case_type": "信息缺失请求",
+    "text": "销售提成",
+    "expected_engine_code": "ENG_RULE_CALCULATION",
+    "expected_task_type": "RULE_CALCULATION_COMMISSION",
+    "should_clarify": true,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "MISS-002",
+    "case_type": "信息缺失请求",
+    "text": "统计销售金额",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "DATA_AGGREGATION_SUMMARY",
+    "should_clarify": true,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "MISS-003",
+    "case_type": "信息缺失请求",
+    "text": "生成会计凭证",
+    "expected_engine_code": "ENG_DIGITAL_ASSET",
+    "expected_task_type": "DIGITAL_ASSET_ACCRUAL_VOUCHER",
+    "should_clarify": true,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "MISS-004",
+    "case_type": "信息缺失请求",
+    "text": "写报告",
+    "expected_engine_code": "ENG_CONTENT_OUTPUT",
+    "expected_task_type": "DOCUMENT_GENERATE",
+    "should_clarify": true,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "MISS-005",
+    "case_type": "信息缺失请求",
+    "text": "发起流程",
+    "expected_engine_code": "ENG_WORKFLOW_EXECUTION",
+    "expected_task_type": "WORKFLOW_START",
+    "should_clarify": true,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "MISS-006",
+    "case_type": "信息缺失请求",
+    "text": "提醒我",
+    "expected_engine_code": "ENG_MONITORING_REMINDER",
+    "expected_task_type": "MONITORING_REMINDER",
+    "should_clarify": true,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "MISS-007",
+    "case_type": "信息缺失请求",
+    "text": "获取客户资料",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "DATA_QUERY_FETCH",
+    "should_clarify": true,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "MISS-008",
+    "case_type": "信息缺失请求",
+    "text": "计算奖金",
+    "expected_engine_code": "ENG_RULE_CALCULATION",
+    "expected_task_type": "RULE_CALCULATION_GENERAL",
+    "should_clarify": true,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "MISS-009",
+    "case_type": "信息缺失请求",
+    "text": "生成海报",
+    "expected_engine_code": "ENG_MULTIMEDIA_GENERATION",
+    "expected_task_type": "MULTIMEDIA_GENERATE",
+    "should_clarify": true,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "MISS-010",
+    "case_type": "信息缺失请求",
+    "text": "分析问题",
+    "expected_engine_code": "ENG_ANALYTICS_FORECASTING",
+    "expected_task_type": "DATA_ANALYSIS_PROBLEM",
+    "should_clarify": true,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "MISS-011",
+    "case_type": "信息缺失请求",
+    "text": "预测趋势",
+    "expected_engine_code": "ENG_ANALYTICS_FORECASTING",
+    "expected_task_type": "DATA_ANALYSIS_FORECAST",
+    "should_clarify": true,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "MISS-012",
+    "case_type": "信息缺失请求",
+    "text": "从系统获取数据",
+    "expected_engine_code": "ENG_EXTERNAL_SYSTEM_CONNECTOR",
+    "expected_task_type": "EXTERNAL_DATA_FETCH",
+    "should_clarify": false,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "MISS-013",
+    "case_type": "信息缺失请求",
+    "text": "按区域汇总销售金额",
+    "expected_engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+    "expected_task_type": "DATA_AGGREGATION_SUMMARY",
+    "should_clarify": true,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "MISS-014",
+    "case_type": "信息缺失请求",
+    "text": "根据政策计算销售提成",
+    "expected_engine_code": "ENG_RULE_CALCULATION",
+    "expected_task_type": "RULE_CALCULATION_COMMISSION",
+    "should_clarify": true,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "MISS-015",
+    "case_type": "信息缺失请求",
+    "text": "写一份客户邮件",
+    "expected_engine_code": "ENG_CONTENT_OUTPUT",
+    "expected_task_type": "CONTENT_GENERATE",
+    "should_clarify": true,
+    "expected_source": "level1_rule"
+  },
+  {
+    "id": "QA-001",
+    "case_type": "智能问答请求",
+    "text": "公司的报销政策是什么？",
+    "expected_engine_code": "ENG_KNOWLEDGE_QA",
+    "expected_task_type": "QUESTION_ANSWER",
+    "should_clarify": false,
+    "expected_source": "fast_path"
+  },
+  {
+    "id": "QA-002",
+    "case_type": "智能问答请求",
+    "text": "什么是销售政策？",
+    "expected_engine_code": "ENG_KNOWLEDGE_QA",
+    "expected_task_type": "QUESTION_ANSWER",
+    "should_clarify": false,
+    "expected_source": "fast_path"
+  },
+  {
+    "id": "QA-003",
+    "case_type": "智能问答请求",
+    "text": "报销规则如何理解？",
+    "expected_engine_code": "ENG_KNOWLEDGE_QA",
+    "expected_task_type": "QUESTION_ANSWER",
+    "should_clarify": false,
+    "expected_source": "fast_path"
+  },
+  {
+    "id": "QA-004",
+    "case_type": "智能问答请求",
+    "text": "为什么报销制度要审批？",
+    "expected_engine_code": "ENG_KNOWLEDGE_QA",
+    "expected_task_type": "QUESTION_ANSWER",
+    "should_clarify": false,
+    "expected_source": "fast_path"
+  },
+  {
+    "id": "QA-005",
+    "case_type": "智能问答请求",
+    "text": "请说明费用报销规则是什么",
+    "expected_engine_code": "ENG_KNOWLEDGE_QA",
+    "expected_task_type": "QUESTION_ANSWER",
+    "should_clarify": false,
+    "expected_source": "fast_path"
+  },
+  {
+    "id": "QA-006",
+    "case_type": "智能问答请求",
+    "text": "销售政策怎么解释？",
+    "expected_engine_code": "ENG_KNOWLEDGE_QA",
+    "expected_task_type": "QUESTION_ANSWER",
+    "should_clarify": false,
+    "expected_source": "fast_path"
+  },
+  {
+    "id": "QA-007",
+    "case_type": "智能问答请求",
+    "text": "知识库里报销标准是什么？",
+    "expected_engine_code": "ENG_KNOWLEDGE_QA",
+    "expected_task_type": "QUESTION_ANSWER",
+    "should_clarify": false,
+    "expected_source": "fast_path"
+  },
+  {
+    "id": "QA-008",
+    "case_type": "智能问答请求",
+    "text": "请告诉我报销制度是什么",
+    "expected_engine_code": "ENG_KNOWLEDGE_QA",
+    "expected_task_type": "QUESTION_ANSWER",
+    "should_clarify": false,
+    "expected_source": "fast_path"
+  },
+  {
+    "id": "QA-009",
+    "case_type": "智能问答请求",
+    "text": "什么是费用报销制度",
+    "expected_engine_code": "ENG_KNOWLEDGE_QA",
+    "expected_task_type": "QUESTION_ANSWER",
+    "should_clarify": false,
+    "expected_source": "fast_path"
+  },
+  {
+    "id": "QA-010",
+    "case_type": "智能问答请求",
+    "text": "销售规则为什么这样设置？",
+    "expected_engine_code": "ENG_KNOWLEDGE_QA",
+    "expected_task_type": "QUESTION_ANSWER",
+    "should_clarify": false,
+    "expected_source": "fast_path"
+  },
+  {
+    "id": "UNKNOWN-001",
+    "case_type": "未知请求",
+    "text": "今天天气不错",
+    "expected_engine_code": null,
+    "expected_task_type": null,
+    "should_clarify": true,
+    "expected_source": "fallback"
+  },
+  {
+    "id": "UNKNOWN-002",
+    "case_type": "未知请求",
+    "text": "给我讲个笑话",
+    "expected_engine_code": null,
+    "expected_task_type": null,
+    "should_clarify": true,
+    "expected_source": "fallback"
+  },
+  {
+    "id": "UNKNOWN-003",
+    "case_type": "未知请求",
+    "text": "随便处理一下",
+    "expected_engine_code": null,
+    "expected_task_type": null,
+    "should_clarify": true,
+    "expected_source": "fallback"
+  },
+  {
+    "id": "UNKNOWN-004",
+    "case_type": "未知请求",
+    "text": "打开灯",
+    "expected_engine_code": null,
+    "expected_task_type": null,
+    "should_clarify": true,
+    "expected_source": "fallback"
+  },
+  {
+    "id": "UNKNOWN-005",
+    "case_type": "未知请求",
+    "text": "蓝色的那个快一点",
+    "expected_engine_code": null,
+    "expected_task_type": null,
+    "should_clarify": true,
+    "expected_source": "fallback"
+  },
+  {
+    "id": "ERROR-001",
+    "case_type": "错误表达",
+    "text": "销手堤成怎么算",
+    "expected_engine_code": null,
+    "expected_task_type": null,
+    "should_clarify": true,
+    "expected_source": "fallback"
+  },
+  {
+    "id": "ERROR-002",
+    "case_type": "错误表达",
+    "text": "帮我弄一下那个表",
+    "expected_engine_code": null,
+    "expected_task_type": null,
+    "should_clarify": true,
+    "expected_source": "fallback"
+  },
+  {
+    "id": "ERROR-003",
+    "case_type": "错误表达",
+    "text": "CRM取",
+    "expected_engine_code": "ENG_EXTERNAL_SYSTEM_CONNECTOR",
+    "expected_task_type": "EXTERNAL_DATA_FETCH",
+    "should_clarify": true,
+    "expected_source": "level2_semantic"
+  },
+  {
+    "id": "ERROR-004",
+    "case_type": "错误表达",
+    "text": "报表那个按一下",
+    "expected_engine_code": null,
+    "expected_task_type": null,
+    "should_clarify": true,
+    "expected_source": "fallback"
+  },
+  {
+    "id": "ERROR-005",
+    "case_type": "错误表达",
+    "text": "asdf qwer zxcv",
+    "expected_engine_code": null,
+    "expected_task_type": null,
+    "should_clarify": true,
+    "expected_source": "fallback"
+  }
+]

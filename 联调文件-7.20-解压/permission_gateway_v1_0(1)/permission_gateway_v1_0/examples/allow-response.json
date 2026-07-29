@@ -1,0 +1,16 @@
+{
+  "trace_id": "trace_20260714_000001",
+  "request_id": "req_20260714_000001",
+  "decision_id": "decision_01J00000000000000000000000",
+  "allowed": true,
+  "result": "allow",
+  "reason_code": "PERMISSION_GRANTED",
+  "reason": "当前人员拥有本次操作权限",
+  "four_factors": {
+    "data_label": "normal",
+    "action": "content.generate",
+    "actor_id": "u_001",
+    "data_state": "active"
+  },
+  "decided_at": "2026-07-14T10:00:00+08:00"
+}

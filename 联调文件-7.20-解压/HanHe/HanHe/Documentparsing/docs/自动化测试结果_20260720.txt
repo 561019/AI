@@ -1,0 +1,21 @@
+文档表格解析引擎核心联调包
+测试日期：2026-07-20
+测试命令：python -m unittest discover -s tests -v
+
+结果：核心联调包 Ran 12 tests，OK
+
+覆盖范围：
+1. CSV直接解析、数值原样保留和来源追溯。
+2. 模板版本映射。
+3. OCR低置信度进入人工复核。
+4. 解析前权限校验。
+5. Markdown和JSON清洗、结构化及JSONPath追溯。
+6. 平台任务信封、artifact_ref和幂等派发。
+7. 异步任务、人工复核和状态流转。
+8. standard-document/v1文档包、blocks.jsonl和表格资源生成。
+9. 硅基流动PaddleOCR-VL-1.5请求契约、图片base64输入和Markdown表格映射。
+10. PDF本地无模型渲染、逐页远程OCR及页码映射。
+
+当前运行时直接调用硅基流动托管的PaddlePaddle/PaddleOCR-VL-1.5，本地不安装或运行OCR模型。自动化测试使用MockTransport验证请求契约，不发送真实计费请求。
+
+说明：本轮按通知不提供前端和工作汇报截图，以自动化测试和接口联调验证为准。

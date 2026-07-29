@@ -1,0 +1,181 @@
+{
+  "source_report": "evaluation\\benchmark\\blind_test_benchmark_raw_blind_abstract_v3_after.json",
+  "split": "blind_test",
+  "total_failed": 4,
+  "by_error_type": {
+    "NEED_L3_OR_CLARIFICATION": 3,
+    "WRONG_OPTIONAL_REQUIRED": 1
+  },
+  "failures": [
+    {
+      "id": "BENCH-BLIND_TEST-024",
+      "text": "审批状态也看一下",
+      "intent_category": "omitted_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "missing_inputs": {
+        "expected": [
+          "data_source"
+        ],
+        "actual": [
+          "analysis_object"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-026",
+      "text": "按客户汇总回款，筛出逾期客户，写催款邮件",
+      "intent_category": "multi_task_request",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_GROUP_SUM"
+        },
+        {
+          "task_type": "DATA_FILTER"
+        },
+        {
+          "task_type": "CONTENT_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_ANALYSIS_GROUP_SUM",
+        "DATA_FILTER",
+        "CONTENT_GENERATE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_AGGREGATION_SUMMARY"
+        },
+        {
+          "task_type": "DATA_FILTER"
+        },
+        {
+          "task_type": "CONTENT_GENERATE"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_AGGREGATION_SUMMARY",
+        "DATA_FILTER",
+        "CONTENT_GENERATE"
+      ],
+      "missing_inputs": {
+        "expected": [
+          "statistical_range"
+        ],
+        "actual": [
+          "statistical_range",
+          "summary_field"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-029",
+      "text": "查询销售政策，计算提成，生成凭证",
+      "intent_category": "multi_task_request",
+      "expected_tasks": [
+        {
+          "task_type": "QUESTION_ANSWER"
+        },
+        {
+          "task_type": "RULE_CALCULATION_COMMISSION"
+        },
+        {
+          "task_type": "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+        }
+      ],
+      "expected_task_types": [
+        "QUESTION_ANSWER",
+        "RULE_CALCULATION_COMMISSION",
+        "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "QUESTION_ANSWER"
+        },
+        {
+          "task_type": "RULE_CALCULATION_COMMISSION"
+        },
+        {
+          "task_type": "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+        }
+      ],
+      "actual_task_types": [
+        "QUESTION_ANSWER",
+        "RULE_CALCULATION_COMMISSION",
+        "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+      ],
+      "missing_inputs": {
+        "expected": [
+          "sales_data_source"
+        ],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "WRONG_OPTIONAL_REQUIRED",
+      "confidence": "high",
+      "reason": "Optional task schema fields were treated as required: sales_data_source.",
+      "suggested_action": "Keep these fields optional and generate missing_inputs only from the task_type schema required_inputs list."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-033",
+      "text": "先不要发起流程，帮我看一下回款客户",
+      "intent_category": "negation_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_FILTER"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_FILTER"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [
+        "WORKFLOW_START",
+        "PROCESS_HANDLE"
+      ],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "source_report": "evaluation\\benchmark\\blind_test_report_context_recovery_final.json",
+  "split": "blind_test",
+  "blind_text_policy": "raw_text_redacted",
+  "total_context_related_cases": 12,
+  "passed": 1,
+  "failed": 11,
+  "success_failure_by_intent_category": {
+    "context_dependency": {
+      "failed": 6
+    },
+    "omitted_expression": {
+      "failed": 5,
+      "passed": 1
+    }
+  },
+  "ellipsis_types": {
+    "also_or_variant": 2,
+    "continue_followup": 2,
+    "repeat_or_incremental": 8
+  },
+  "context_sources": {
+    "conversation": 12
+  },
+  "task_types": {
+    "DATA_FILTER": 3,
+    "DATA_QUERY_FETCH": 3,
+    "DOCUMENT_TABLE_PARSE": 3,
+    "PROCESS_HANDLE": 3
+  },
+  "failure_distribution": {
+    "CONTEXT_NOT_FOUND": 0,
+    "CONTEXT_PRIORITY_ERROR": 0,
+    "CONTEXT_MATCH_ERROR": 9,
+    "ELLIPSIS_PARSE_ERROR": 2,
+    "CONTEXT_CONFLICT_ERROR": 0,
+    "CLARIFICATION_MISSING": 0
+  }
+}

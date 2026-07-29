@@ -1,0 +1,26 @@
+{
+  "template_id": "expense-attachment",
+  "version": "1.0.0",
+  "document_type": "expense_attachment",
+  "fields": [
+    {
+      "name": "发票号",
+      "target_field": "reimbursement.invoice_number",
+      "selector": {"type": "header", "header": "发票号", "row_offset": 1},
+      "required": true
+    },
+    {
+      "name": "金额",
+      "target_field": "reimbursement.amount",
+      "selector": {"type": "header", "header": "金额", "row_offset": 1},
+      "required": true
+    },
+    {
+      "name": "日期",
+      "target_field": "reimbursement.date",
+      "selector": {"type": "header", "header": "日期", "row_offset": 1},
+      "required": true
+    }
+  ]
+}
+

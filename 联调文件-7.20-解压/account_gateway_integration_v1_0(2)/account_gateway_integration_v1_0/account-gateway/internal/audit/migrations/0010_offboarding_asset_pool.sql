@@ -1,0 +1,3 @@
+-- Offboarding asset pool/version-lock columns are added idempotently in
+-- audit.EnsureSchema because embedded migrations are replayed on every
+-- startup in local/dev SQLite deployments.

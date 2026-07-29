@@ -1,0 +1,19 @@
+{
+  "version": "integration-v1",
+  "basePath": "/api/l1/evolution",
+  "headers": ["x-request-id", "x-actor-id", "x-tenant-id", "idempotency-key"],
+  "states": ["candidate", "need_more_evidence", "pending_approval", "approved", "published", "rejected", "rolled_back"],
+  "endpoints": {
+    "createCandidate": { "method": "POST", "path": "/candidates" },
+    "getCandidate": { "method": "GET", "path": "/candidates/{candidateId}" },
+    "riskCheck": { "method": "POST", "path": "/candidates/{candidateId}/risk-check" },
+    "confirm": { "method": "POST", "path": "/candidates/{candidateId}/confirmations" },
+    "approve": { "method": "POST", "path": "/candidates/{candidateId}/approvals" },
+    "publish": { "method": "POST", "path": "/candidates/{candidateId}/publish" },
+    "rollback": { "method": "POST", "path": "/assets/{agentId}/rollback" },
+    "audit": { "method": "GET", "path": "/audit" }
+  },
+  "candidateRequired": ["evolutionPath", "scenarioId", "subjectUserId", "scope", "sourceRefs", "evidence", "candidateVersion"],
+  "errorCodes": ["ACTOR_UNAUTHENTICATED", "ACTOR_FORBIDDEN", "CANDIDATE_NOT_FOUND", "INVALID_STATE", "PUBLISH_BLOCKED", "ROLLBACK_TARGET_NOT_FOUND"],
+  "auditEvents": ["CANDIDATE_CREATED", "RISK_CHECKED", "USER_CONFIRMED", "APPROVAL_DECIDED", "VERSION_PUBLISHED", "VERSION_ROLLED_BACK", "ACTOR_FORBIDDEN", "PUBLISH_BLOCKED"]
+}

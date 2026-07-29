@@ -1,0 +1,18 @@
+{
+  "schema_version": "v1",
+  "trace_id": "law-2024-Q4",
+  "analysis_type": "business_metric",
+  "record": {
+    "period": "2024-12",
+    "source_record_id": "law-2024-Q4",
+    "revenue": "12000000",
+    "sales_cost": "4200000",
+    "delivery_cost": "1800000",
+    "operating_cost": "2400000"
+  },
+  "target_limits": {
+    "sales_cost_ratio": "35",
+    "delivery_cost_ratio": "20",
+    "operating_cost_ratio": "25"
+  }
+}

@@ -1,0 +1,55 @@
+模块名称：意图分析引擎
+负责人：庞文钢
+
+一、我提供给其他模块的能力：
+1.分析用户意图，输出任务清单
+2.
+3.
+
+二、我提供的接口：
+接口1：
+- 路径：
+- 方法：
+- 输入：
+- 输出：
+- 错误情况：
+
+接口2：
+- 路径：
+- 方法：
+- 输入：
+- 输出：
+- 错误情况：
+
+三、我需要调用哪些模块：
+1. 需要调用模块：上下文模块
+   - 调用目的：读取用户对话的上下文
+   - 需要对方提供什么接口：POST /context/query
+入参：user_id、conversation_id、project_id
+出参：conversation_context、project_context、user_project_context
+   - 当前是否已 mock：是
+
+2. 需要调用模块：流行执行引擎
+   - 调用目的：输出任务清单
+   - 需要对方提供什么接口：POST /workflow/tasklists
+用于接收标准 TaskList，返回 execution_id、accepted_task_ids、rejected_tasks、status
+   - 当前是否已 mock：否
+
+
+四、当前 mock 的内容：
+1.Mock Context Provider：模拟上下文模块返回 conversation_context、project_context、user_project_context
+2.
+3.
+
+五、后续联调风险：
+1.上下文模块真实返回字段可能与当前 mock 不一致，需要确认字段名、层级结构和上下文优先级。
+2.流程执行引擎需要严格支持 task_id、task_type、dependencies、status，否则可能导致任务无法编排或错误执行。
+3.
+
+六、联调前我能保证什么：
+1. 本模块能独立启动；
+2. 本模块有测试数据；
+3. 本模块有测试结果截图；
+4. 本模块有接口文档；
+5. 本模块有 mock 数据；
+6. 本模块有 README。

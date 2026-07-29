@@ -1,0 +1,91 @@
+{
+  "schema_version": "v1",
+  "trace_id": "2024-现金流量表",
+  "analysis_type": "financial_statement",
+  "records": [
+    {
+      "period": "2024-01",
+      "source_record_id": "2024-01",
+      "metrics": {
+        "operating_cashflow": "1100500.00"
+      }
+    },
+    {
+      "period": "2024-02",
+      "source_record_id": "2024-02",
+      "metrics": {
+        "operating_cashflow": "1384000.00"
+      }
+    },
+    {
+      "period": "2024-03",
+      "source_record_id": "2024-03",
+      "metrics": {
+        "operating_cashflow": "392750.00"
+      }
+    },
+    {
+      "period": "2024-04",
+      "source_record_id": "2024-04",
+      "metrics": {
+        "operating_cashflow": "1082750.00"
+      }
+    },
+    {
+      "period": "2024-05",
+      "source_record_id": "2024-05",
+      "metrics": {
+        "operating_cashflow": "1074750.00"
+      }
+    },
+    {
+      "period": "2024-06",
+      "source_record_id": "2024-06",
+      "metrics": {
+        "operating_cashflow": "1004750.00"
+      }
+    },
+    {
+      "period": "2024-07",
+      "source_record_id": "2024-07",
+      "metrics": {
+        "operating_cashflow": "1225000.00"
+      }
+    },
+    {
+      "period": "2024-08",
+      "source_record_id": "2024-08",
+      "metrics": {
+        "operating_cashflow": "1595000.00"
+      }
+    },
+    {
+      "period": "2024-09",
+      "source_record_id": "2024-09",
+      "metrics": {
+        "operating_cashflow": "874125.00"
+      }
+    },
+    {
+      "period": "2024-10",
+      "source_record_id": "2024-10",
+      "metrics": {
+        "operating_cashflow": "1225250.00"
+      }
+    },
+    {
+      "period": "2024-11",
+      "source_record_id": "2024-11",
+      "metrics": {
+        "operating_cashflow": "1209250.00"
+      }
+    },
+    {
+      "period": "2024-12",
+      "source_record_id": "2024-12",
+      "metrics": {
+        "operating_cashflow": "875750.00"
+      }
+    }
+  ]
+}

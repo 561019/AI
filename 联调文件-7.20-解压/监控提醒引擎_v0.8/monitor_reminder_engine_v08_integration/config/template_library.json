@@ -1,0 +1,34 @@
+{
+  "library_version": "local-template-library-2026.07.17",
+  "notice": "本地联调模板库；正式模板编号、版本与文本等待平台配置管理组确认。",
+  "templates": [
+    {
+      "template_id": "TPL_PURCHASE_NODE",
+      "template_version": "v1.0",
+      "scene_type": "purchase_node",
+      "status": "active",
+      "text": "【采购节点提醒】采购事项 {object_id} 触发到期提醒：{reason}。提醒时点：{trigger_time}；规则版本：{rule_version}；提醒级别：{alert_level}；追踪编号：{trace_id}。"
+    },
+    {
+      "template_id": "TPL_METRIC_WARNING",
+      "template_version": "v1.0",
+      "scene_type": "metric_warning",
+      "status": "active",
+      "text": "【经营指标预警】指标名称：{metric_name}；实际数值：{actual_value}；越过界限：{boundary}；数据出处：{data_source}；说明：{reason}；提醒级别：{alert_level}；追踪编号：{trace_id}。"
+    },
+    {
+      "template_id": "TPL_COMPLAINT_TIME_LIMIT",
+      "template_version": "v1.0",
+      "scene_type": "complaint_time_limit",
+      "status": "active",
+      "text": "【投诉时效提醒】投诉事项 {object_id} 触发时效提醒：阶段：{time_level}；触发类型：{trigger_kind}；说明：{reason}；提醒对象岗位：{receiver_role}；提醒级别：{alert_level}；追踪编号：{trace_id}。"
+    },
+    {
+      "template_id": "TPL_GENERAL_WARNING",
+      "template_version": "v1.0",
+      "scene_type": "general",
+      "status": "active",
+      "text": "【{notice_type}】监控对象 {object_id} 触发提醒：{reason}。当前值：{actual_value}，阈值：{threshold}；提醒级别：{alert_level}；追踪编号：{trace_id}。"
+    }
+  ]
+}

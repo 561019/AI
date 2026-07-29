@@ -1,0 +1,542 @@
+{
+  "report_type": "blind_sealed_benchmark",
+  "split": "blind_test",
+  "sealed": true,
+  "development_use": false,
+  "source_report": "evaluation\\benchmark\\blind_test_benchmark_raw_blind_abstract_v3_after.json",
+  "source_failure_report": "evaluation\\error_analysis\\failure_report_blind_test_blind_abstract_v3_after.json",
+  "summary": {
+    "total": 60,
+    "passed": 56,
+    "full_pass": "56/60",
+    "full_pass_rate": 0.9333333333333333
+  },
+  "metrics": {
+    "total": 60,
+    "passed": 56,
+    "task_type_exact_accuracy": 0.95,
+    "task_count_accuracy": 1.0,
+    "clarification_accuracy": 0.9833333333333333,
+    "clarification_decision_accuracy": 0.9833333333333333,
+    "clarification_field_accuracy": 0.95,
+    "clarification_question_accuracy": 0.0,
+    "no_unnecessary_clarification_question_accuracy": 1.0,
+    "unnecessary_clarification_question_rate": 0.0,
+    "clarification_recovery_accuracy": 0.0,
+    "context_recovery_accuracy": 1.0,
+    "missing_inputs_accuracy": 0.95,
+    "missing_input_precision": 0.9583333333333334,
+    "missing_input_recall": 0.9666666666666667,
+    "over_clarification_rate": 0.0,
+    "forbidden_pass_rate": 1.0,
+    "false_positive_rate": 0.0,
+    "future_scope_false_positive_rate": 0.0,
+    "negation_false_positive_rate": 0.0,
+    "macro_precision": 0.961111111111111,
+    "macro_recall": 0.961111111111111,
+    "macro_f1": 0.961111111111111,
+    "forbidden_violation_count": 0,
+    "partial_coverage_rate": 1.0,
+    "uncovered_segment_count": 0,
+    "l3_compensation_success_rate": 0.0,
+    "conflict_detection_accuracy": 1.0,
+    "conflict_clarification_accuracy": 1.0,
+    "false_resolution_rate": 0.0,
+    "by_split": {
+      "blind_test": {
+        "total": 60,
+        "passed": 56,
+        "task_type_exact_accuracy": 0.95,
+        "clarification_accuracy": 0.9833333333333333,
+        "clarification_decision_accuracy": 0.9833333333333333,
+        "clarification_field_accuracy": 0.95,
+        "clarification_question_accuracy": 0.0,
+        "no_unnecessary_clarification_question_accuracy": 1.0,
+        "clarification_recovery_accuracy": 0.0,
+        "context_recovery_accuracy": 1.0,
+        "missing_inputs_accuracy": 0.95,
+        "missing_input_precision": 0.9583333333333334,
+        "missing_input_recall": 0.9666666666666667,
+        "over_clarification_rate": 0.0,
+        "forbidden_pass_rate": 1.0,
+        "forbidden_false_positive_rate": 0.0,
+        "macro_f1": 0.961111111111111,
+        "partial_coverage_rate": 1.0,
+        "uncovered_segment_count": 0,
+        "l3_compensation_success_rate": 0.0,
+        "conflict_detection_accuracy": 1.0,
+        "conflict_clarification_accuracy": 1.0,
+        "false_resolution_rate": 0.0
+      }
+    },
+    "by_intent_category": {
+      "ambiguous_request": {
+        "total": 6,
+        "passed": 6,
+        "task_type_exact_accuracy": 1.0,
+        "clarification_accuracy": 1.0,
+        "clarification_decision_accuracy": 1.0,
+        "clarification_field_accuracy": 1.0,
+        "clarification_question_accuracy": 0.0,
+        "no_unnecessary_clarification_question_accuracy": 0.0,
+        "clarification_recovery_accuracy": 0.0,
+        "context_recovery_accuracy": 0.0,
+        "missing_inputs_accuracy": 1.0,
+        "missing_input_precision": 1.0,
+        "missing_input_recall": 1.0,
+        "over_clarification_rate": 0.0,
+        "forbidden_pass_rate": 1.0,
+        "forbidden_false_positive_rate": 0.0,
+        "macro_f1": 1.0,
+        "partial_coverage_rate": 1.0,
+        "uncovered_segment_count": 0,
+        "l3_compensation_success_rate": 0.0,
+        "conflict_detection_accuracy": 1.0,
+        "conflict_clarification_accuracy": 1.0,
+        "false_resolution_rate": 0.0
+      },
+      "colloquial_expression": {
+        "total": 6,
+        "passed": 6,
+        "task_type_exact_accuracy": 1.0,
+        "clarification_accuracy": 1.0,
+        "clarification_decision_accuracy": 1.0,
+        "clarification_field_accuracy": 1.0,
+        "clarification_question_accuracy": 0.0,
+        "no_unnecessary_clarification_question_accuracy": 1.0,
+        "clarification_recovery_accuracy": 0.0,
+        "context_recovery_accuracy": 0.0,
+        "missing_inputs_accuracy": 1.0,
+        "missing_input_precision": 1.0,
+        "missing_input_recall": 1.0,
+        "over_clarification_rate": 0.0,
+        "forbidden_pass_rate": 1.0,
+        "forbidden_false_positive_rate": 0.0,
+        "macro_f1": 1.0,
+        "partial_coverage_rate": 1.0,
+        "uncovered_segment_count": 0,
+        "l3_compensation_success_rate": 0.0,
+        "conflict_detection_accuracy": 1.0,
+        "conflict_clarification_accuracy": 1.0,
+        "false_resolution_rate": 0.0
+      },
+      "context_dependency": {
+        "total": 6,
+        "passed": 6,
+        "task_type_exact_accuracy": 1.0,
+        "clarification_accuracy": 1.0,
+        "clarification_decision_accuracy": 1.0,
+        "clarification_field_accuracy": 1.0,
+        "clarification_question_accuracy": 0.0,
+        "no_unnecessary_clarification_question_accuracy": 1.0,
+        "clarification_recovery_accuracy": 0.0,
+        "context_recovery_accuracy": 1.0,
+        "missing_inputs_accuracy": 1.0,
+        "missing_input_precision": 1.0,
+        "missing_input_recall": 1.0,
+        "over_clarification_rate": 0.0,
+        "forbidden_pass_rate": 1.0,
+        "forbidden_false_positive_rate": 0.0,
+        "macro_f1": 1.0,
+        "partial_coverage_rate": 1.0,
+        "uncovered_segment_count": 0,
+        "l3_compensation_success_rate": 0.0,
+        "conflict_detection_accuracy": 1.0,
+        "conflict_clarification_accuracy": 1.0,
+        "false_resolution_rate": 0.0
+      },
+      "future_scope": {
+        "total": 6,
+        "passed": 6,
+        "task_type_exact_accuracy": 1.0,
+        "clarification_accuracy": 1.0,
+        "clarification_decision_accuracy": 1.0,
+        "clarification_field_accuracy": 1.0,
+        "clarification_question_accuracy": 0.0,
+        "no_unnecessary_clarification_question_accuracy": 1.0,
+        "clarification_recovery_accuracy": 0.0,
+        "context_recovery_accuracy": 0.0,
+        "missing_inputs_accuracy": 1.0,
+        "missing_input_precision": 1.0,
+        "missing_input_recall": 1.0,
+        "over_clarification_rate": 0.0,
+        "forbidden_pass_rate": 1.0,
+        "forbidden_false_positive_rate": 0.0,
+        "macro_f1": 1.0,
+        "partial_coverage_rate": 1.0,
+        "uncovered_segment_count": 0,
+        "l3_compensation_success_rate": 0.0,
+        "conflict_detection_accuracy": 1.0,
+        "conflict_clarification_accuracy": 1.0,
+        "false_resolution_rate": 0.0
+      },
+      "insufficient_information": {
+        "total": 6,
+        "passed": 6,
+        "task_type_exact_accuracy": 1.0,
+        "clarification_accuracy": 1.0,
+        "clarification_decision_accuracy": 1.0,
+        "clarification_field_accuracy": 1.0,
+        "clarification_question_accuracy": 0.0,
+        "no_unnecessary_clarification_question_accuracy": 0.0,
+        "clarification_recovery_accuracy": 0.0,
+        "context_recovery_accuracy": 0.0,
+        "missing_inputs_accuracy": 1.0,
+        "missing_input_precision": 1.0,
+        "missing_input_recall": 1.0,
+        "over_clarification_rate": 0.0,
+        "forbidden_pass_rate": 1.0,
+        "forbidden_false_positive_rate": 0.0,
+        "macro_f1": 1.0,
+        "partial_coverage_rate": 1.0,
+        "uncovered_segment_count": 0,
+        "l3_compensation_success_rate": 0.0,
+        "conflict_detection_accuracy": 1.0,
+        "conflict_clarification_accuracy": 1.0,
+        "false_resolution_rate": 0.0
+      },
+      "long_text_requirement": {
+        "total": 6,
+        "passed": 6,
+        "task_type_exact_accuracy": 1.0,
+        "clarification_accuracy": 1.0,
+        "clarification_decision_accuracy": 1.0,
+        "clarification_field_accuracy": 1.0,
+        "clarification_question_accuracy": 0.0,
+        "no_unnecessary_clarification_question_accuracy": 1.0,
+        "clarification_recovery_accuracy": 0.0,
+        "context_recovery_accuracy": 0.0,
+        "missing_inputs_accuracy": 1.0,
+        "missing_input_precision": 1.0,
+        "missing_input_recall": 1.0,
+        "over_clarification_rate": 0.0,
+        "forbidden_pass_rate": 1.0,
+        "forbidden_false_positive_rate": 0.0,
+        "macro_f1": 1.0,
+        "partial_coverage_rate": 1.0,
+        "uncovered_segment_count": 0,
+        "l3_compensation_success_rate": 0.0,
+        "conflict_detection_accuracy": 1.0,
+        "conflict_clarification_accuracy": 1.0,
+        "false_resolution_rate": 0.0
+      },
+      "multi_task_request": {
+        "total": 6,
+        "passed": 4,
+        "task_type_exact_accuracy": 0.8333333333333334,
+        "clarification_accuracy": 0.8333333333333334,
+        "clarification_decision_accuracy": 0.8333333333333334,
+        "clarification_field_accuracy": 0.6666666666666666,
+        "clarification_question_accuracy": 0.0,
+        "no_unnecessary_clarification_question_accuracy": 1.0,
+        "clarification_recovery_accuracy": 0.0,
+        "context_recovery_accuracy": 0.0,
+        "missing_inputs_accuracy": 0.6666666666666666,
+        "missing_input_precision": 0.75,
+        "missing_input_recall": 0.8333333333333334,
+        "over_clarification_rate": 0.0,
+        "forbidden_pass_rate": 1.0,
+        "forbidden_false_positive_rate": 0.0,
+        "macro_f1": 0.9444444444444445,
+        "partial_coverage_rate": 1.0,
+        "uncovered_segment_count": 0,
+        "l3_compensation_success_rate": 0.0,
+        "conflict_detection_accuracy": 1.0,
+        "conflict_clarification_accuracy": 1.0,
+        "false_resolution_rate": 0.0
+      },
+      "negation_expression": {
+        "total": 6,
+        "passed": 5,
+        "task_type_exact_accuracy": 0.8333333333333334,
+        "clarification_accuracy": 1.0,
+        "clarification_decision_accuracy": 1.0,
+        "clarification_field_accuracy": 1.0,
+        "clarification_question_accuracy": 0.0,
+        "no_unnecessary_clarification_question_accuracy": 1.0,
+        "clarification_recovery_accuracy": 0.0,
+        "context_recovery_accuracy": 0.0,
+        "missing_inputs_accuracy": 1.0,
+        "missing_input_precision": 1.0,
+        "missing_input_recall": 1.0,
+        "over_clarification_rate": 0.0,
+        "forbidden_pass_rate": 1.0,
+        "forbidden_false_positive_rate": 0.0,
+        "macro_f1": 0.8333333333333334,
+        "partial_coverage_rate": 1.0,
+        "uncovered_segment_count": 0,
+        "l3_compensation_success_rate": 0.0,
+        "conflict_detection_accuracy": 1.0,
+        "conflict_clarification_accuracy": 1.0,
+        "false_resolution_rate": 0.0
+      },
+      "omitted_expression": {
+        "total": 6,
+        "passed": 5,
+        "task_type_exact_accuracy": 0.8333333333333334,
+        "clarification_accuracy": 1.0,
+        "clarification_decision_accuracy": 1.0,
+        "clarification_field_accuracy": 0.8333333333333334,
+        "clarification_question_accuracy": 0.0,
+        "no_unnecessary_clarification_question_accuracy": 1.0,
+        "clarification_recovery_accuracy": 0.0,
+        "context_recovery_accuracy": 0.0,
+        "missing_inputs_accuracy": 0.8333333333333334,
+        "missing_input_precision": 0.8333333333333334,
+        "missing_input_recall": 0.8333333333333334,
+        "over_clarification_rate": 0.0,
+        "forbidden_pass_rate": 1.0,
+        "forbidden_false_positive_rate": 0.0,
+        "macro_f1": 0.8333333333333334,
+        "partial_coverage_rate": 1.0,
+        "uncovered_segment_count": 0,
+        "l3_compensation_success_rate": 0.0,
+        "conflict_detection_accuracy": 1.0,
+        "conflict_clarification_accuracy": 1.0,
+        "false_resolution_rate": 0.0
+      },
+      "short_instruction": {
+        "total": 6,
+        "passed": 6,
+        "task_type_exact_accuracy": 1.0,
+        "clarification_accuracy": 1.0,
+        "clarification_decision_accuracy": 1.0,
+        "clarification_field_accuracy": 1.0,
+        "clarification_question_accuracy": 0.0,
+        "no_unnecessary_clarification_question_accuracy": 1.0,
+        "clarification_recovery_accuracy": 0.0,
+        "context_recovery_accuracy": 0.0,
+        "missing_inputs_accuracy": 1.0,
+        "missing_input_precision": 1.0,
+        "missing_input_recall": 1.0,
+        "over_clarification_rate": 0.0,
+        "forbidden_pass_rate": 1.0,
+        "forbidden_false_positive_rate": 0.0,
+        "macro_f1": 1.0,
+        "partial_coverage_rate": 1.0,
+        "uncovered_segment_count": 0,
+        "l3_compensation_success_rate": 0.0,
+        "conflict_detection_accuracy": 1.0,
+        "conflict_clarification_accuracy": 1.0,
+        "false_resolution_rate": 0.0
+      }
+    }
+  },
+  "failure_type_distribution": {
+    "CONTEXT_RECOVERY_ERROR": 1,
+    "MISSING_INPUT_ERROR": 1,
+    "NEGATION_ERROR": 1,
+    "TASK_TYPE_ERROR": 1
+  },
+  "acceptance": {
+    "status": "FAIL",
+    "enterprise_stage_acceptance": false,
+    "criteria": {
+      "full_pass_rate": {
+        "actual": 0.9333333333333333,
+        "threshold": 0.75,
+        "passed": true
+      },
+      "false_positive_rate": {
+        "actual": 0.0,
+        "threshold": 0.01,
+        "passed": true
+      },
+      "negation_false_positive_rate": {
+        "actual": 0.0,
+        "target": "near_zero",
+        "passed": true
+      },
+      "future_scope_false_positive_rate": {
+        "actual": 0.0,
+        "target": "near_zero",
+        "passed": true
+      },
+      "serious_schema_output_errors": {
+        "actual": 1,
+        "threshold": 0,
+        "passed": false
+      }
+    },
+    "note": "Blind results are acceptance-only and must not be used to change rules, prompts, thresholds, schemas, or validation data."
+  },
+  "failures": [
+    {
+      "case_id": "BENCH-BLIND_TEST-024",
+      "input": "审批状态也看一下",
+      "predicted_result": {
+        "task_types": [
+          "DATA_ANALYSIS_PROBLEM"
+        ],
+        "missing_inputs": [
+          "analysis_object"
+        ],
+        "clarification_required": true,
+        "clarification_questions": [
+          "请确认分析对象。"
+        ]
+      },
+      "expected_result": {
+        "task_types": [
+          "DATA_QUERY_FETCH"
+        ],
+        "missing_inputs": [
+          "data_source"
+        ],
+        "clarification_required": true,
+        "clarification_questions": null
+      },
+      "failure_type": "CONTEXT_RECOVERY_ERROR",
+      "failure_types": [
+        "CONTEXT_RECOVERY_ERROR",
+        "TASK_TYPE_ERROR",
+        "MISSING_INPUT_ERROR"
+      ],
+      "intent_category": "omitted_expression",
+      "raw_failure_flags": {
+        "task_type_exact": false,
+        "clarification_decision_pass": true,
+        "missing_inputs_pass": false,
+        "forbidden_violations": []
+      },
+      "classifier": {
+        "error_type": "NEED_L3_OR_CLARIFICATION",
+        "confidence": "high",
+        "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+        "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+      }
+    },
+    {
+      "case_id": "BENCH-BLIND_TEST-026",
+      "input": "按客户汇总回款，筛出逾期客户，写催款邮件",
+      "predicted_result": {
+        "task_types": [
+          "DATA_AGGREGATION_SUMMARY",
+          "DATA_FILTER",
+          "CONTENT_GENERATE"
+        ],
+        "missing_inputs": [
+          "statistical_range",
+          "summary_field"
+        ],
+        "clarification_required": true,
+        "clarification_questions": [
+          "请确认统计范围（例如时间范围、组织范围）。",
+          "请确认汇总字段（例如金额、数量、利润）。"
+        ]
+      },
+      "expected_result": {
+        "task_types": [
+          "DATA_ANALYSIS_GROUP_SUM",
+          "DATA_FILTER",
+          "CONTENT_GENERATE"
+        ],
+        "missing_inputs": [
+          "statistical_range"
+        ],
+        "clarification_required": true,
+        "clarification_questions": null
+      },
+      "failure_type": "TASK_TYPE_ERROR",
+      "failure_types": [
+        "TASK_TYPE_ERROR",
+        "MISSING_INPUT_ERROR"
+      ],
+      "intent_category": "multi_task_request",
+      "raw_failure_flags": {
+        "task_type_exact": false,
+        "clarification_decision_pass": true,
+        "missing_inputs_pass": false,
+        "forbidden_violations": []
+      },
+      "classifier": {
+        "error_type": "NEED_L3_OR_CLARIFICATION",
+        "confidence": "high",
+        "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+        "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+      }
+    },
+    {
+      "case_id": "BENCH-BLIND_TEST-029",
+      "input": "查询销售政策，计算提成，生成凭证",
+      "predicted_result": {
+        "task_types": [
+          "QUESTION_ANSWER",
+          "RULE_CALCULATION_COMMISSION",
+          "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+        ],
+        "missing_inputs": [],
+        "clarification_required": false,
+        "clarification_questions": []
+      },
+      "expected_result": {
+        "task_types": [
+          "QUESTION_ANSWER",
+          "RULE_CALCULATION_COMMISSION",
+          "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+        ],
+        "missing_inputs": [
+          "sales_data_source"
+        ],
+        "clarification_required": true,
+        "clarification_questions": null
+      },
+      "failure_type": "MISSING_INPUT_ERROR",
+      "failure_types": [
+        "MISSING_INPUT_ERROR",
+        "CLARIFICATION_ERROR"
+      ],
+      "intent_category": "multi_task_request",
+      "raw_failure_flags": {
+        "task_type_exact": true,
+        "clarification_decision_pass": false,
+        "missing_inputs_pass": false,
+        "forbidden_violations": []
+      },
+      "classifier": {
+        "error_type": "WRONG_OPTIONAL_REQUIRED",
+        "confidence": "high",
+        "reason": "Optional task schema fields were treated as required: sales_data_source.",
+        "suggested_action": "Keep these fields optional and generate missing_inputs only from the task_type schema required_inputs list."
+      }
+    },
+    {
+      "case_id": "BENCH-BLIND_TEST-033",
+      "input": "先不要发起流程，帮我看一下回款客户",
+      "predicted_result": {
+        "task_types": [
+          "DATA_ANALYSIS_PROBLEM"
+        ],
+        "missing_inputs": [],
+        "clarification_required": false,
+        "clarification_questions": []
+      },
+      "expected_result": {
+        "task_types": [
+          "DATA_FILTER"
+        ],
+        "missing_inputs": [],
+        "clarification_required": false,
+        "clarification_questions": null
+      },
+      "failure_type": "NEGATION_ERROR",
+      "failure_types": [
+        "NEGATION_ERROR",
+        "TASK_TYPE_ERROR"
+      ],
+      "intent_category": "negation_expression",
+      "raw_failure_flags": {
+        "task_type_exact": false,
+        "clarification_decision_pass": true,
+        "missing_inputs_pass": true,
+        "forbidden_violations": []
+      },
+      "classifier": {
+        "error_type": "NEED_L3_OR_CLARIFICATION",
+        "confidence": "high",
+        "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+        "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+      }
+    }
+  ]
+}

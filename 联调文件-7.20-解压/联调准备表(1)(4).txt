@@ -1,0 +1,76 @@
+模块名称：L2 规则计算引擎
+负责人：向宇扬
+
+一、我提供给其他模块的能力：
+1. 计算任务前置评估：接收规则计算任务，在未提供业务数据时完成身份、申请权限、安全及模型辅助初判，返回受限的查询需求，不盲查公司文件、不执行计算。
+2. 三条计算路径执行：在规则/能力/获授权数据引用补齐后，选择并执行确定性规则计算、现有系统结果调用或候选实现沙箱试算；数值计算不交给大模型。
+3. 候选 Skill 协作：正式能力缺失时返回候选 Skill 创建申请；数字资产引擎完成候选实现后，可按原任务恢复沙箱试算、校验和人工处理。
+
+二、我提供的接口：
+接口1：能力发现接口
+- 路径：GET /api/v1/capabilities
+- 方法：GET
+- 输入：无。
+- 输出：服务编码 l2.rule_calculation，当前公开动作 rule.evaluate、rule.candidate_skill_apply、rule.candidate_trial。
+- 错误情况：服务未启动或网络不可达。
+
+接口2：平台标准指令入口
+- 路径：POST /api/v1/instructions
+- 方法：POST
+- 输入：平台 v1 标准信封，包含 protocol_version、message_id、trace_id、request_id、source、target、actor、context、idempotency_key、deadline_at、action、payload。
+  - rule.evaluate：首次可只提供任务说明、当前真人、任务/子任务编号及业务对象/期间等已知条件；若已取得数据，则在 context.data_refs 中提供一项 calculation_input 引用，并可附带 rule_parameter 引用。
+  - rule.candidate_skill_apply：提供 execution_record_id、真人处理动作和意见。
+  - rule.candidate_trial：提供 execution_record_id 和由流程执行引擎回传的 candidate_implementation 引用；该引用必须携带与候选 Skill 创建申请一致的 candidate_request_id，否则本引擎拒绝进入沙箱。
+- 输出：统一返回 success / accepted / failed，并保持 trace_id、request_id、in_reply_to。
+  - 首次 rule.evaluate 无数据引用：以 success / data 返回 state=precondition_query_required，列出 formal_calculation_basis、published_calculation_capability、authorized_business_data 三类查询需求。
+  - 补齐引用后的 rule.evaluate：返回计算结果、等待真人处理回执，或明确阻断原因。
+  - 候选申请：返回 candidate_skill_creation_request，供流程执行引擎组织数字资产引擎后续办理。
+- 错误情况：协议字段不完整、调用方不是流程执行引擎、deadline_at 超时、幂等键内容冲突、身份/权限/安全不通过、模型分析不可用、规则/能力/数据不足或校验失败。
+
+三、我需要协作的模块：
+1. 流程执行引擎
+   - 调用目的：作为唯一 L2 执行组织者派发 rule.evaluate；收到 state=precondition_query_required 后组织查询；补齐引用后再次派发；组织候选 Skill 申请、候选实现回传和真人处理。
+   - 需要对方提供什么接口：向本模块 POST /api/v1/instructions；支持接收本模块标准回执，并按 trace_id、request_id、子任务编号衔接后续任务。第二阶段须沿用同一 trace_id/task_id，但使用新的 message_id 和 idempotency_key。
+   - 当前是否已 mock：开发目录内曾使用流程执行引擎 platform_framework 的 ServiceRegistry 与 LayerInterfaceController 完成进程内协议测试；独立交付包不依赖该参考目录，尚未完成真实 HTTP 服务联调。
+
+2. L1.8 账号网关、L1.1 权限管理、L1.9 安全合规
+   - 调用目的：识别当前真人，校验计算申请、取数、执行沙箱和人工处理等动作，并留痕。
+   - 需要对方提供什么接口：以当前真人、动作、对象/数据引用、标签和时间为输入，返回放行/拒绝、依据和追踪信息。
+   - 当前是否已 mock：已提供本地适配器；platform-actor 仅为联调身份桥接，不等同于正式 L1.8 验证。
+
+3. L1.5 大模型调度
+   - 调用目的：辅助理解计算任务、初判候选路径和能力；不用于任何金额、比例、区间等数值计算。
+   - 需要对方提供什么接口：接收任务说明、候选能力摘要和上下文，返回候选路径/能力、缺失条件、理由、模型服务和版本。
+   - 当前是否已 mock：本地模型分析适配器可测；已取得的真实模型接口当前返回 502，尚未完成真实调用验证。
+
+4. L1.7 数据、数字资产引擎
+   - 调用目的：按前置查询需求返回正式计算依据、参数、获授权业务数据引用；查询已登记可调用能力；候选 Skill 申请后由数字资产引擎建设、登记候选实现。
+   - 需要对方提供什么接口：由流程执行引擎组织查询与回传；正式字段仍需对齐 rule_ref/计算依据、parameter_ref、data_ref、candidate_implementation 等引用结构。
+   - 当前是否已 mock：本地 SQLite 模拟规则版本、能力目录和业务数据；候选实现引用可通过路径三模拟回传。引擎不把这些本地表视为最终生产存储。
+
+5. L1.14 Agent 执行沙箱、L1.10 设备与系统接口
+   - 调用目的：L1.14 对候选实现进行受控试算；L1.10 或后续外部系统对接链路取得既有系统已计算结果。
+   - 需要对方提供什么接口：沙箱接收候选实现引用、获授权数据引用、校验要求并回传运行引用和结果；外部系统路径需回传系统、操作、版本、结果和来源引用。
+   - 当前是否已 mock：本地受控子进程沙箱和现有系统调用适配器可测；未与真实基础模块或外部系统联调。
+
+四、当前 mock 的内容：
+1. 本地 SQLite：能力目录、规则版本、业务数据、执行/人工处理/幂等记录；只用于开发和测试。
+2. 本地 L1.8、L1.1、L1.9、L1.5、L1.10、L1.14 适配器；用于验证调用顺序、状态和合同，不代表平台正式能力。
+3. 路径三模拟：候选 Skill 申请经流程执行引擎组织后，回传 candidate_implementation，由本引擎在本地受控沙箱完成试算和校验。
+4. 流程执行引擎引用框架：开发环境曾验证标准信封、调用方准入、追踪编号和回执可在进程内打通；交付包中该参考测试会自动跳过。
+
+五、后续联调风险：
+1. 流程执行引擎当前代码已具备固定子任务派发、回调记录和暂停/恢复骨架，但尚未实现：识别 state=precondition_query_required 后自动派发规则/数据/Skill 查询、汇集引用并自动回派原 rule.evaluate；其当前下游回调状态也未接入 waiting_human。第一轮联调按固定步骤人工完成两次 rule.evaluate：先取得查询需求，再补齐引用后以新的 message_id 和 idempotency_key 回派；候选 Skill 和真人处理先人工衔接。
+2. rule_ref/正式计算依据、参数引用、数据引用、候选实现引用的最终字段名称和归属尚未冻结；当前使用通用 data_refs 和候选实现合同适配。
+3. L1.5 真实接口当前不可用，真实任务理解与路径初判尚未验证；本地模拟仅覆盖明确能力码或测试业务类型。
+4. 数字资产引擎创建、标签登记、L1.3 进化机制生成候选实现，以及 L1.14 真实隔离环境均未完成真实联调。
+5. 本地 SQLite 的能力目录、规则版本和执行记录需后续替换为 L1.7 数据的正式存储与查询实现。
+6. 正式平台的引用字段、查询结果回传动作和动态编排规则尚未冻结；当前两阶段 rule.evaluate 的约定已写入交付包根目录《流程执行引擎联调约定》。
+
+六、联调前我能保证什么：
+1. 模块可通过“启动测试台.cmd”独立启动，默认地址为 http://127.0.0.1:8010/test-console；终端窗口需保持开启。
+2. 已提供本地测试数据，覆盖确定性规则计算、现有系统结果调用、无正式能力的候选 Skill 申请与沙箱试算。
+3. 已有 78 项自动化测试全部通过；独立交付包运行时，其中 1 项流程执行引擎参考框架测试会自动跳过。
+4. 已提供 /api/v1/capabilities、/api/v1/instructions 和 FastAPI /docs 可查看的当前接口入口；根目录已附《流程执行引擎联调约定》。
+5. 已提供本地 mock、路径三 smoke test 和启动脚本，可在其他模块未完成时验证本引擎主链路。
+6. 已提供 README、docs/phase1_scope.md、测试代码与运行说明；正式平台字段冻结后再补齐最终接口样例。

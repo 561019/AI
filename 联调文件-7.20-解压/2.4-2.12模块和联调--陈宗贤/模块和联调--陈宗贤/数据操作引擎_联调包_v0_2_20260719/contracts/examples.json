@@ -1,0 +1,53 @@
+{
+  "data.persist.sync": {
+    "request_file": "../samples/sample_request.json",
+    "response_file": "../samples/sample_response.json",
+    "purpose": "固定存档一条业务数据，并收到 data_ref。"
+  },
+  "data.search.async": {
+    "request": {
+      "protocol_version": "1.0",
+      "message_id": "msg-data-search-001",
+      "request_id": "req-data-search-001",
+      "trace_id": "trace-data-search-001",
+      "source": {"layer": "business_engine", "module": "workflow-execution"},
+      "target": {"layer": "business_engine", "module": "data-operation", "capability": "data.search"},
+      "actor": {"tenant_id": "tenant-demo", "user_id": "manager_all", "authenticated": true},
+      "context": {"account_id": "manager_all", "project_id": "project-demo", "conversation_id": "conversation-demo-001", "file_id": null, "object_id": null, "workflow_instance_id": "workflow-demo-001"},
+      "request_type": "task.dispatch",
+      "action": "data.search",
+      "payload": {
+        "company_codes": ["TEST-A"],
+        "business_context": {"permission_decision_id": "perm-demo-read-001"},
+        "query_spec": {
+          "operation": "detail_records",
+          "business_object": {"code": "demo_record", "name": "示例业务记录"},
+          "resource_types": ["demo_record"],
+          "fields": ["record_id", "name"],
+          "filters": {"tenant_id": "tenant-demo"},
+          "group_by": [],
+          "aggregations": [],
+          "sort": [],
+          "limit": 100
+        }
+      },
+      "expected_response": {"mode": "async"}
+    },
+    "accepted_response": {
+      "status": "accepted",
+      "trace_id": "trace-data-search-001",
+      "request_id": "req-data-search-001",
+      "task_id": "trace-data-search-001",
+      "progress": "completed",
+      "status_url": "/api/v1/data-operation/tasks/trace-data-search-001?actor_id=manager_all",
+      "error": null
+    },
+    "terminal_business_result_shape": {
+      "contract_version": "business-result.v1",
+      "result_type": "business_result",
+      "business_result": {"operation": "detail_records", "business_object": {"code": "demo_record"}, "items": [], "metrics": {}, "warnings": []},
+      "evidence": {"data_sources": [], "evidence_refs": []},
+      "raw_access": {"query_ref": "query-<generated-uuid>", "raw_count": 0, "sample_preview": []}
+    }
+  }
+}

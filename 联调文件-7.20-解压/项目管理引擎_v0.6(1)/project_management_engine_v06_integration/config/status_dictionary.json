@@ -1,0 +1,30 @@
+{
+  "dictionary_version": "local_status_2026.07_stage1",
+  "warning": "本地验证暂定状态，正式联调时以平台统一状态字典为准",
+  "statuses": [
+    {
+      "code": "INITIATION_PENDING",
+      "name": "待立项"
+    },
+    {
+      "code": "APPROVAL_PENDING",
+      "name": "重大项目待审批"
+    },
+    {
+      "code": "ACTIVE",
+      "name": "进行中"
+    },
+    {
+      "code": "CLOSING",
+      "name": "收尾中"
+    },
+    {
+      "code": "ARCHIVED",
+      "name": "已封存"
+    },
+    {
+      "code": "REJECTED",
+      "name": "立项未通过"
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+# 账号网关模块联调准备表
+
+模块名称：账号网关（account-gateway）  
+负责人：账号网关开发负责人
+
+## 一、我提供给其他模块的能力
+
+1. 统一登录、JWT 身份认证和账号生命周期管理。
+2. 真人账号一对一身份、租户、部门、岗位、任职、汇报线及在岗状态等组织事实。
+3. 数字员工身份、责任真人绑定和短时签名 `IdentityContext`；共享外部工具凭证托管与用量留痕。
+
+## 二、我提供的接口
+
+接口 1：账号网关健康检查
+
+- 路径：`GET /health`
+- 方法：`GET`
+- 输入：无。
+- 输出：`{"status":"ok"}`。
+- 错误情况：非 `GET` 返回 `405`。
+
+接口 2：本人身份上下文
+
+- 路径：`GET /api/identity/context`
+- 方法：`GET`
+- 输入：`Authorization: Bearer <真人 JWT>`。
+- 输出：`user_id=person_id`、`tenant_id`、当前 `position_ids`、`managed_person_ids`、60 秒有效的 `identity_context_token` 和 nonce。
+- 错误情况：缺失/失效 JWT、数字员工请求返回 `401`；组织库不可用返回 `503`。
+
+接口 3：层接口身份事实查询
+
+- 路径：`POST /api/layer/identity-context`
+- 方法：`POST`
+- 输入：仅 `l1_layer_interface` 可调用；请求头 `X-L1-Caller-Service`、`X-L1-Target-Secret`、`X-L1-Permission-Decision-ID`，正文包含 `responsible_actor_id`、`tenant_id`。
+- 输出：账号/真人 ID、租户和当前有效岗位列表。
+- 错误情况：非层接口调用返回 `404`；服务密钥错误返回 `403`；字段不全返回 `400`；组织库不可用返回 `503`。
+
+接口 4：账号与组织事实管理
+
+- 路径：`/api/accounts`、`/api/positions`、`/api/person-position-assignments`、`/api/domains`、`/api/person-manager-edges`。
+- 方法：按资源支持 `GET`、`POST`，任职结束使用 `POST /api/person-position-assignments/{id}/end`。
+- 输入：账号 JWT；写操作要求相应 IM/管理员角色及租户一致性。
+- 输出：账号、岗位、任职或汇报线事实；真人恒满足 `user_id=person_id`。
+- 错误情况：认证失败 `401`、角色不足/跨租户 `403`、不存在 `404`、唯一席位/汇报环路等冲突 `409`。
+
+已迁出接口：`/api/ui-permissions`、审批、岗位标准资源、转授、资源及资源发布接口返回 `410 permission_capability_moved`，请改调权限模块控制面。
+
+## 三、我需要调用哪些模块
+
+1. 需要调用模块：权限管理模块（迁移兼容入口）。
+   - 调用目的：旧 `/auth/validate` 兼容请求转为远程权限检查；正式业务流不经账号网关判权。
+   - 需要对方提供什么接口：`POST /api/permission/check`，仅接受 L1 对内通道的机制直达身份。
+   - 当前是否已 mock：否；正式联调应由 `l1-layer-interface` 发起机制直达请求。
+
+2. 需要调用模块：L1 层接口。
+   - 调用目的：正式业务流由层接口调用账号网关登记服务，账号网关不直接调用其它 L1 模块。
+   - 需要对方提供什么接口：服务登记、层接口服务身份和目标服务密钥配置。
+   - 当前是否已 mock：否；本机 HMAC 配置可联调，生产替换为 mTLS。
+
+## 四、当前 mock 的内容
+
+1. OIDC/Casdoor 本地 mock 配置仅用于开发与自动化测试。
+2. 层接口、权限模块和账号网关可通过 `.env.example` 中的占位密钥进行本机闭环配置。
+3. 网关 `tests/e2e/mocks` 提供上游身份与组织联调样例；不包含真实凭证或真人数据。
+
+## 五、后续联调风险
+
+1. `IdentityContext` 当前使用 HMAC，跨主机生产部署前必须替换为 mTLS 和公钥验签。
+2. 旧 `/auth/validate`、Casbin 和本地组织权限逻辑仅为迁移兼容，不应作为新模块接入路径。
+3. 共享工具凭证使用接口已禁止返回明文；调用方需接入后续服务端工具代理。
+
+## 六、联调前我能保证什么
+
+1. 本模块能独立启动，默认端口 `8080`。
+2. 本模块有账号、岗位、任职、汇报线和数字员工测试数据。
+3. 本模块有测试过程可视化：`handoff/网关权限联调测试可视化.html`。
+4. 本模块有接口文档：`handoff/接口说明.md`、`handoff/网关模块边界与权限接口映射.md`。
+5. 本模块有 mock 数据和 E2E 测试目录。
+6. 本模块有 `README.md`、环境示例及联合交付包。

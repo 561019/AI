@@ -1,0 +1,95 @@
+{
+  "generated_at": "2026-07-20T09:33:26.267366+00:00",
+  "model_api_url": "http://127.0.0.1:8001/v1",
+  "embedding_model": "bge-m3",
+  "milvus_collection": "intent_vectors",
+  "semantic_threshold": 0.5,
+  "top_k": 5,
+  "summary": {
+    "total": 4,
+    "passed": 0,
+    "failed": 0,
+    "blocked": 4,
+    "pass_rate": 0.0,
+    "average_elapsed_ms": 2037.918
+  },
+  "cases": [
+    {
+      "case_id": "REAL-SEM-001",
+      "category": "target",
+      "text": "帮我整理经营情况",
+      "status": "blocked",
+      "expected_match": true,
+      "expected_functions": [
+        "FUNC_REPORT_GENERATION",
+        "REPORT_CREATE"
+      ],
+      "actual_level": null,
+      "actual_matched": null,
+      "actual_function": null,
+      "confidence": null,
+      "similarity_score": null,
+      "top_candidate": null,
+      "top_k_candidates": [],
+      "elapsed_ms": 2049.96,
+      "error": "Model service unavailable: /embeddings"
+    },
+    {
+      "case_id": "REAL-SEM-002",
+      "category": "synonym",
+      "text": "帮我看看业务情况",
+      "status": "blocked",
+      "expected_match": true,
+      "expected_functions": [
+        "FUNC_REPORT_GENERATION",
+        "REPORT_CREATE"
+      ],
+      "actual_level": null,
+      "actual_matched": null,
+      "actual_function": null,
+      "confidence": null,
+      "similarity_score": null,
+      "top_candidate": null,
+      "top_k_candidates": [],
+      "elapsed_ms": 2050.796,
+      "error": "Model service unavailable: /embeddings"
+    },
+    {
+      "case_id": "REAL-SEM-003",
+      "category": "weak_expression",
+      "text": "最近公司表现怎么样",
+      "status": "blocked",
+      "expected_match": true,
+      "expected_functions": [
+        "FUNC_REPORT_GENERATION",
+        "REPORT_CREATE"
+      ],
+      "actual_level": null,
+      "actual_matched": null,
+      "actual_function": null,
+      "confidence": null,
+      "similarity_score": null,
+      "top_candidate": null,
+      "top_k_candidates": [],
+      "elapsed_ms": 2034.089,
+      "error": "Model service unavailable: /embeddings"
+    },
+    {
+      "case_id": "REAL-SEM-004",
+      "category": "wrong_expression",
+      "text": "明天天气如何",
+      "status": "blocked",
+      "expected_match": false,
+      "expected_functions": [],
+      "actual_level": null,
+      "actual_matched": null,
+      "actual_function": null,
+      "confidence": null,
+      "similarity_score": null,
+      "top_candidate": null,
+      "top_k_candidates": [],
+      "elapsed_ms": 2016.826,
+      "error": "Model service unavailable: /embeddings"
+    }
+  ]
+}

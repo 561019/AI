@@ -1,0 +1,384 @@
+{
+  "source_report": "evaluation\\benchmark\\validation_report_after_unseen_context_20260727.json",
+  "split": "validation",
+  "total_failed": 14,
+  "by_error_type": {
+    "NEED_L3_OR_CLARIFICATION": 14
+  },
+  "failures": [
+    {
+      "id": "BENCH-VALIDATION-BLIND-ABSTRACT-003",
+      "text": "继续确认表格列结构",
+      "intent_category": "context_dependency",
+      "expected_tasks": [
+        {
+          "task_type": "DOCUMENT_TABLE_PARSE"
+        }
+      ],
+      "expected_task_types": [
+        "DOCUMENT_TABLE_PARSE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "FILE_STRUCTURE_EXTRACT"
+        }
+      ],
+      "actual_task_types": [
+        "FILE_STRUCTURE_EXTRACT"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-VALIDATION-CONTEXT-ABSTRACT-002",
+      "text": "接着跟进流程办理情况",
+      "intent_category": "context_dependency",
+      "expected_tasks": [
+        {
+          "task_type": "PROCESS_HANDLE"
+        }
+      ],
+      "expected_task_types": [
+        "PROCESS_HANDLE"
+      ],
+      "actual_tasks": [],
+      "actual_task_types": [],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-VALIDATION-CONTEXT-ABSTRACT-006",
+      "text": "继续处理刚才的分析",
+      "intent_category": "context_dependency",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "actual_tasks": [],
+      "actual_task_types": [],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-VALIDATION-CONTEXT-ABSTRACT-007",
+      "text": "再算一次",
+      "intent_category": "omitted_expression",
+      "expected_tasks": [
+        {
+          "task_type": "RULE_CALCULATION_COMMISSION"
+        }
+      ],
+      "expected_task_types": [
+        "RULE_CALCULATION_COMMISSION"
+      ],
+      "actual_tasks": [],
+      "actual_task_types": [],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-VALIDATION-CONTEXT-ABSTRACT-008",
+      "text": "继续修改",
+      "intent_category": "context_dependency",
+      "expected_tasks": [
+        {
+          "task_type": "DOCUMENT_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "DOCUMENT_GENERATE"
+      ],
+      "actual_tasks": [],
+      "actual_task_types": [],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-VALIDATION-022",
+      "text": "再提取字段",
+      "intent_category": "omitted_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DOCUMENT_TABLE_PARSE"
+        }
+      ],
+      "expected_task_types": [
+        "DOCUMENT_TABLE_PARSE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "FILE_STRUCTURE_EXTRACT"
+        }
+      ],
+      "actual_task_types": [
+        "FILE_STRUCTURE_EXTRACT"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-VALIDATION-023",
+      "text": "继续看结构",
+      "intent_category": "omitted_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DOCUMENT_TABLE_PARSE"
+        }
+      ],
+      "expected_task_types": [
+        "DOCUMENT_TABLE_PARSE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "FILE_STRUCTURE_EXTRACT"
+        }
+      ],
+      "actual_task_types": [
+        "FILE_STRUCTURE_EXTRACT"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-VALIDATION-024",
+      "text": "字段也列一下",
+      "intent_category": "omitted_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DOCUMENT_TABLE_PARSE"
+        }
+      ],
+      "expected_task_types": [
+        "DOCUMENT_TABLE_PARSE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "FILE_STRUCTURE_EXTRACT"
+        }
+      ],
+      "actual_task_types": [
+        "FILE_STRUCTURE_EXTRACT"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-VALIDATION-043",
+      "text": "利润也预测一下",
+      "intent_category": "context_dependency",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_FORECAST"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_ANALYSIS_FORECAST"
+      ],
+      "actual_tasks": [],
+      "actual_task_types": [],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-VALIDATION-044",
+      "text": "继续处理：利润也预测一下",
+      "intent_category": "context_dependency",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_FORECAST"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_ANALYSIS_FORECAST"
+      ],
+      "actual_tasks": [],
+      "actual_task_types": [],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-VALIDATION-045",
+      "text": "上一轮那个利润也预测一下",
+      "intent_category": "context_dependency",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_FORECAST"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_ANALYSIS_FORECAST"
+      ],
+      "actual_tasks": [],
+      "actual_task_types": [],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-VALIDATION-046",
+      "text": "语气再正式点",
+      "intent_category": "context_dependency",
+      "expected_tasks": [
+        {
+          "task_type": "CONTENT_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "CONTENT_GENERATE"
+      ],
+      "actual_tasks": [],
+      "actual_task_types": [],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-VALIDATION-047",
+      "text": "继续处理：语气再正式点",
+      "intent_category": "context_dependency",
+      "expected_tasks": [
+        {
+          "task_type": "CONTENT_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "CONTENT_GENERATE"
+      ],
+      "actual_tasks": [],
+      "actual_task_types": [],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-VALIDATION-048",
+      "text": "上一轮那个语气再正式点",
+      "intent_category": "context_dependency",
+      "expected_tasks": [
+        {
+          "task_type": "CONTENT_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "CONTENT_GENERATE"
+      ],
+      "actual_tasks": [],
+      "actual_task_types": [],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    }
+  ]
+}

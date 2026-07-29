@@ -1,0 +1,187 @@
+{
+  "total": 100,
+  "engine_accuracy": 0.97,
+  "task_type_accuracy": 0.96,
+  "clarification_accuracy": 0.99,
+  "task_decomposition_accuracy": 0.99,
+  "source_accuracy": 0.99,
+  "passed_cases": 96,
+  "failed_cases": [
+    {
+      "index": 26,
+      "id": "RULE-026",
+      "case_type": "规则明确请求",
+      "text": "筛选高风险订单",
+      "expected_tasks": [
+        {
+          "engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+          "task_type": "DATA_FILTER"
+        }
+      ],
+      "actual_tasks": [
+        {
+          "engine_code": "ENG_ANALYTICS_FORECASTING",
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "expected_clarification": false,
+      "actual_clarification": false,
+      "expected_source": "level1_rule",
+      "actual_source": "level1_rule",
+      "missing_inputs": [
+        []
+      ],
+      "analysis_level": 1,
+      "engine_pass": false,
+      "task_type_pass": false,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "source_pass": true,
+      "passed": false
+    },
+    {
+      "index": 31,
+      "id": "RULE-031",
+      "case_type": "规则明确请求",
+      "text": "生成经营分析报告",
+      "expected_tasks": [
+        {
+          "engine_code": "ENG_CONTENT_OUTPUT",
+          "task_type": "DOCUMENT_GENERATE"
+        }
+      ],
+      "actual_tasks": [
+        {
+          "engine_code": "ENG_ANALYTICS_FORECASTING",
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "expected_clarification": false,
+      "actual_clarification": true,
+      "expected_source": "level1_rule",
+      "actual_source": "level1_rule",
+      "missing_inputs": [
+        [
+          "analysis_object"
+        ]
+      ],
+      "analysis_level": 1,
+      "engine_pass": false,
+      "task_type_pass": false,
+      "clarification_pass": false,
+      "decomposition_pass": true,
+      "source_pass": true,
+      "passed": false
+    },
+    {
+      "index": 48,
+      "id": "SEM-013",
+      "case_type": "语义表达变化",
+      "text": "附件目录结构是什么样",
+      "expected_tasks": [
+        {
+          "engine_code": "ENG_DOCUMENT_TABLE_PARSING",
+          "task_type": "FILE_STRUCTURE_EXTRACT"
+        }
+      ],
+      "actual_tasks": [
+        {
+          "engine_code": "ENG_DOCUMENT_TABLE_PARSING",
+          "task_type": "DOCUMENT_TABLE_PARSE"
+        }
+      ],
+      "expected_clarification": true,
+      "actual_clarification": true,
+      "expected_source": "level2_semantic",
+      "actual_source": "level2_semantic",
+      "missing_inputs": [
+        [
+          "file"
+        ]
+      ],
+      "analysis_level": 2,
+      "engine_pass": true,
+      "task_type_pass": false,
+      "clarification_pass": true,
+      "decomposition_pass": true,
+      "source_pass": true,
+      "passed": false
+    },
+    {
+      "index": 49,
+      "id": "SEM-014",
+      "case_type": "语义表达变化",
+      "text": "客户名单给我看一下",
+      "expected_tasks": [
+        {
+          "engine_code": "ENG_DATA_COLLECTION_AGGREGATION",
+          "task_type": "DATA_QUERY_FETCH"
+        }
+      ],
+      "actual_tasks": [],
+      "expected_clarification": true,
+      "actual_clarification": true,
+      "expected_source": "level2_semantic",
+      "actual_source": "fallback",
+      "missing_inputs": [],
+      "analysis_level": 3,
+      "engine_pass": false,
+      "task_type_pass": false,
+      "clarification_pass": true,
+      "decomposition_pass": false,
+      "source_pass": false,
+      "passed": false
+    }
+  ],
+  "by_case_type": {
+    "信息缺失请求": {
+      "total": 15,
+      "engine_accuracy": 1.0,
+      "task_type_accuracy": 1.0,
+      "clarification_accuracy": 1.0,
+      "passed_cases": 15
+    },
+    "多任务请求": {
+      "total": 10,
+      "engine_accuracy": 1.0,
+      "task_type_accuracy": 1.0,
+      "clarification_accuracy": 1.0,
+      "passed_cases": 10
+    },
+    "智能问答请求": {
+      "total": 10,
+      "engine_accuracy": 1.0,
+      "task_type_accuracy": 1.0,
+      "clarification_accuracy": 1.0,
+      "passed_cases": 10
+    },
+    "未知请求": {
+      "total": 5,
+      "engine_accuracy": 1.0,
+      "task_type_accuracy": 1.0,
+      "clarification_accuracy": 1.0,
+      "passed_cases": 5
+    },
+    "规则明确请求": {
+      "total": 35,
+      "engine_accuracy": 0.9428571428571428,
+      "task_type_accuracy": 0.9428571428571428,
+      "clarification_accuracy": 0.9714285714285714,
+      "passed_cases": 33
+    },
+    "语义表达变化": {
+      "total": 20,
+      "engine_accuracy": 0.95,
+      "task_type_accuracy": 0.9,
+      "clarification_accuracy": 1.0,
+      "passed_cases": 18
+    },
+    "错误表达": {
+      "total": 5,
+      "engine_accuracy": 1.0,
+      "task_type_accuracy": 1.0,
+      "clarification_accuracy": 1.0,
+      "passed_cases": 5
+    }
+  }
+}

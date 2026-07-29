@@ -1,0 +1,18 @@
+{
+  "schema_version": "v1",
+  "trace_id": "scenario-law-firm-001",
+  "analysis_type": "business_metric",
+  "record": {
+    "period": "2026-06",
+    "source_record_id": "anon-law-metric-2026-06",
+    "revenue": "1000000.00",
+    "sales_cost": "400000.00",
+    "delivery_cost": "150000.00",
+    "operating_cost": "200000.00"
+  },
+  "target_limits": {
+    "sales_cost_ratio": "35.00",
+    "delivery_cost_ratio": "20.00",
+    "operating_cost_ratio": "25.00"
+  }
+}

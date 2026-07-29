@@ -1,0 +1,51 @@
+{
+  "total": 100,
+  "passed_cases": 100,
+  "task_type_accuracy": 1.0,
+  "clarification_accuracy": 1.0,
+  "decomposition_accuracy": 1.0,
+  "candidate_recall": 1.0,
+  "failed_cases": [],
+  "by_category": {
+    "业务邮件": {
+      "total": 20,
+      "passed": 20,
+      "task_type_accuracy": 1.0,
+      "clarification_accuracy": 1.0,
+      "decomposition_accuracy": 1.0,
+      "candidate_recall": 1.0
+    },
+    "会议纪要": {
+      "total": 20,
+      "passed": 20,
+      "task_type_accuracy": 1.0,
+      "clarification_accuracy": 1.0,
+      "decomposition_accuracy": 1.0,
+      "candidate_recall": 1.0
+    },
+    "大量背景文本": {
+      "total": 20,
+      "passed": 20,
+      "task_type_accuracy": 1.0,
+      "clarification_accuracy": 1.0,
+      "decomposition_accuracy": 1.0,
+      "candidate_recall": 1.0
+    },
+    "用户需求描述": {
+      "total": 20,
+      "passed": 20,
+      "task_type_accuracy": 1.0,
+      "clarification_accuracy": 1.0,
+      "decomposition_accuracy": 1.0,
+      "candidate_recall": 1.0
+    },
+    "聊天记录": {
+      "total": 20,
+      "passed": 20,
+      "task_type_accuracy": 1.0,
+      "clarification_accuracy": 1.0,
+      "decomposition_accuracy": 1.0,
+      "candidate_recall": 1.0
+    }
+  }
+}

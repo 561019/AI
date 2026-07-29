@@ -1,0 +1,11 @@
+{
+  "trace_id": "trace_20260714_000002",
+  "request_id": "req_20260714_000002",
+  "actor_id": "u_without_permission",
+  "action": "content.generate",
+  "source_service": "intent_engine",
+  "target_service": "content_engine",
+  "data_label": "normal",
+  "data_state": "active",
+  "tenant_id": "hanhe"
+}

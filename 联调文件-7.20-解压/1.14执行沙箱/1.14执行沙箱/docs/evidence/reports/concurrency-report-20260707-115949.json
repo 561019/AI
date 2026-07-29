@@ -1,0 +1,66 @@
+{
+  "module": "L1 1.14 执行沙箱",
+  "runtime": "DockerTemplateExecutor",
+  "generated_at": "2026-07-07 11:59:49",
+  "source": "POST /api/verification/concurrency-report",
+  "summary": {
+    "requested": 3,
+    "success": 3,
+    "failed": 0,
+    "duration_ms": 1182,
+    "max_workers": 3
+  },
+  "scenario": {
+    "scenario_id": "s19_over_stock_warning",
+    "actor": "sales-user",
+    "expected_status": "warning",
+    "expected_over_qty": 40
+  },
+  "results": [
+    {
+      "index": 1,
+      "ok": true,
+      "task_id": "a27bf1ceef19",
+      "status": "success",
+      "executor": "DockerTemplateExecutor",
+      "duration_ms": 956,
+      "wall_ms": 1175,
+      "business_result": {
+        "inventory": 50.0,
+        "total_order_qty": 90.0,
+        "over_qty": 40.0,
+        "status": "warning"
+      }
+    },
+    {
+      "index": 2,
+      "ok": true,
+      "task_id": "93de53ff5527",
+      "status": "success",
+      "executor": "DockerTemplateExecutor",
+      "duration_ms": 868,
+      "wall_ms": 1168,
+      "business_result": {
+        "inventory": 50.0,
+        "total_order_qty": 90.0,
+        "over_qty": 40.0,
+        "status": "warning"
+      }
+    },
+    {
+      "index": 3,
+      "ok": true,
+      "task_id": "aeb10d90d397",
+      "status": "success",
+      "executor": "DockerTemplateExecutor",
+      "duration_ms": 861,
+      "wall_ms": 1180,
+      "business_result": {
+        "inventory": 50.0,
+        "total_order_qty": 90.0,
+        "over_qty": 40.0,
+        "status": "warning"
+      }
+    }
+  ]
+}

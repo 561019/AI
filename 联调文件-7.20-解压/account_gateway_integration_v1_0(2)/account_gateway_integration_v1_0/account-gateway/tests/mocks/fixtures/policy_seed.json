@@ -1,0 +1,87 @@
+{
+  "policies": [
+    {
+      "position_id": "hanhe_admin",
+      "standing_permissions": [
+        {
+          "resource": "/admin/:resource",
+          "actions": ["*"],
+          "scope": "*",
+          "effect": "allow"
+        },
+        {
+          "resource": "/audit/:resource",
+          "actions": ["read"],
+          "scope": "*",
+          "effect": "allow"
+        }
+      ]
+    },
+    {
+      "position_id": "huazhong_region_manager",
+      "standing_permissions": [
+        {
+          "resource": "/region/huazhong/:resource",
+          "actions": ["read", "approve"],
+          "scope": "huazhong",
+          "effect": "allow"
+        }
+      ]
+    },
+    {
+      "position_id": "huazhong_sales",
+      "standing_permissions": [
+        {
+          "resource": "/sales/huazhong/opportunities",
+          "actions": ["read", "write"],
+          "scope": "huazhong",
+          "subject_id": "user_id_sales_001",
+          "effect": "allow"
+        }
+      ]
+    },
+    {
+      "position_id": "hr_source",
+      "standing_permissions": [
+        {
+          "resource": "/hr/source/:resource",
+          "actions": ["read", "write"],
+          "scope": "*",
+          "subject_id": "user_id_hr_source_001",
+          "effect": "allow"
+        }
+      ]
+    },
+    {
+      "position_id": "data_owner",
+      "standing_permissions": [
+        {
+          "resource": "/data/owned/:dataset",
+          "actions": ["read", "grant"],
+          "scope": "*",
+          "subject_id": "user_id_data_owner_001",
+          "effect": "allow"
+        }
+      ]
+    },
+    {
+      "position_id": "asset_pool",
+      "standing_permissions": [
+        {
+          "resource": "/asset-pool/catalog",
+          "actions": ["read"],
+          "scope": "*",
+          "subject_id": "user_id_asset_pool_001",
+          "effect": "allow"
+        },
+        {
+          "resource": "/asset-pool/release",
+          "actions": ["approve"],
+          "scope": "*",
+          "subject_id": "user_id_asset_pool_001",
+          "effect": "allow"
+        }
+      ]
+    }
+  ]
+}

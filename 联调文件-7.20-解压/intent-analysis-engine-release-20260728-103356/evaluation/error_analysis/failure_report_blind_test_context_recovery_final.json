@@ -1,0 +1,1312 @@
+{
+  "source_report": "evaluation\\benchmark\\blind_test_report_context_recovery_final.json",
+  "split": "blind_test",
+  "total_failed": 36,
+  "by_error_type": {
+    "L2_SEMANTIC_MISS": 2,
+    "NEED_L3_OR_CLARIFICATION": 34
+  },
+  "failures": [
+    {
+      "id": "BENCH-BLIND_TEST-004",
+      "text": "汇总本季度费用金额",
+      "intent_category": "short_instruction",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_AGGREGATION_SUMMARY"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_AGGREGATION_SUMMARY"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_AGGREGATION_SUMMARY"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_AGGREGATION_SUMMARY"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "classification_field"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Task type is already correct; failure is caused by clarification or missing-input mismatch.",
+      "suggested_action": "Do not add semantic examples. Review input validation or benchmark labels."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-008",
+      "text": "会议背景里提到费用管控压力较大，当前明确要求是统计本季度费用明细，按区域排序，并预测下季度趋势。",
+      "intent_category": "long_text_requirement",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_AGGREGATION_SUMMARY"
+        },
+        {
+          "task_type": "DATA_SORT"
+        },
+        {
+          "task_type": "DATA_ANALYSIS_FORECAST"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_AGGREGATION_SUMMARY",
+        "DATA_SORT",
+        "DATA_ANALYSIS_FORECAST"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_AGGREGATION_SUMMARY"
+        },
+        {
+          "task_type": "DATA_SORT"
+        },
+        {
+          "task_type": "DATA_ANALYSIS_FORECAST"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_AGGREGATION_SUMMARY",
+        "DATA_SORT",
+        "DATA_ANALYSIS_FORECAST"
+      ],
+      "missing_inputs": {
+        "expected": [
+          "summary_field"
+        ],
+        "actual": [
+          "classification_field"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-010",
+      "text": "这段是项目背景说明，不构成任务。真正要处理的是解析上传附件中的费用明细，提取字段结构，并汇总关键金额。",
+      "intent_category": "long_text_requirement",
+      "expected_tasks": [
+        {
+          "task_type": "DOCUMENT_TABLE_PARSE"
+        },
+        {
+          "task_type": "FILE_STRUCTURE_EXTRACT"
+        },
+        {
+          "task_type": "DATA_AGGREGATION_SUMMARY"
+        }
+      ],
+      "expected_task_types": [
+        "DOCUMENT_TABLE_PARSE",
+        "FILE_STRUCTURE_EXTRACT",
+        "DATA_AGGREGATION_SUMMARY"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DOCUMENT_TABLE_PARSE"
+        },
+        {
+          "task_type": "FILE_STRUCTURE_EXTRACT"
+        },
+        {
+          "task_type": "DATA_AGGREGATION_SUMMARY"
+        }
+      ],
+      "actual_task_types": [
+        "DOCUMENT_TABLE_PARSE",
+        "FILE_STRUCTURE_EXTRACT",
+        "DATA_AGGREGATION_SUMMARY"
+      ],
+      "missing_inputs": {
+        "expected": [
+          "statistical_range"
+        ],
+        "actual": [
+          "classification_field",
+          "statistical_range"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-014",
+      "text": "低库存的商品帮我找出来",
+      "intent_category": "colloquial_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_FILTER"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_FILTER"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "data_source"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "L2_SEMANTIC_MISS",
+      "confidence": "high",
+      "reason": "Synonym, colloquial, omitted, or context-dependent expression did not match expected task type.",
+      "suggested_action": "Add semantic examples/business synonyms or context resolver coverage; avoid broad L1 keywords."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-015",
+      "text": "这份附件的表头看看",
+      "intent_category": "colloquial_expression",
+      "expected_tasks": [
+        {
+          "task_type": "FILE_STRUCTURE_EXTRACT"
+        }
+      ],
+      "expected_task_types": [
+        "FILE_STRUCTURE_EXTRACT"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "analysis_object"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "L2_SEMANTIC_MISS",
+      "confidence": "high",
+      "reason": "Synonym, colloquial, omitted, or context-dependent expression did not match expected task type.",
+      "suggested_action": "Add semantic examples/business synonyms or context resolver coverage; avoid broad L1 keywords."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-016",
+      "text": "把客户数据拿出来",
+      "intent_category": "colloquial_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "missing_inputs": {
+        "expected": [
+          "data_source"
+        ],
+        "actual": [
+          "operation"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-018",
+      "text": "把订单状态写回系统",
+      "intent_category": "colloquial_expression",
+      "expected_tasks": [
+        {
+          "task_type": "EXTERNAL_SYSTEM_SUBMIT"
+        }
+      ],
+      "expected_task_types": [
+        "EXTERNAL_SYSTEM_SUBMIT"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "EXTERNAL_DATA_FETCH"
+        }
+      ],
+      "actual_task_types": [
+        "EXTERNAL_DATA_FETCH"
+      ],
+      "missing_inputs": {
+        "expected": [
+          "external_system"
+        ],
+        "actual": [
+          "external_system",
+          "operation"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-019",
+      "text": "再筛一遍",
+      "intent_category": "omitted_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_FILTER"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_FILTER"
+      ],
+      "actual_tasks": [],
+      "actual_task_types": [],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-021",
+      "text": "继续筛异常",
+      "intent_category": "omitted_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_FILTER"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_FILTER"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "analysis_object"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-022",
+      "text": "再查一下进度",
+      "intent_category": "omitted_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "missing_inputs": {
+        "expected": [
+          "data_source"
+        ],
+        "actual": [
+          "data_source",
+          "operation"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-023",
+      "text": "继续跟进",
+      "intent_category": "omitted_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "actual_tasks": [],
+      "actual_task_types": [],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-024",
+      "text": "审批状态也看一下",
+      "intent_category": "omitted_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "missing_inputs": {
+        "expected": [
+          "data_source"
+        ],
+        "actual": [
+          "analysis_object"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-025",
+      "text": "从ERP拉订单，统计金额，生成订单分析报告",
+      "intent_category": "multi_task_request",
+      "expected_tasks": [
+        {
+          "task_type": "EXTERNAL_DATA_FETCH"
+        },
+        {
+          "task_type": "DATA_AGGREGATION_SUMMARY"
+        },
+        {
+          "task_type": "DOCUMENT_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "EXTERNAL_DATA_FETCH",
+        "DATA_AGGREGATION_SUMMARY",
+        "DOCUMENT_GENERATE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_AGGREGATION_SUMMARY"
+        },
+        {
+          "task_type": "DOCUMENT_GENERATE"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_AGGREGATION_SUMMARY",
+        "DOCUMENT_GENERATE"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "classification_field",
+          "statistical_range"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "medium",
+      "reason": "Failure is not a safe L1/L2 expansion candidate.",
+      "suggested_action": "Review with L3/clarification or data labeling; do not add rule by default."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-026",
+      "text": "按客户汇总回款，筛出逾期客户，写催款邮件",
+      "intent_category": "multi_task_request",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_GROUP_SUM"
+        },
+        {
+          "task_type": "DATA_FILTER"
+        },
+        {
+          "task_type": "CONTENT_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_ANALYSIS_GROUP_SUM",
+        "DATA_FILTER",
+        "CONTENT_GENERATE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_AGGREGATION_SUMMARY"
+        },
+        {
+          "task_type": "DATA_FILTER"
+        },
+        {
+          "task_type": "CONTENT_GENERATE"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_AGGREGATION_SUMMARY",
+        "DATA_FILTER",
+        "CONTENT_GENERATE"
+      ],
+      "missing_inputs": {
+        "expected": [
+          "statistical_range"
+        ],
+        "actual": [
+          "statistical_range",
+          "summary_field"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-027",
+      "text": "分析成本波动，预测下季度成本，生成汇报材料",
+      "intent_category": "multi_task_request",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        },
+        {
+          "task_type": "DATA_ANALYSIS_FORECAST"
+        },
+        {
+          "task_type": "DOCUMENT_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_ANALYSIS_PROBLEM",
+        "DATA_ANALYSIS_FORECAST",
+        "DOCUMENT_GENERATE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        },
+        {
+          "task_type": "DATA_ANALYSIS_FORECAST"
+        },
+        {
+          "task_type": "DOCUMENT_GENERATE"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_ANALYSIS_PROBLEM",
+        "DATA_ANALYSIS_FORECAST",
+        "DOCUMENT_GENERATE"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "topic"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Task type is already correct; failure is caused by clarification or missing-input mismatch.",
+      "suggested_action": "Do not add semantic examples. Review input validation or benchmark labels."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-028",
+      "text": "获取客户资料，做分层排序，生成维护话术",
+      "intent_category": "multi_task_request",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        },
+        {
+          "task_type": "DATA_SORT"
+        },
+        {
+          "task_type": "CONTENT_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_QUERY_FETCH",
+        "DATA_SORT",
+        "CONTENT_GENERATE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        },
+        {
+          "task_type": "DATA_SORT"
+        },
+        {
+          "task_type": "CONTENT_GENERATE"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_QUERY_FETCH",
+        "DATA_SORT",
+        "CONTENT_GENERATE"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "data_source"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Task type is already correct; failure is caused by clarification or missing-input mismatch.",
+      "suggested_action": "Do not add semantic examples. Review input validation or benchmark labels."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-029",
+      "text": "查询销售政策，计算提成，生成凭证",
+      "intent_category": "multi_task_request",
+      "expected_tasks": [
+        {
+          "task_type": "QUESTION_ANSWER"
+        },
+        {
+          "task_type": "RULE_CALCULATION_COMMISSION"
+        },
+        {
+          "task_type": "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+        }
+      ],
+      "expected_task_types": [
+        "QUESTION_ANSWER",
+        "RULE_CALCULATION_COMMISSION",
+        "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        },
+        {
+          "task_type": "RULE_CALCULATION_COMMISSION"
+        },
+        {
+          "task_type": "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_QUERY_FETCH",
+        "RULE_CALCULATION_COMMISSION",
+        "DIGITAL_ASSET_ACCRUAL_VOUCHER"
+      ],
+      "missing_inputs": {
+        "expected": [
+          "sales_data_source"
+        ],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-030",
+      "text": "发起采购审批，查询审批状态，写一份进度说明",
+      "intent_category": "multi_task_request",
+      "expected_tasks": [
+        {
+          "task_type": "WORKFLOW_START"
+        },
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        },
+        {
+          "task_type": "CONTENT_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "WORKFLOW_START",
+        "DATA_QUERY_FETCH",
+        "CONTENT_GENERATE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "WORKFLOW_START"
+        },
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        },
+        {
+          "task_type": "CONTENT_GENERATE"
+        }
+      ],
+      "actual_task_types": [
+        "WORKFLOW_START",
+        "DATA_QUERY_FETCH",
+        "CONTENT_GENERATE"
+      ],
+      "missing_inputs": {
+        "expected": [
+          "data_source"
+        ],
+        "actual": [
+          "data_source",
+          "topic"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-033",
+      "text": "先不要发起流程，帮我看一下回款客户",
+      "intent_category": "negation_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_FILTER"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_FILTER"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [
+        "WORKFLOW_START",
+        "PROCESS_HANDLE"
+      ],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-034",
+      "text": "不要生成报告，只分析新品海报",
+      "intent_category": "negation_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "analysis_object"
+        ]
+      },
+      "forbidden_tasks": [
+        "DOCUMENT_GENERATE"
+      ],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-035",
+      "text": "本次不需要提醒功能，请处理新品海报",
+      "intent_category": "negation_expression",
+      "expected_tasks": [
+        {
+          "task_type": "MULTIMEDIA_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "MULTIMEDIA_GENERATE"
+      ],
+      "actual_tasks": [],
+      "actual_task_types": [],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [
+        "MONITORING_REMINDER"
+      ],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-036",
+      "text": "先不要发起流程，帮我看一下新品海报",
+      "intent_category": "negation_expression",
+      "expected_tasks": [
+        {
+          "task_type": "MULTIMEDIA_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "MULTIMEDIA_GENERATE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "analysis_object"
+        ]
+      },
+      "forbidden_tasks": [
+        "WORKFLOW_START",
+        "PROCESS_HANDLE"
+      ],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-038",
+      "text": "未来规划里会做审批超时监控，目前不包含这部分，当前只需要查询审批记录。",
+      "intent_category": "future_scope",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "data_source"
+        ]
+      },
+      "forbidden_tasks": [
+        "MONITORING_REMINDER"
+      ],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-039",
+      "text": "后续可能考虑主动提醒审批超时，本次不做提醒，只要查询审批记录。",
+      "intent_category": "future_scope",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "data_source"
+        ]
+      },
+      "forbidden_tasks": [
+        "MONITORING_REMINDER",
+        "主动提醒"
+      ],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-041",
+      "text": "未来规划里会做投诉增长监控，目前不包含这部分，当前只需要分析投诉增长原因。",
+      "intent_category": "future_scope",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "analysis_object"
+        ]
+      },
+      "forbidden_tasks": [
+        "MONITORING_REMINDER"
+      ],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-042",
+      "text": "后续可能考虑主动提醒投诉增长，本次不做提醒，只要分析投诉增长原因。",
+      "intent_category": "future_scope",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "analysis_object"
+        ]
+      },
+      "forbidden_tasks": [
+        "MONITORING_REMINDER",
+        "主动提醒"
+      ],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-043",
+      "text": "再看下字段",
+      "intent_category": "context_dependency",
+      "expected_tasks": [
+        {
+          "task_type": "DOCUMENT_TABLE_PARSE"
+        }
+      ],
+      "expected_task_types": [
+        "DOCUMENT_TABLE_PARSE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "FILE_STRUCTURE_EXTRACT"
+        }
+      ],
+      "actual_task_types": [
+        "FILE_STRUCTURE_EXTRACT"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-044",
+      "text": "继续处理：再看下字段",
+      "intent_category": "context_dependency",
+      "expected_tasks": [
+        {
+          "task_type": "DOCUMENT_TABLE_PARSE"
+        }
+      ],
+      "expected_task_types": [
+        "DOCUMENT_TABLE_PARSE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "FILE_STRUCTURE_EXTRACT"
+        }
+      ],
+      "actual_task_types": [
+        "FILE_STRUCTURE_EXTRACT"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-045",
+      "text": "上一轮那个再看下字段",
+      "intent_category": "context_dependency",
+      "expected_tasks": [
+        {
+          "task_type": "DOCUMENT_TABLE_PARSE"
+        }
+      ],
+      "expected_task_types": [
+        "DOCUMENT_TABLE_PARSE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "FILE_STRUCTURE_EXTRACT"
+        }
+      ],
+      "actual_task_types": [
+        "FILE_STRUCTURE_EXTRACT"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-046",
+      "text": "再查一下进度",
+      "intent_category": "context_dependency",
+      "expected_tasks": [
+        {
+          "task_type": "PROCESS_HANDLE"
+        }
+      ],
+      "expected_task_types": [
+        "PROCESS_HANDLE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "data_source",
+          "operation"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-047",
+      "text": "继续处理：再查一下进度",
+      "intent_category": "context_dependency",
+      "expected_tasks": [
+        {
+          "task_type": "PROCESS_HANDLE"
+        }
+      ],
+      "expected_task_types": [
+        "PROCESS_HANDLE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "data_source",
+          "operation"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-048",
+      "text": "上一轮那个再查一下进度",
+      "intent_category": "context_dependency",
+      "expected_tasks": [
+        {
+          "task_type": "PROCESS_HANDLE"
+        }
+      ],
+      "expected_task_types": [
+        "PROCESS_HANDLE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "data_source",
+          "operation"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-051",
+      "text": "帮我看一下",
+      "intent_category": "insufficient_information",
+      "expected_tasks": [],
+      "expected_task_types": [],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "analysis_object"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-052",
+      "text": "把它整理一下",
+      "intent_category": "insufficient_information",
+      "expected_tasks": [],
+      "expected_task_types": [],
+      "actual_tasks": [
+        {
+          "task_type": "COMPLAINT_INFORMATION_ORGANIZE"
+        }
+      ],
+      "actual_task_types": [
+        "COMPLAINT_INFORMATION_ORGANIZE"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "data_object"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-055",
+      "text": "下一步怎么做",
+      "intent_category": "ambiguous_request",
+      "expected_tasks": [],
+      "expected_task_types": [],
+      "actual_tasks": [
+        {
+          "task_type": "IMPROVEMENT_PLAN_GENERATE"
+        }
+      ],
+      "actual_task_types": [
+        "IMPROVEMENT_PLAN_GENERATE"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "topic"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    },
+    {
+      "id": "BENCH-BLIND_TEST-056",
+      "text": "帮忙跟一下",
+      "intent_category": "ambiguous_request",
+      "expected_tasks": [],
+      "expected_task_types": [],
+      "actual_tasks": [
+        {
+          "task_type": "PROCESS_HANDLE"
+        }
+      ],
+      "actual_task_types": [
+        "PROCESS_HANDLE"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "process_name"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    }
+  ]
+}

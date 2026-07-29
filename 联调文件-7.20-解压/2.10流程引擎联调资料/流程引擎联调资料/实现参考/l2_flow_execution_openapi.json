@@ -1,0 +1,427 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "L2 Flow Execution Engine",
+    "version": "l2-flow-execution-engine.v0.1",
+    "description": "L2 flow runtime organizer. It consumes L1.2 templates and manages flow instances."
+  },
+  "paths": {
+    "/api/instruction": {
+      "post": {
+        "summary": "Unified local demo entrypoint",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Instruction"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Service result"
+          }
+        }
+      }
+    },
+    "/api/flow/start": {
+      "post": {
+        "summary": "Start a flow instance",
+        "responses": {
+          "200": {
+            "description": "Started instance"
+          }
+        }
+      }
+    },
+    "/api/flow/get": {
+      "post": {
+        "summary": "Get a flow instance",
+        "responses": {
+          "200": {
+            "description": "Flow instance"
+          }
+        }
+      }
+    },
+    "/api/flow/list": {
+      "post": {
+        "summary": "List flow instances",
+        "responses": {
+          "200": {
+            "description": "Flow instances"
+          }
+        }
+      }
+    },
+    "/api/flow/decide": {
+      "post": {
+        "summary": "Decide a human task",
+        "responses": {
+          "200": {
+            "description": "Updated instance"
+          }
+        }
+      }
+    },
+    "/api/flow/audit": {
+      "post": {
+        "summary": "Read instance audit log",
+        "responses": {
+          "200": {
+            "description": "Audit events"
+          }
+        }
+      }
+    },
+    "/api/registry": {
+      "get": {
+        "summary": "Read service registry",
+        "responses": {
+          "200": {
+            "description": "Registry"
+          }
+        }
+      }
+    },
+    "/api/openapi.json": {
+      "get": {
+        "summary": "Read OpenAPI contract",
+        "responses": {
+          "200": {
+            "description": "OpenAPI JSON"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Instruction": {
+        "type": "object",
+        "required": [
+          "service_name",
+          "request_type",
+          "payload",
+          "trace_id"
+        ],
+        "properties": {
+          "caller_layer": {
+            "type": "string",
+            "description": "Normally L4/L2 interface-control in production."
+          },
+          "service_name": {
+            "type": "string",
+            "enum": [
+              "flow.audit",
+              "flow.decide_human",
+              "flow.design_convert_to_template",
+              "flow.design_from_text",
+              "flow.design_get",
+              "flow.design_list",
+              "flow.design_update",
+              "flow.design_validate",
+              "flow.dispatch_status",
+              "flow.get",
+              "flow.list",
+              "flow.scan_timeouts",
+              "flow.start",
+              "template.audit",
+              "template.catalog_health",
+              "template.clone_template",
+              "template.create_draft",
+              "template.delete_unpublished",
+              "template.diff_draft",
+              "template.disable",
+              "template.enable",
+              "template.export_catalog",
+              "template.export_template",
+              "template.governance_report",
+              "template.impact_analysis",
+              "template.import_bundle",
+              "template.list",
+              "template.publish",
+              "template.register_draft",
+              "template.retrieve",
+              "template.update_draft",
+              "template.validate_definition"
+            ]
+          },
+          "request_type": {
+            "type": "string",
+            "enum": [
+              "query",
+              "execute",
+              "maintain"
+            ]
+          },
+          "actor_id": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "object"
+          },
+          "trace_id": {
+            "type": "string"
+          }
+        }
+      },
+      "StartPayload": {
+        "type": "object",
+        "required": [
+          "requester_id",
+          "request_text"
+        ],
+        "properties": {
+          "requester_id": {
+            "type": "string"
+          },
+          "scope_id": {
+            "type": "string"
+          },
+          "request_text": {
+            "type": "string"
+          },
+          "intent_result": {
+            "type": "object"
+          },
+          "idempotency_key": {
+            "type": "string"
+          }
+        }
+      },
+      "FlowDesignPayload": {
+        "type": "object",
+        "required": [
+          "requester_id",
+          "request_text"
+        ],
+        "properties": {
+          "requester_id": {
+            "type": "string"
+          },
+          "request_text": {
+            "type": "string"
+          },
+          "flow_kind": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "fixed",
+              "flexible"
+            ]
+          },
+          "intent_result": {
+            "type": "object"
+          }
+        }
+      },
+      "FlowDesignConvertPayload": {
+        "type": "object",
+        "required": [
+          "design_id",
+          "template_id",
+          "human_confirmation"
+        ],
+        "properties": {
+          "design_id": {
+            "type": "string"
+          },
+          "template_id": {
+            "type": "string"
+          },
+          "template_name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "owner_position": {
+            "type": "string"
+          },
+          "human_confirmation": {
+            "type": "object"
+          }
+        }
+      },
+      "HumanDecisionPayload": {
+        "type": "object",
+        "required": [
+          "instance_id",
+          "task_id",
+          "decision",
+          "decided_by"
+        ],
+        "properties": {
+          "instance_id": {
+            "type": "string"
+          },
+          "task_id": {
+            "type": "string"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "rejected",
+              "modified",
+              "answered"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "decided_by": {
+            "type": "string"
+          },
+          "decision_payload": {
+            "type": "object"
+          }
+        }
+      },
+      "TimeoutScanPayload": {
+        "type": "object",
+        "properties": {
+          "now": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Optional scheduler time; defaults to current UTC time."
+          }
+        }
+      }
+    }
+  },
+  "x-service-registry": {
+    "flow.start": {
+      "request_type": "execute",
+      "description": "Create and run a flow instance."
+    },
+    "flow.get": {
+      "request_type": "query",
+      "description": "Read one flow instance."
+    },
+    "flow.list": {
+      "request_type": "query",
+      "description": "List flow instances by status/requester/template."
+    },
+    "flow.decide_human": {
+      "request_type": "execute",
+      "description": "Approve or reject a pending human task."
+    },
+    "flow.dispatch_status": {
+      "request_type": "execute",
+      "description": "Receive subtask status from a delegated engine."
+    },
+    "flow.audit": {
+      "request_type": "query",
+      "description": "Read instance audit events."
+    },
+    "flow.scan_timeouts": {
+      "request_type": "execute",
+      "description": "Scan waiting human tasks and apply their preset timeout policy."
+    },
+    "flow.design_from_text": {
+      "request_type": "maintain",
+      "description": "Create a flow-design draft from a natural-language request for the shared design UI."
+    },
+    "flow.design_get": {
+      "request_type": "query",
+      "description": "Read one flow-design draft."
+    },
+    "flow.design_list": {
+      "request_type": "query",
+      "description": "List flow-design drafts by requester, status, or flow kind."
+    },
+    "flow.design_update": {
+      "request_type": "maintain",
+      "description": "Update a flow-design draft after the user or AI revises it."
+    },
+    "flow.design_validate": {
+      "request_type": "query",
+      "description": "Check whether a fixed or flexible flow design is reasonable before running or templating."
+    },
+    "flow.design_convert_to_template": {
+      "request_type": "maintain",
+      "description": "Convert a confirmed flexible/fixed design draft into an L1.2 fixed-template draft."
+    },
+    "template.retrieve": {
+      "request_type": "query",
+      "description": "Forward L4 template-maintenance request to L1.2: Read a published fixed process template for L2 runtime use."
+    },
+    "template.create_draft": {
+      "request_type": "maintain",
+      "description": "Forward L4 template-maintenance request to L1.2: Backward-compatible alias of template.register_draft."
+    },
+    "template.update_draft": {
+      "request_type": "maintain",
+      "description": "Forward L4 template-maintenance request to L1.2: Update an existing draft with externally confirmed template content."
+    },
+    "template.publish": {
+      "request_type": "maintain",
+      "description": "Forward L4 template-maintenance request to L1.2: Publish a draft as an immutable incrementing version after human confirmation."
+    },
+    "template.disable": {
+      "request_type": "maintain",
+      "description": "Forward L4 template-maintenance request to L1.2: Disable a template for new starts while keeping historical versions queryable."
+    },
+    "template.list": {
+      "request_type": "query",
+      "description": "Forward L4 template-maintenance request to L1.2: List templates by structured filters."
+    },
+    "template.audit": {
+      "request_type": "query",
+      "description": "Forward L4 template-maintenance request to L1.2: Query module audit records."
+    },
+    "template.export_catalog": {
+      "request_type": "query",
+      "description": "Forward L4 template-maintenance request to L1.2: Export service registry, template summaries, and published definitions for L2 integration."
+    },
+    "template.register_draft": {
+      "request_type": "maintain",
+      "description": "Forward L4 template-maintenance request to L1.2: Register an externally prepared draft template. L1.2 validates and stores it, but does not design business content."
+    },
+    "template.delete_unpublished": {
+      "request_type": "maintain",
+      "description": "Forward L4 template-maintenance request to L1.2: Delete an unpublished draft-only template after human confirmation. Published templates are never physically deleted."
+    },
+    "template.enable": {
+      "request_type": "maintain",
+      "description": "Forward L4 template-maintenance request to L1.2: Re-enable a disabled template for new starts after human confirmation; no new version is created."
+    },
+    "template.validate_definition": {
+      "request_type": "query",
+      "description": "Forward L4 template-maintenance request to L1.2: Validate a template definition without persisting it."
+    },
+    "template.export_template": {
+      "request_type": "query",
+      "description": "Forward L4 template-maintenance request to L1.2: Export one template record and its selected published versions for maintenance handoff."
+    },
+    "template.diff_draft": {
+      "request_type": "query",
+      "description": "Forward L4 template-maintenance request to L1.2: Compare the current draft with the latest or specified published version."
+    },
+    "template.impact_analysis": {
+      "request_type": "query",
+      "description": "Forward L4 template-maintenance request to L1.2: Analyze draft changes against a published version and classify L2/runtime coordination impact."
+    },
+    "template.governance_report": {
+      "request_type": "query",
+      "description": "Forward L4 template-maintenance request to L1.2: Build a publish-readiness governance report for a template definition or stored template draft/version."
+    },
+    "template.catalog_health": {
+      "request_type": "query",
+      "description": "Forward L4 template-maintenance request to L1.2: Summarize template catalog health, governance warnings, category coverage, and service references."
+    },
+    "template.import_bundle": {
+      "request_type": "maintain",
+      "description": "Forward L4 template-maintenance request to L1.2: Import an exported template bundle as a validated draft. It does not start runtime instances."
+    },
+    "template.clone_template": {
+      "request_type": "maintain",
+      "description": "Forward L4 template-maintenance request to L1.2: Clone an existing draft or published version into a new validated draft template."
+    }
+  },
+  "x-boundary": "Consumes L1.2 templates and dispatches to L2 engine services. L2 owns flow design drafts and validation; L1.2 remains the system of record for confirmed fixed-template drafts and published versions."
+}

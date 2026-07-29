@@ -1,0 +1,53 @@
+{
+  "library_version": "local-mock-2026.07.17-stage2b",
+  "notice": "本文件仅用于独立联调验证，正式制度编号、时段、升级节奏由平台和企业制度配置统一提供。",
+  "dnd_policies": [
+    {
+      "rule_ref": "DND_NONE",
+      "name": "不启用免打扰",
+      "enabled": false,
+      "start": "00:00",
+      "end": "00:00",
+      "timezone": "Asia/Shanghai",
+      "exception_levels": [
+        "critical",
+        "urgent",
+        "emergency"
+      ]
+    },
+    {
+      "rule_ref": "DND_NIGHT_2200_0800",
+      "name": "夜间普通提醒免打扰",
+      "enabled": true,
+      "start": "22:00",
+      "end": "08:00",
+      "timezone": "Asia/Shanghai",
+      "exception_levels": [
+        "critical",
+        "urgent",
+        "emergency"
+      ]
+    }
+  ],
+  "escalation_policies": [
+    {
+      "rule_ref": "ESC_NONE",
+      "name": "不启用自动升级",
+      "enabled": false,
+      "ack_timeout_seconds": 0,
+      "max_escalations": 0,
+      "target_roles": []
+    },
+    {
+      "rule_ref": "ESC_STANDARD_30M_2LEVEL",
+      "name": "三十分钟未确认两级催办",
+      "enabled": true,
+      "ack_timeout_seconds": 1800,
+      "max_escalations": 2,
+      "target_roles": [
+        "直属负责人岗位",
+        "业务分管负责人岗位"
+      ]
+    }
+  ]
+}

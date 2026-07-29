@@ -1,0 +1,73 @@
+{
+  "module": "data-operation",
+  "display_name": "数据操作引擎",
+  "layer": "business_engine",
+  "version": "0.6.0",
+  "port": 8031,
+  "entrypoint": "service.py",
+  "standard_interface": {
+    "instruction_endpoint": "/api/v1/data-operation/instructions",
+    "task_status_endpoint": "/api/v1/data-operation/tasks/{trace_id}?actor_id={actor.user_id}",
+    "health_endpoint": "/health",
+    "manifest_endpoint": "/manifest",
+    "protocol_version": "1.0"
+  },
+  "capabilities": [
+    {"code": "data.collect", "description": "登记并固定存档由上游产生的业务数据。", "mode": ["sync", "async"]},
+    {"code": "data.consolidate", "description": "按已给定来源引用整合业务数据并登记新对象。", "mode": ["sync", "async"]},
+    {"code": "data.persist", "description": "登记标签并经 L1.7 保存固定业务数据。", "mode": ["sync", "async"]},
+    {"code": "data.search", "description": "经 L1.7 受控读取后，输出 business_result、evidence、raw_access。", "mode": ["sync", "async"]},
+    {"code": "data.read", "description": "按 data_ref 受控读取业务对象及其版本元数据。", "mode": ["sync", "async"]},
+    {"code": "data.update", "description": "创建新版本，不覆盖旧版本。", "mode": ["sync", "async"]},
+    {"code": "data.delete", "description": "逻辑删除业务对象，保留审计证据。", "mode": ["sync", "async"]},
+    {"code": "data.trace", "description": "按 data_ref 返回登记、版本和审计追溯信息。", "mode": ["sync", "async"]}
+  ],
+  "requires": [
+    "workflow-execution.task.dispatch",
+    "identity.resolve_actor",
+    "permission.check",
+    "security.check",
+    "foundation-data.write",
+    "foundation-data.read",
+    "foundation-data.query",
+    "foundation-data.access.trace"
+  ],
+  "writes": [
+    "business_data_asset_ledger",
+    "business_data_asset_events",
+    "l1_7_object_versions",
+    "l1_7_storage_locations",
+    "workflow_callbacks"
+  ],
+  "reads": [
+    "business_data_asset_ledger",
+    "l1_7_business_data",
+    "l1_7_object_versions",
+    "permission_decision"
+  ],
+  "data_ownership": [
+    "tenant_id",
+    "owner_account_id",
+    "project_id",
+    "conversation_id",
+    "file_id",
+    "object_id",
+    "trace_id",
+    "request_id",
+    "workflow_instance_id"
+  ],
+  "boundary": {
+    "does_not_do": [
+      "自然语言意图识别",
+      "流程编排或同层引擎直调",
+      "比例、趋势、归因、诊断、预测",
+      "绕过 L1.7 直接持久化",
+      "绕过权限、安全和审计"
+    ],
+    "capability_note": "不登记 data.aggregate。确定性筛选、分组、计数、求和等基础数据处理通过 data.search 的 business_result 返回；比例和分析类任务必须交规则计算或分析预测引擎。"
+  },
+  "owner": {
+    "team": "待填写",
+    "contact": "待填写"
+  }
+}

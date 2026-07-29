@@ -1,0 +1,63 @@
+{
+  "organization": {
+    "id": "hanhe",
+    "name": "Hanhe Laboratory",
+    "departments": [
+      {
+        "id": "dept_platform",
+        "name": "Platform Governance",
+        "parent_id": null
+      },
+      {
+        "id": "dept_sales_huazhong",
+        "name": "Huazhong Sales Region",
+        "parent_id": "dept_platform"
+      },
+      {
+        "id": "dept_hr",
+        "name": "Human Resources Source",
+        "parent_id": "dept_platform"
+      }
+    ],
+    "positions": [
+      {
+        "id": "hanhe_admin",
+        "label": "admin",
+        "department_id": "dept_platform",
+        "title": "Platform Administrator"
+      },
+      {
+        "id": "huazhong_region_manager",
+        "label": "manager",
+        "department_id": "dept_sales_huazhong",
+        "title": "Huazhong Region Manager"
+      },
+      {
+        "id": "huazhong_sales",
+        "label": "staff",
+        "department_id": "dept_sales_huazhong",
+        "title": "Frontline Sales Staff"
+      },
+      {
+        "id": "hr_source",
+        "label": "staff",
+        "department_id": "dept_hr",
+        "title": "HR Source Maintainer"
+      }
+    ],
+    "reporting_lines": [
+      {
+        "position_id": "huazhong_region_manager",
+        "reports_to": "hanhe_admin"
+      },
+      {
+        "position_id": "huazhong_sales",
+        "reports_to": "huazhong_region_manager"
+      },
+      {
+        "position_id": "hr_source",
+        "reports_to": "hanhe_admin"
+      }
+    ]
+  }
+}

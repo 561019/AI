@@ -1,0 +1,756 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>内容产出引擎 v0.2 任务适配版</title>
+<style>
+:root{
+  --bg:#f5f7f8;--panel:#fff;--ink:#182634;--muted:#667586;--line:#d9e2ea;
+  --blue:#1f5f8b;--red:#a63c35;--green:#2f7a4c;--amber:#9b6500;--purple:#73518a;
+  --shadow:0 10px 24px rgba(24,38,52,.08);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",Arial,sans-serif}
+header{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--line);padding:14px 20px;display:flex;justify-content:space-between;align-items:center;gap:16px}
+.brand{display:flex;align-items:center;gap:12px}
+.mark{width:48px;height:48px;border-radius:8px;background:var(--blue);color:#fff;display:grid;place-items:center;font-weight:900}
+h1{margin:0;font-size:22px}
+.sub{color:var(--muted);font-size:12px;line-height:1.5;margin-top:4px}
+.status{display:inline-flex;align-items:center;border-radius:999px;padding:7px 10px;background:#eef4f8;color:#234258;font-size:12px;font-weight:900;border:1px solid #d7e3ec}
+.ok{background:#e8f6ee;color:var(--green);border-color:#b9dfca}
+.warn{background:#fff6df;color:var(--amber);border-color:#efd392}
+.bad{background:#fff0ef;color:var(--red);border-color:#e7b9b5}
+.layout{max-width:1760px;margin:0 auto;padding:18px;display:grid;grid-template-columns:360px 1fr;gap:16px}
+.side,.section{background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:16px}
+.side{position:sticky;top:86px;align-self:start}
+.main{display:grid;gap:16px}
+.title{display:flex;justify-content:space-between;align-items:center;gap:10px;font-weight:900;color:#173c59;margin-bottom:12px}
+label{display:block;font-size:12px;color:#536579;font-weight:900;margin:12px 0 6px}
+select,textarea{width:100%;border:1px solid #cbd7e1;border-radius:8px;background:#fbfdff;color:var(--ink);padding:10px 11px;font:inherit}
+textarea{min-height:112px;resize:vertical;line-height:1.55}
+.buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+button{border:0;border-radius:8px;padding:10px 12px;font-weight:900;cursor:pointer;background:var(--blue);color:#fff;box-shadow:0 8px 16px rgba(31,95,139,.16)}
+button.secondary{background:#edf3f7;color:#17364f;box-shadow:none}
+button.danger{background:var(--red)}
+button.audit{background:var(--amber)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.hint{font-size:12px;color:var(--muted);line-height:1.65}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.metric{border:1px solid #dce6ee;background:#f9fbfd;border-radius:8px;padding:12px;min-height:82px}
+.metric .cap{font-size:12px;color:var(--muted);font-weight:800}
+.metric .num{font-size:24px;font-weight:900;color:var(--blue);margin-top:6px;word-break:break-all}
+.chain{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.node{border:1px solid #cbdbe8;background:#f8fbfe;border-radius:8px;padding:10px;min-height:96px}
+.node b{display:block;color:#17405f;margin-bottom:6px}
+.flow-block{border:1px solid #dbe6ee;background:#fbfdff;border-radius:8px;padding:13px;margin-top:12px}
+.flow-block:first-of-type{margin-top:0}
+.flow-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}
+.flow-head h2{margin:0;font-size:17px;color:#173c59}
+.legend{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:#aab6c1}
+.dot.done{background:var(--green)}.dot.run{background:var(--amber)}.dot.fail{background:var(--red)}.dot.wait{background:#aab6c1}
+.flow-track{display:flex;align-items:stretch;gap:8px;flex-wrap:wrap}
+.flow-card{flex:1 1 150px;min-width:142px;border:1px solid #d7e2ea;background:#f8fbfd;border-radius:8px;padding:11px;min-height:100px}
+.flow-card.completed{border-color:#9bd1b3;background:#edf9f2}
+.flow-card.running,.flow-card.waiting{border-color:#e2b96c;background:#fff8e7}
+.flow-card.failed{border-color:#e5aaa5;background:#fff0ef}
+.flow-card.pending,.flow-card.skipped{border-style:dashed;color:#657687;opacity:.9}
+.flow-card .flow-title{font-size:14px;font-weight:900;color:#17405f;margin-bottom:7px;line-height:1.35}
+.flow-card .flow-state{font-size:12px;font-weight:900;margin-bottom:5px}
+.flow-card.completed .flow-state{color:var(--green)}
+.flow-card.running .flow-state,.flow-card.waiting .flow-state{color:var(--amber)}
+.flow-card.failed .flow-state{color:var(--red)}
+.flow-card .flow-meta{font-size:12px;color:var(--muted);line-height:1.5;word-break:break-word}
+.flow-arrow{align-self:center;color:#8aa0b2;font-weight:900;padding:0 1px}
+.flow-note{margin-top:10px;border-top:1px solid var(--line);padding-top:10px;font-size:12px;color:var(--muted);line-height:1.65}
+.chips{display:flex;gap:7px;flex-wrap:wrap}
+.chip{border:1px solid #cbd7e2;background:#fff;border-radius:999px;padding:6px 9px;font-size:12px;font-weight:800;color:#304b63}
+.chip.red{border-color:#d6aaa5;color:#8f3028;background:#fff8f7}
+.chip.green{border-color:#a8d3ba;color:#2f7148;background:#f3fbf6}
+.chip.dash{border-style:dashed;color:#777;background:#fafafa}
+table{width:100%;border-collapse:collapse;background:#fff;font-size:12px}
+th,td{border:1px solid #dbe6ee;padding:8px;text-align:left;vertical-align:top}
+th{background:#edf4f8;color:#173c59}
+.table{overflow:auto;border-radius:8px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tab{border:1px solid #d7e4ed;background:#edf4f8;color:#17384f;border-radius:999px;padding:7px 10px;font-weight:900;font-size:12px;cursor:pointer;box-shadow:none}
+.tab.active{background:var(--blue);color:#fff}
+.panel{display:none}
+.panel.active{display:block}
+.drafts{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.draft{border:1px solid #dbe6ee;background:#fff;border-radius:8px;padding:13px}
+.draft h3{margin:0 0 8px;font-size:17px;color:#173c59}
+.draft h4{margin:10px 0 4px;font-size:13px;color:#334b60}
+.tagline{border:1px solid #e7c46e;background:#fff9e8;color:#604200;border-radius:8px;padding:10px;line-height:1.55;font-size:12px}
+.json,.log{height:330px;overflow:auto;border-radius:8px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.55;white-space:pre-wrap}
+.json{background:#f8fbfd;border:1px solid #dbe6ee;color:#23384c}
+.log{background:#102538;color:#d8ebf8}
+.alert{display:none;margin-top:12px;border:1px solid #efc56f;background:#fff8e7;border-radius:8px;padding:11px;color:#684600;line-height:1.55}
+.received-box{border:1px solid #dbe6ee;background:#f9fcfe;border-radius:8px;padding:12px;margin-bottom:12px}
+.received-id{font-size:20px;font-weight:900;color:var(--blue);word-break:break-all;margin:4px 0 10px}
+.kvgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.kv{border:1px solid #dfe8ef;background:#fff;border-radius:8px;padding:9px;min-width:0}
+.kv.wide{grid-column:1/-1}
+.kvlabel{font-size:12px;color:var(--muted);font-weight:900;margin-bottom:5px}
+.kvvalue{font-size:13px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+details.manual{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+details.manual summary{cursor:pointer;font-weight:900;color:#173c59}
+.module-grid,.contract-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.module,.contract{border:1px solid #dbe6ee;background:#fbfdff;border-radius:8px;padding:10px;min-height:110px}
+.module b,.contract b{display:block;color:#17405f;margin-bottom:6px}
+.scenario-box{border:1px solid #dbe6ee;background:#fbfdff;border-radius:8px;padding:12px}
+.scenario-box h2{margin:0 0 6px;font-size:18px;color:#173c59}
+.toast{position:fixed;right:20px;bottom:20px;background:#102f45;color:#fff;padding:12px 14px;border-radius:8px;box-shadow:var(--shadow);opacity:0;transform:translateY(10px);transition:.2s;z-index:20}
+.toast.show{opacity:1;transform:translateY(0)}
+@media(max-width:1280px){.layout{grid-template-columns:1fr}.side{position:static}.chain,.module-grid,.contract-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:760px){header{display:block}.layout{padding:10px}.grid2,.grid3,.grid4,.chain,.module-grid,.contract-grid,.drafts{grid-template-columns:1fr}.metric .num{font-size:20px}.flow-track{display:grid;grid-template-columns:1fr}.flow-arrow{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="mark">C2</div>
+    <div>
+      <h1>内容产出引擎 v0.2 任务适配版</h1>
+      <div class="sub">文字类成果 · 本引擎边界内任务归一 · 子任务六项标准 · 通用模板兜底 · 审核包与三库登记</div>
+    </div>
+  </div>
+  <span class="status" id="backendStatus">连接中</span>
+</header>
+
+<div class="layout">
+  <aside class="side">
+    <div class="title">子任务接收显示 <span class="status" id="receiveStatus">等待派发</span></div>
+    <div class="received-box" id="receivedBox"></div>
+    <div class="buttons">
+      <button class="secondary" id="loadLatestBtn">接收最新派发</button>
+      <button class="secondary" id="clearRecordsBtn">清空记录</button>
+    </div>
+    <p class="hint">流程执行引擎派发内容产出子任务后，这里会显示调用方、真人、文字类型、模板、期望返回和追踪编号。</p>
+
+    <details class="manual">
+      <summary>本地手动创建/演示</summary>
+    <label>当前操作真人</label>
+    <select id="actor"></select>
+    <label>真实需求场景</label>
+    <select id="scenario"></select>
+    <label>L4 原始请求</label>
+    <textarea id="requirement"></textarea>
+    <div class="buttons">
+      <button id="createBtn">创建任务</button>
+      <button id="autoBtn" disabled>自动跑到出口</button>
+      <button id="stepBtn" class="secondary" disabled>单步执行</button>
+      <button id="resetBtn" class="secondary">重置</button>
+    </div>
+    <div class="buttons">
+      <button id="approveBtn" disabled>当前审核人通过</button>
+      <button id="rejectBtn" class="danger" disabled>驳回</button>
+      <button id="freezeBtn" class="audit" disabled>审计冻结</button>
+      <button id="reportBtn" class="secondary" disabled>导出报告</button>
+    </div>
+    <p class="hint">直接交付代表“初稿交付”，不代表对外发布。公文、法律文书、对外内容等仍按流程执行引擎组织真人审核。</p>
+    </details>
+  </aside>
+
+  <main class="main">
+    <section class="section">
+      <div class="title">任务状态 <span class="status" id="taskStatus">未创建</span></div>
+      <div class="grid4">
+        <div class="metric"><div class="cap">任务编号</div><div class="num" id="taskId">-</div></div>
+        <div class="metric"><div class="cap">当前步骤</div><div class="num" id="stepNum">0/11</div></div>
+        <div class="metric"><div class="cap">成果类型</div><div class="num" id="contentType">-</div></div>
+        <div class="metric"><div class="cap">出口</div><div class="num" id="exitType">-</div></div>
+      </div>
+      <div class="alert" id="blockReason"></div>
+    </section>
+
+    <section class="section">
+      <div class="title">调用链</div>
+      <div class="chain">
+        <div class="node"><b>L4 员工请求</b><span class="hint">员工在业务界面或对话框提出自然语言需求。</span></div>
+        <div class="node"><b>意图分析引擎</b><span class="hint">判断这是文字成果任务，并提取任务参数。</span></div>
+        <div class="node"><b>流程执行引擎</b><span class="hint">拆成标准子任务，派发给内容产出引擎。</span></div>
+        <div class="node"><b>内容产出引擎</b><span class="hint">只办理文字成文，返回初稿、审核包、登记和状态。</span></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="title">流程状态机 <span class="hint">平台派发链路 + 内容产出内部流程</span></div>
+      <div class="flow-block">
+        <div class="flow-head">
+          <h2>平台派发链路</h2>
+          <div class="legend">
+            <span><i class="dot done"></i>完成</span>
+            <span><i class="dot run"></i>运行/等待</span>
+            <span><i class="dot fail"></i>失败</span>
+            <span><i class="dot wait"></i>未执行/预留</span>
+          </div>
+        </div>
+        <div class="flow-track" id="outerFlow"></div>
+        <div class="flow-note">展示口径：平台负责接收 L4 请求、识别意图、拆分派发；内容产出引擎只承办文字初稿，并把结果交回流程执行引擎。</div>
+      </div>
+      <div class="flow-block">
+        <div class="flow-head">
+          <h2>内容产出承办内部流程</h2>
+          <span class="status" id="innerFlowStatus">等待子任务</span>
+        </div>
+        <div class="flow-track" id="innerFlow"></div>
+        <div class="flow-note">真实逻辑：接收子任务、字段校验、权限/模板校验、取资料、模型调度、生成初稿、核查登记、交回流程；当前原型的模型与成本仍是本地模拟。</div>
+      </div>
+    </section>
+
+    <section class="grid2">
+      <div class="section">
+        <div class="title">当前场景</div>
+        <div class="scenario-box" id="scenarioBox"></div>
+      </div>
+      <div class="section">
+        <div class="title">L1 依赖模块</div>
+        <div class="module-grid" id="modules"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="title">接口契约</div>
+      <div class="contract-grid" id="contracts"></div>
+    </section>
+
+    <section class="section">
+      <div class="tabs">
+        <button class="tab active" data-tab="drafts">文字初稿</button>
+        <button class="tab" data-tab="subtask">子任务字段</button>
+        <button class="tab" data-tab="permission">权限记录</button>
+        <button class="tab" data-tab="source">依据与调度</button>
+        <button class="tab" data-tab="review">真人审核</button>
+        <button class="tab" data-tab="registry">成果登记</button>
+        <button class="tab" data-tab="logs">审计日志</button>
+        <button class="tab" data-tab="json">任务 JSON</button>
+      </div>
+      <div class="panel active" id="panel-drafts"><div class="drafts" id="drafts"></div></div>
+      <div class="panel" id="panel-subtask"><div class="table"><table id="subtaskTable"></table></div></div>
+      <div class="panel" id="panel-permission"><div class="table"><table id="permTable"></table></div></div>
+      <div class="panel" id="panel-source"><div class="grid2"><div class="json" id="sourceBox"></div><div class="json" id="dispatchBox"></div></div></div>
+      <div class="panel" id="panel-review"><div class="table"><table id="reviewTable"></table></div><div class="json" id="reviewBox"></div></div>
+      <div class="panel" id="panel-registry"><div id="registryBox"></div></div>
+      <div class="panel" id="panel-logs"><div class="log" id="logBox"></div></div>
+      <div class="panel" id="panel-json"><div class="json" id="jsonBox">暂无任务。</div></div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const API = location.origin.startsWith('http') ? location.origin : 'http://127.0.0.1:8011';
+let boot = null;
+let task = null;
+let registry = null;
+let logs = [];
+const $ = (id) => document.getElementById(id);
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function toast(message) {
+  $('toast').textContent = message;
+  $('toast').classList.add('show');
+  setTimeout(() => $('toast').classList.remove('show'), 2400);
+}
+
+async function api(path, options = {}) {
+  const res = await fetch(API + path, {headers: {'Content-Type': 'application/json'}, ...options});
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function init() {
+  try {
+    boot = await api('/api/bootstrap');
+    $('backendStatus').textContent = '后端已连接';
+    $('backendStatus').className = 'status ok';
+    fillSelectors();
+    syncScenarioText();
+    renderAll();
+  } catch (error) {
+    $('backendStatus').textContent = '后端未启动';
+    $('backendStatus').className = 'status bad';
+    toast('请先运行 start_backend.bat');
+  }
+}
+
+function fillSelectors() {
+  $('actor').innerHTML = Object.entries(boot.users).map(([id, u]) =>
+    `<option value="${id}">${id} · ${u.name} · ${u.position}</option>`
+  ).join('');
+  $('scenario').innerHTML = Object.entries(boot.scenarios).map(([id, s]) =>
+    `<option value="${id}">${id} · ${s.title}</option>`
+  ).join('');
+}
+
+function currentScenario() { return boot.scenarios[$('scenario').value]; }
+function currentUser() { return boot.users[$('actor').value]; }
+
+function syncScenarioText() {
+  const s = currentScenario();
+  $('requirement').value = s.l4_request;
+  renderAll();
+}
+
+function statusClass(status) {
+  if (['completed'].includes(status)) return 'status ok';
+  if (['running','created','preparing_context','dispatching_model','drafting','checking','pending_human_confirmation'].includes(status)) return 'status warn';
+  if (['blocked_permission','unable_to_handle','returned_for_completion','rejected','frozen'].includes(status)) return 'status bad';
+  return 'status';
+}
+
+function renderTop() {
+  const status = task?.status || '未创建';
+  $('taskStatus').textContent = status;
+  $('taskStatus').className = statusClass(task?.status);
+  $('taskId').textContent = task ? task.task_id : '-';
+  $('stepNum').textContent = task ? `${task.current_step_index + 1}/${boot.workflow_steps.length}` : `0/${boot.workflow_steps.length}`;
+  $('contentType').textContent = task ? boot.scenarios[task.scenario_id].content_type_label : currentScenario().content_type_label;
+  $('exitType').textContent = task?.exit_type || '-';
+  const reason = task?.blocking_reason || '';
+  $('blockReason').style.display = reason ? 'block' : 'none';
+  $('blockReason').innerHTML = reason ? `<b>当前说明：</b>${escapeHtml(reason)}${task?.error_code ? `<br><b>错误码：</b>${escapeHtml(task.error_code)}` : ''}` : '';
+
+  const terminal = ['completed','blocked_permission','unable_to_handle','returned_for_completion','rejected','frozen'].includes(task?.status);
+  $('autoBtn').disabled = !task || terminal || task.status === 'pending_human_confirmation';
+  $('stepBtn').disabled = !task || terminal || task.status === 'pending_human_confirmation';
+  $('approveBtn').disabled = !task || task.status !== 'pending_human_confirmation';
+  $('rejectBtn').disabled = !task || task.status !== 'pending_human_confirmation';
+  $('freezeBtn').disabled = !task || !registry || task.status === 'frozen';
+  $('reportBtn').disabled = !task;
+}
+
+function renderReceivedTask() {
+  const status = task?.status || '等待派发';
+  $('receiveStatus').textContent = status;
+  $('receiveStatus').className = statusClass(task?.status);
+  if (!task) {
+    $('receivedBox').innerHTML = '<div class="hint">尚未收到流程执行引擎派发的内容产出子任务。可以从流程执行引擎启动“内容产出 + 多媒体”，或展开下方手动创建演示任务。</div>';
+    return;
+  }
+  const subtask = task.subtask || {};
+  const scenario = boot.scenarios[task.scenario_id] || {};
+  $('receivedBox').innerHTML = `
+    <div class="kvlabel">内容产出任务编号</div>
+    <div class="received-id">${escapeHtml(task.task_id)}</div>
+    <div class="kvgrid">
+      ${kv('调用方', subtask.caller_engine || '本地手动创建')}
+      ${kv('接收时间', task.created_at || '-')}
+      ${kv('追踪编号', task.trace_id || subtask.trace_id || '-')}
+      ${kv('上游流程编号', subtask.parent_task_id || '-')}
+      ${kv('操作真人', subtask.operator_real_person_id || boot.users[task.actor_id]?.real_person_id || '-')}
+      ${kv('文字类型', scenario.content_type_label || subtask.content_type || '-')}
+      ${kv('请求服务', subtask.requested_service || scenario.requested_service || '-')}
+      ${kv('期望返回', subtask.expected_output || scenario.expected_output || '-')}
+      ${kv('传入内容', subtask.input_brief || task.requirement || '-', 'wide')}
+    </div>
+  `;
+}
+
+function kv(label, value, cls = '') {
+  return `<div class="kv ${cls}"><div class="kvlabel">${escapeHtml(label)}</div><div class="kvvalue">${escapeHtml(value)}</div></div>`;
+}
+
+function renderFlow() {
+  renderOuterFlow();
+  renderInnerFlow();
+}
+
+const FAILED_STATUSES = ['blocked_permission','unable_to_handle','returned_for_completion','rejected','frozen'];
+const FLOW_STATUS_LABELS = {
+  completed: '完成',
+  running: '运行中',
+  waiting: '等待确认',
+  failed: '失败',
+  pending: '未执行',
+  skipped: '预留/跳过'
+};
+
+function cleanStepName(name) {
+  return String(name || '').replace(/^外层\s*\d+[:：]\s*/, '').replace(/^内部\s*\d+[:：]\s*/, '');
+}
+
+function stepIndex(key) {
+  return boot.workflow_steps.findIndex(step => step.key === key);
+}
+
+function isFailedTask() {
+  return FAILED_STATUSES.includes(task?.status);
+}
+
+function workflowStepStatus(index) {
+  if (!task || index < 0) return 'pending';
+  const current = Number(task.current_step_index ?? -1);
+  if (task.status === 'completed') return index <= current ? 'completed' : 'pending';
+  if (task.status === 'pending_human_confirmation') return index <= current ? 'completed' : 'pending';
+  if (isFailedTask()) {
+    if (index < current) return 'completed';
+    if (index === current) return 'failed';
+    return 'pending';
+  }
+  if (index < current) return 'completed';
+  if (index === current) return 'running';
+  return 'pending';
+}
+
+function flowCards(nodes) {
+  return nodes.map((node, i) => `
+    <div class="flow-card ${node.status}">
+      <div class="flow-title">${escapeHtml(node.title)}</div>
+      <div class="flow-state">${escapeHtml(FLOW_STATUS_LABELS[node.status] || node.status)}</div>
+      <div class="flow-meta">${escapeHtml(node.meta || '-')}</div>
+    </div>
+    ${i < nodes.length - 1 ? '<div class="flow-arrow">&gt;</div>' : ''}
+  `).join('');
+}
+
+function renderOuterFlow() {
+  const current = Number(task?.current_step_index ?? -1);
+  const innerStart = stepIndex('receive_subtask');
+  const contentStatus = !task ? 'pending'
+    : isFailedTask() ? 'failed'
+    : task.status === 'completed' ? 'completed'
+    : task.status === 'pending_human_confirmation' ? 'waiting'
+    : current >= innerStart ? 'running'
+    : 'pending';
+  const humanStatus = !task ? 'pending'
+    : isFailedTask() ? (['rejected','frozen'].includes(task.status) ? 'failed' : 'pending')
+    : task.status === 'pending_human_confirmation' ? 'waiting'
+    : task.status === 'completed' && task.exit_type === 'pending_human_confirmation' ? 'completed'
+    : task.status === 'completed' ? 'skipped'
+    : 'pending';
+  const resultStatus = !task ? 'pending'
+    : isFailedTask() ? 'failed'
+    : task.status === 'completed' ? 'completed'
+    : task.status === 'pending_human_confirmation' ? 'waiting'
+    : 'pending';
+  const nodes = [
+    {
+      title: 'L4/员工请求',
+      status: workflowStepStatus(stepIndex('l4_request')),
+      meta: task?.subtask?.input_brief || task?.requirement || currentScenario()?.title || '等待业务侧发起请求'
+    },
+    {
+      title: '意图分析引擎',
+      status: workflowStepStatus(stepIndex('intent_analysis')),
+      meta: task ? '识别为文字类内容产出任务' : '等待识别任务类型'
+    },
+    {
+      title: '流程执行引擎',
+      status: workflowStepStatus(stepIndex('process_dispatch')),
+      meta: task?.subtask?.parent_task_id ? `上游流程 ${task.subtask.parent_task_id}` : '拆分标准子任务并派发'
+    },
+    {
+      title: '内容产出引擎',
+      status: contentStatus,
+      meta: task ? `${task.task_id} · ${task.status}` : '等待接收内容产出子任务'
+    },
+    {
+      title: '真人确认',
+      status: humanStatus,
+      meta: task?.exit_type === 'pending_human_confirmation' ? '需按审批链确认后交付' : '直接交付内部初稿，不代表对外发布'
+    },
+    {
+      title: '结果返回',
+      status: resultStatus,
+      meta: task?.exit_type || '等待内容产出结果'
+    }
+  ];
+  $('outerFlow').innerHTML = flowCards(nodes);
+}
+
+function renderInnerFlow() {
+  const status = task?.status || '等待子任务';
+  $('innerFlowStatus').textContent = status;
+  $('innerFlowStatus').className = statusClass(task?.status);
+  const nodes = boot.workflow_steps
+    .map((step, index) => ({...step, index}))
+    .filter(step => step.phase === 'inner')
+    .map(step => ({
+      title: cleanStepName(step.name),
+      status: workflowStepStatus(step.index),
+      meta: `${step.layer} · ${step.module}`
+    }));
+  $('innerFlow').innerHTML = flowCards(nodes);
+}
+
+function renderScenario() {
+  const s = task ? boot.scenarios[task.scenario_id] : currentScenario();
+  const t = boot.templates[s.template_id];
+  $('scenarioBox').innerHTML = `
+    <h2>${escapeHtml(s.title)}</h2>
+    <div class="chips">
+      <span class="chip">${escapeHtml(s.content_type_label)}</span>
+      <span class="chip ${s.exit_policy === 'direct_delivery' ? 'green' : s.exit_policy === 'pending_human_confirmation' ? 'red' : 'dash'}">${escapeHtml(s.exit_policy)}</span>
+      <span class="chip">${escapeHtml(s.risk_level)}</span>
+    </div>
+    <p class="hint">模板：${escapeHtml(t?.name)} · ${escapeHtml(t?.version)} · ${escapeHtml(t?.state)}</p>
+    <p class="hint">依据资料：${s.source_material_refs.map(id => escapeHtml(boot.source_materials[id]?.name || id)).join('、')}</p>
+    <p class="hint">审核要求：${escapeHtml(t?.review_policy || s.review_policy)}</p>
+  `;
+}
+
+function renderModules() {
+  $('modules').innerHTML = boot.l1_modules.map(m => `
+    <div class="module"><b>${escapeHtml(m.id)} ${escapeHtml(m.name)}</b><span class="hint">${escapeHtml(m.usage)}</span></div>
+  `).join('');
+}
+
+function renderContracts() {
+  $('contracts').innerHTML = boot.interface_contracts.map(c => `
+    <div class="contract">
+      <b>${escapeHtml(c.name || c.id)}</b>
+      <div class="chip">${escapeHtml(c.method)} ${escapeHtml(c.path)}</div>
+      <p class="hint">${escapeHtml(c.purpose)}</p>
+      <p class="hint">调用方：${escapeHtml(c.caller)}<br>权限：${escapeHtml(c.permission_check)}</p>
+    </div>
+  `).join('');
+}
+
+function renderDrafts() {
+  if (!task?.drafts?.length) {
+    $('drafts').innerHTML = '<div class="hint">运行到“生成结构化文字初稿”后显示稿件。</div>';
+    return;
+  }
+  $('drafts').innerHTML = task.drafts.map(draft => `
+    <article class="draft">
+      <h3>${escapeHtml(draft.title)}</h3>
+      <div class="tagline">${escapeHtml(draft.label_policy)} · 引用：${draft.citations.map(escapeHtml).join('、')}</div>
+      ${(draft.sections || []).map(section => `
+        <h4>${escapeHtml(section.heading)}</h4>
+        <p class="hint">${escapeHtml(section.body)}</p>
+      `).join('')}
+      ${draft.unresolved_questions?.length ? `<h4>待确认问题</h4><ul>${draft.unresolved_questions.map(x => `<li class="hint">${escapeHtml(x)}</li>`).join('')}</ul>` : ''}
+    </article>
+  `).join('');
+}
+
+function renderSubtask() {
+  const checks = task?.subtask_validation?.checks || boot.subtask_required_fields.map(([field, label]) => ({field, label, passed:false, value:'未执行'}));
+  $('subtaskTable').innerHTML = '<tr><th>六项标准</th><th>字段</th><th>结果</th><th>值</th></tr>' + checks.map(c => `
+    <tr><td>${escapeHtml(c.label)}</td><td>${escapeHtml(c.field)}</td><td>${c.passed ? '通过' : '未通过'}</td><td>${escapeHtml(c.value)}</td></tr>
+  `).join('');
+}
+
+function renderPermission() {
+  const rows = task?.permission_records || [];
+  $('permTable').innerHTML = '<tr><th>时间</th><th>真人</th><th>数据对象</th><th>动作</th><th>结果</th><th>原因</th></tr>' + rows.map(r => `
+    <tr>
+      <td>${escapeHtml(r.time)}</td>
+      <td>${escapeHtml(r.actor_id)} ${escapeHtml(r.actor_name)}<br>${escapeHtml(r.position)}</td>
+      <td>${escapeHtml(r.data_object_id)}<br>${escapeHtml(r.data_object_name)}</td>
+      <td>${escapeHtml(r.action_label)}</td>
+      <td>${escapeHtml(r.result)}</td>
+      <td>${escapeHtml(r.reason)}</td>
+    </tr>
+  `).join('');
+}
+
+function renderSourceAndDispatch() {
+  $('sourceBox').textContent = JSON.stringify({
+    source_package: task?.source_package || null,
+    content_mode: task?.content_mode || null,
+    quality_report: task?.quality_report || null,
+    labels: task?.labels || null
+  }, null, 2);
+  $('dispatchBox').textContent = JSON.stringify({
+    prompt_context: task?.prompt_context || null,
+    model_dispatch: task?.model_dispatch || null,
+    cost_record: task?.cost_record || null
+  }, null, 2);
+}
+
+function renderReview() {
+  const approval = task?.approval;
+  if (!approval) {
+    $('reviewTable').innerHTML = '<tr><th>说明</th></tr><tr><td>当前任务尚未进入真人确认，或属于直接交付内部初稿。</td></tr>';
+    $('reviewBox').textContent = JSON.stringify(task?.review_package || null, null, 2);
+    return;
+  }
+  $('reviewTable').innerHTML = '<tr><th>节点</th><th>岗位</th><th>按岗找人</th><th>状态</th><th>说明</th></tr>' + approval.nodes.map(n => `
+    <tr>
+      <td>${escapeHtml(n.node)}</td>
+      <td>${escapeHtml(n.position)}</td>
+      <td>${escapeHtml(n.assignee_user_id || '-')} ${escapeHtml(n.assignee_name)}</td>
+      <td>${escapeHtml(n.status)}</td>
+      <td>${escapeHtml(n.note)}</td>
+    </tr>
+  `).join('');
+  $('reviewBox').textContent = JSON.stringify(task.review_package || null, null, 2);
+}
+
+function renderRegistry() {
+  if (!registry) {
+    $('registryBox').innerHTML = '<div class="hint">运行到成果登记步骤后显示登记结构。</div>';
+    return;
+  }
+  $('registryBox').innerHTML = `
+    <div class="grid3">
+      <div class="metric"><div class="cap">登记编号</div><div class="num">${escapeHtml(registry.registry_id)}</div></div>
+      <div class="metric"><div class="cap">流程状态</div><div class="num">${escapeHtml(registry.status_group.workflow_status)}</div></div>
+      <div class="metric"><div class="cap">审核状态</div><div class="num">${escapeHtml(registry.status_group.review_status)}</div></div>
+    </div>
+    <div class="json" style="margin-top:12px">${escapeHtml(JSON.stringify(registry, null, 2))}</div>
+  `;
+}
+
+function renderLogsAndJson() {
+  $('logBox').textContent = logs.map(l => `${l.time} [${l.layer}] ${l.action} -> ${l.target} · ${l.result} · ${l.detail}`).join('\n');
+  $('jsonBox').textContent = task ? JSON.stringify(task, null, 2) : '暂无任务。';
+}
+
+function renderAll() {
+  if (!boot) return;
+  renderReceivedTask();
+  renderTop();
+  renderFlow();
+  renderScenario();
+  renderModules();
+  renderContracts();
+  renderDrafts();
+  renderSubtask();
+  renderPermission();
+  renderSourceAndDispatch();
+  renderReview();
+  renderRegistry();
+  renderLogsAndJson();
+}
+
+function latestTaskFromStore(data) {
+  const items = Object.values(data || {});
+  items.sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+  return items[0] || null;
+}
+
+async function loadLatestContentTask(silent = false) {
+  const data = await api('/api/tasks');
+  const latest = latestTaskFromStore(data);
+  if (!latest) {
+    task = null;
+    registry = null;
+    logs = [];
+    renderAll();
+    if (!silent) toast('暂无内容产出任务');
+    return;
+  }
+  task = latest;
+  registry = await api(`/api/tasks/${task.task_id}/registry`);
+  logs = await api(`/api/tasks/${task.task_id}/logs`);
+  renderAll();
+  if (!silent) toast(`已接收最新任务 ${task.task_id}`);
+}
+
+async function refresh() {
+  if (task) {
+    task = await api(`/api/tasks/${task.task_id}`);
+    registry = await api(`/api/tasks/${task.task_id}/registry`);
+    logs = await api(`/api/tasks/${task.task_id}/logs`);
+  }
+  renderAll();
+}
+
+async function createTask() {
+  task = await api('/api/tasks', {
+    method: 'POST',
+    body: JSON.stringify({actor_id: $('actor').value, scenario_id: $('scenario').value, requirement: $('requirement').value})
+  });
+  registry = null;
+  logs = await api(`/api/tasks/${task.task_id}/logs`);
+  toast(`已创建任务 ${task.task_id}`);
+  renderAll();
+}
+
+async function runStep() {
+  task = await api(`/api/tasks/${task.task_id}/run-step`, {method:'POST'});
+  await refresh();
+}
+
+async function runAuto() {
+  task = await api(`/api/tasks/${task.task_id}/run-auto`, {method:'POST'});
+  await refresh();
+  toast('已运行到当前出口');
+}
+
+function currentApprover() {
+  const approval = task?.approval;
+  if (!approval) return 'U002';
+  const node = approval.nodes[approval.current_node - 1];
+  return node?.assignee_user_id || 'U002';
+}
+
+async function approve() {
+  task = await api(`/api/tasks/${task.task_id}/review-result`, {
+    method:'POST',
+    body: JSON.stringify({approver_id: currentApprover(), decision: 'approve', reason: '原型演示确认通过。'})
+  });
+  await refresh();
+}
+
+async function reject() {
+  task = await api(`/api/tasks/${task.task_id}/review-result`, {
+    method:'POST',
+    body: JSON.stringify({approver_id: currentApprover(), decision: 'reject', reason: '真人审核不通过，退回修改。'})
+  });
+  await refresh();
+}
+
+async function freeze() {
+  task = await api(`/api/tasks/${task.task_id}/freeze`, {
+    method:'POST',
+    body: JSON.stringify({actor_id: 'U004', reason: '审计员发现风险，冻结内容成果。'})
+  });
+  await refresh();
+}
+
+async function resetAll() {
+  await api('/api/reset', {method:'POST'});
+  task = null; registry = null; logs = [];
+  renderAll();
+  toast('已重置');
+}
+
+async function report() {
+  const data = await api(`/api/tasks/${task.task_id}/report`);
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${task.task_id}_content_production_v0_1_report.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x => x.classList.remove('active'));
+    btn.classList.add('active');
+    $(`panel-${btn.dataset.tab}`).classList.add('active');
+  });
+});
+
+$('scenario').addEventListener('change', syncScenarioText);
+$('actor').addEventListener('change', renderAll);
+$('loadLatestBtn').addEventListener('click', () => loadLatestContentTask(false).catch(e => toast(e.message)));
+$('clearRecordsBtn').addEventListener('click', () => resetAll().catch(e => toast(e.message)));
+$('createBtn').addEventListener('click', () => createTask().catch(e => toast(e.message)));
+$('stepBtn').addEventListener('click', () => runStep().catch(e => toast(e.message)));
+$('autoBtn').addEventListener('click', () => runAuto().catch(e => toast(e.message)));
+$('approveBtn').addEventListener('click', () => approve().catch(e => toast(e.message)));
+$('rejectBtn').addEventListener('click', () => reject().catch(e => toast(e.message)));
+$('freezeBtn').addEventListener('click', () => freeze().catch(e => toast(e.message)));
+$('resetBtn').addEventListener('click', () => resetAll().catch(e => toast(e.message)));
+$('reportBtn').addEventListener('click', () => report().catch(e => toast(e.message)));
+init().then(() => loadLatestContentTask(true).catch(() => {}));
+setInterval(() => loadLatestContentTask(true).catch(() => {}), 3000);
+</script>
+</body>
+</html>

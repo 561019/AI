@@ -1,0 +1,173 @@
+{
+  "manifest_type": "blind_sealed_benchmark_version",
+  "sealed": true,
+  "generated_at": "2026-07-23T02:31:12.735695+00:00",
+  "project_root": "D:\\AIProjects\\intent-analysis-engine",
+  "code_revision": "snapshot:74eb0bdfd92fb5ab99ee3cc8c5dd8c68f15d311a7fd54e4a3554845428a23fb9",
+  "code_revision_source": "snapshot",
+  "runtime": {
+    "python": "3.12.7 (tags/v3.12.7:0b05ead, Oct  1 2024, 03:06:41) [MSC v.1941 64 bit (AMD64)]",
+    "platform": "Windows-10-10.0.19045-SP0",
+    "executable": "D:\\AIProjects\\intent-analysis-engine\\.venv\\Scripts\\python.exe"
+  },
+  "benchmark_config": {
+    "split": "blind_test",
+    "semantic_mode": "local",
+    "llm_mode": "off",
+    "semantic_threshold": 0.5,
+    "model": "LocalEvaluationEmbeddingService + LocalCapabilityVectorRepository",
+    "llm_invoked": false,
+    "command": "$env:PYTHONPATH='backend'; .\\.venv\\Scripts\\python.exe evaluation\\benchmark\\benchmark_runner.py --split blind_test --allow-blind-test --semantic-mode local --llm-mode off --output evaluation\\benchmark\\blind_test_benchmark_raw.json"
+  },
+  "dataset": {
+    "manifest": "D:\\AIProjects\\intent-analysis-engine\\evaluation\\benchmark\\datasets\\manifest.json",
+    "version": "v1",
+    "declared_split_counts": {
+      "train": 180,
+      "validation": 84,
+      "blind_test": 60
+    }
+  },
+  "frozen_artifacts": [
+    {
+      "path": "backend/app/schemas/intent_analysis.py",
+      "exists": true,
+      "sha256": "89d6ed2f2983baa15668485d00c8e03df3ac056f5179f12b6689c64e63b719ce",
+      "size_bytes": 8245
+    },
+    {
+      "path": "backend/app/services/intent_analysis_engine/task_schema/task_type_schema.py",
+      "exists": true,
+      "sha256": "f534497b9f97e20db8d7a4b8aec50b92630fa11477762e56c0e9dc7bab2c4b74",
+      "size_bytes": 5994
+    },
+    {
+      "path": "backend/app/services/intent_analysis_engine/task_schema/required_inputs.py",
+      "exists": true,
+      "sha256": "547c930e81b37cd597a868bae0ecd522baa76dbee8e900cb2bd8061003f9cd5c",
+      "size_bytes": 865
+    },
+    {
+      "path": "backend/app/services/intent_analysis_engine/task_schema/validator.py",
+      "exists": true,
+      "sha256": "1ab9f1baf168165e1fe5e0f9fea266d662c8bdb2bf1bb5e7df416593fce3ae44",
+      "size_bytes": 2553
+    },
+    {
+      "path": "backend/app/prompts/intent_analysis_prompt.txt",
+      "exists": true,
+      "sha256": "ac164b426e0613d3f5d9cb4abe54fa7d7db15a0f1fbddd501389ee64ad13381d",
+      "size_bytes": 3116
+    },
+    {
+      "path": "backend/app/prompts/implicit_task_extraction_prompt.txt",
+      "exists": true,
+      "sha256": "c488d66e2ff30e5ca090902d012965d2eddfe7bfc17f355bf352c3845691d6b0",
+      "size_bytes": 1341
+    },
+    {
+      "path": "backend/app/services/intent_analysis_engine/operation_rules.py",
+      "exists": true,
+      "sha256": "82b6a411f8be1fc65204cfd9dedc5d0418a739e65277a92f0ffbeda879b8ae6c",
+      "size_bytes": 29159
+    },
+    {
+      "path": "backend/app/services/intent_analysis_engine/analyzer.py",
+      "exists": true,
+      "sha256": "4a0494d027ea9abf5214710c3961153765744b843b0fcf52bd650fb4a806c513",
+      "size_bytes": 40954
+    },
+    {
+      "path": "backend/app/services/intent_analysis_engine/decomposer.py",
+      "exists": true,
+      "sha256": "d387d969e725b3486b1456122cdd72d3ff8d9d835198172987dd521cc526ca68",
+      "size_bytes": 5851
+    },
+    {
+      "path": "backend/app/services/intent_analysis_engine/context_recovery.py",
+      "exists": true,
+      "sha256": "4a317c281dbe3c8d793d13008db5071a5767ec5058516c058ae0f5662ecbbf65",
+      "size_bytes": 14776
+    },
+    {
+      "path": "backend/app/services/task_extraction/future_scope_filter.py",
+      "exists": true,
+      "sha256": "a1720b4e97d3f90bce899daf238ae08692a602de014ffb1e27cbca24925751b7",
+      "size_bytes": 12150
+    },
+    {
+      "path": "backend/app/config/semantic_capabilities.yaml",
+      "exists": true,
+      "sha256": "9be815d6b0c141a39ba31411e3645beddd798446c11223e6e204087caab3d912",
+      "size_bytes": 26780
+    },
+    {
+      "path": "evaluation_runner.py",
+      "exists": true,
+      "sha256": "81b4bf851c4ddc965038665670b28e50c8bd2503b9406ab2a4c9054dcb03c689",
+      "size_bytes": 16142
+    },
+    {
+      "path": "evaluation/benchmark/benchmark_runner.py",
+      "exists": true,
+      "sha256": "948faa5d6904235184f275b1187d80e2e7eeb3d96c52b9202258cb8c708d19c0",
+      "size_bytes": 20551
+    }
+  ],
+  "run_artifacts": [
+    {
+      "path": "evaluation/benchmark/blind_test_benchmark_raw.json",
+      "exists": true,
+      "sha256": "e245504c63ecd21881886be33e9a215dd760214a43b6e84e9429d7f784afa913",
+      "size_bytes": 70050
+    },
+    {
+      "path": "evaluation/error_analysis/failure_report_blind_test_current.json",
+      "exists": true,
+      "sha256": "1898ecaad52e662b669c0ec59ff182ce40b0dc8fb29edb93a2965f41d5aeb9b1",
+      "size_bytes": 28168
+    },
+    {
+      "path": "evaluation/benchmark/blind_test_report.json",
+      "exists": true,
+      "sha256": "eea01088e9dae079d54575c11ab386e990c5cf7a103fb6d4d377828dd4fe90f7",
+      "size_bytes": 52713
+    },
+    {
+      "path": "evaluation/benchmark/blind_test_version_manifest.json",
+      "exists": true,
+      "sha256": "5300e8f16ef76fb486dcb01ac83233227ab4afbc7173595a2a3e6aac9e8f3d7a",
+      "size_bytes": 6115
+    },
+    {
+      "path": "evaluation/benchmark/blind_test_run.log",
+      "exists": true,
+      "sha256": "8c48838e03f7bc6ed52e423e0cd1bdcb80ffb548dbf5d6dd6e644885660a26df",
+      "size_bytes": 13334
+    }
+  ],
+  "dataset_artifacts": [
+    {
+      "path": "evaluation/benchmark/datasets/manifest.json",
+      "exists": true,
+      "sha256": "793bbfe1ebe64e87bfcc5837b6d2fd5bac4f3d6cceba8ed3960e5acaf3e9ba79",
+      "size_bytes": 1420
+    },
+    {
+      "path": "evaluation/benchmark/datasets/blind_test/blind_test_v1.jsonl",
+      "exists": true,
+      "sha256": "4c4337b0936adbe04cc8c5ebc8b33d137cfdfb9899e8d6d619bb8a4201e25259",
+      "size_bytes": 23646
+    }
+  ],
+  "freeze_assertions": {
+    "tasklist_schema_frozen": true,
+    "task_type_schema_frozen": true,
+    "required_inputs_schema_frozen": true,
+    "llm_prompt_frozen": true,
+    "l1_l2_rules_frozen": true,
+    "validation_optimization_code_frozen": true,
+    "blind_test_used_for_development": false,
+    "blind_test_added_to_validation": false
+  }
+}

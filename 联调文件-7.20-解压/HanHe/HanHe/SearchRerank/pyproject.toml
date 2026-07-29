@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "search-rerank-engine"
+version = "0.1.0"
+description = "Milvus retrieval and SiliconFlow Qwen3 reranking for HanHe document chunks"
+requires-python = ">=3.11"
+dependencies = [
+  "httpx>=0.27,<1",
+  "pydantic>=2.7,<3",
+  "pymilvus>=2.6,<3",
+]
+
+[project.optional-dependencies]
+api = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+]
+
+[project.scripts]
+search-rerank = "search_rerank.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

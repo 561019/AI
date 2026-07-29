@@ -1,0 +1,25 @@
+{
+  "contract_version": "v1",
+  "identity_contract": {
+    "rule": "user_id = actor_id = person_id",
+    "trusted_identity_source": "account_gateway JWT"
+  },
+  "channels": [
+    {
+      "id": "runtime_permission_check",
+      "status": "active",
+      "method": "POST",
+      "path": "/api/permission/check"
+    },
+    {
+      "id": "permission_fact_sync",
+      "status": "active_via_account_gateway"
+    },
+    {
+      "id": "integration_event_inbox",
+      "status": "reserved",
+      "method": "POST",
+      "path": "/api/integrations/events"
+    }
+  ]
+}

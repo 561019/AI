@@ -1,0 +1,16 @@
+{
+  "trace_id": "trace_20260714_000002",
+  "request_id": "req_20260714_000002",
+  "decision_id": "decision_01J00000000000000000000001",
+  "allowed": false,
+  "result": "deny",
+  "reason_code": "ACTION_NOT_GRANTED",
+  "reason": "当前人员没有该动作权限",
+  "four_factors": {
+    "data_label": "normal",
+    "action": "content.generate",
+    "actor_id": "u_without_permission",
+    "data_state": "active"
+  },
+  "decided_at": "2026-07-14T10:00:00+08:00"
+}

@@ -1,0 +1,67 @@
+{
+  "before_report": "evaluation\\benchmark\\validation_report_required_schema_after.json",
+  "after_report": "evaluation\\benchmark\\validation_report_frozen_fix_current.json",
+  "failure_report_before": "evaluation\\error_analysis\\failure_report_required_schema_after.json",
+  "failure_report_after": "evaluation\\error_analysis\\failure_report_frozen_fix_current.json",
+  "metrics": {
+    "passed": {
+      "before": 81,
+      "after": 87
+    },
+    "total": {
+      "before": 87,
+      "after": 87
+    },
+    "task_type_exact_accuracy": {
+      "before": 0.9425287356321839,
+      "after": 1.0
+    },
+    "context_recovery_accuracy": {
+      "before": 1.0,
+      "after": 1.0
+    },
+    "clarification_decision_accuracy": {
+      "before": 0.9655172413793104,
+      "after": 1.0
+    },
+    "false_positive_rate": {
+      "before": 0.0,
+      "after": 0.0
+    },
+    "future_scope_false_positive_rate": {
+      "before": 0.0,
+      "after": 0.0
+    },
+    "negation_false_positive_rate": {
+      "before": 0.0,
+      "after": 0.0
+    },
+    "missing_input_precision": {
+      "before": 0.9540229885057471,
+      "after": 1.0
+    },
+    "missing_input_recall": {
+      "before": 0.9540229885057471,
+      "after": 1.0
+    },
+    "over_clarification_rate": {
+      "before": 0.022988505747126436,
+      "after": 0.0
+    },
+    "macro_f1": {
+      "before": 0.9559386973180077,
+      "after": 1.0
+    }
+  },
+  "failure_counts": {
+    "before": {
+      "NEED_L3_OR_CLARIFICATION": 5,
+      "UNNECESSARY_REQUIRED_INPUT": 1
+    },
+    "after": {}
+  },
+  "failed_case_count": {
+    "before": 6,
+    "after": 0
+  }
+}

@@ -1,0 +1,62 @@
+@baseUrl = http://127.0.0.1:8790
+@actorId = USER-INTEGRATION-001
+@tenantId = TENANT-INTEGRATION
+@candidateId = replace-after-create
+
+### 健康检查
+GET {{baseUrl}}/health
+
+### 1. 创建候选版本
+POST {{baseUrl}}/api/l1/evolution/candidates
+Content-Type: application/json
+x-request-id: REQ-HTTP-001
+x-actor-id: {{actorId}}
+x-tenant-id: {{tenantId}}
+idempotency-key: IDEMP-HTTP-001
+
+{
+  "context": {
+    "actorId": "{{actorId}}",
+    "actorType": "human",
+    "tenantId": "{{tenantId}}",
+    "subjectUserId": "{{actorId}}",
+    "roles": [],
+    "idempotencyKey": "IDEMP-HTTP-001"
+  },
+  "candidate": {
+    "evolutionPath": "PROMPT_EVOLUTION",
+    "scenarioId": "SCN-05",
+    "subjectUserId": "{{actorId}}",
+    "scope": "PERSONAL",
+    "sourceRefs": ["MSG-HTTP-001"],
+    "evidence": [{"type": "human_feedback", "ref": "MSG-HTTP-001"}],
+    "candidateVersion": {
+      "versionId": "VER-HTTP-001",
+      "scenarioId": "SCN-05",
+      "skill": "企业文化活动智能策划",
+      "risk": "LOW",
+      "evidenceReady": true
+    }
+  }
+}
+
+### 2. 风险判断
+POST {{baseUrl}}/api/l1/evolution/candidates/{{candidateId}}/risk-check
+Content-Type: application/json
+
+{"context":{"actorId":"{{actorId}}","actorType":"human","tenantId":"{{tenantId}}","subjectUserId":"{{actorId}}"}}
+
+### 3. 本人确认
+POST {{baseUrl}}/api/l1/evolution/candidates/{{candidateId}}/confirmations
+Content-Type: application/json
+
+{"context":{"actorId":"{{actorId}}","actorType":"human","tenantId":"{{tenantId}}","subjectUserId":"{{actorId}}"},"action":"KEEP","riskNoticeShown":true}
+
+### 4. 发布并写入1.7
+POST {{baseUrl}}/api/l1/evolution/candidates/{{candidateId}}/publish
+Content-Type: application/json
+
+{"context":{"actorId":"{{actorId}}","actorType":"human","tenantId":"{{tenantId}}","subjectUserId":"{{actorId}}"}}
+
+### 5. 查询审计
+GET {{baseUrl}}/api/l1/evolution/audit

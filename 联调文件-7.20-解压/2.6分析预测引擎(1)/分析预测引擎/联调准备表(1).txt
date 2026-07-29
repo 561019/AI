@@ -1,0 +1,165 @@
+模块名称：分析预测引擎（analysis-prediction-engine）
+负责人：
+
+一、我提供给其他模块的能力：
+定位：专管经营分析与预测，分析方法四类——对比、拆解、原因分析、预测。本引擎在数据操作引擎归集出的基础数字之上做趋势解读与预测，不负责归集汇总；阈值判断归规则计算引擎，本引擎只向监控提醒引擎提供分析结论以丰富提醒内容。
+
+1. 对比分析（同环比、目标对比、异常识别）：对已归集好的财务报表数据完成同比分析、环比分析、与目标值对比、Z-score异常指标识别；对经营指标（如各成本占比）与设定目标值对比、识别超标项，输出alert_candidates供监控提醒引擎消费。本引擎只负责"分析出是否超标、超多少"，不负责推送。
+
+2. 拆解分析（杜邦分解、成本结构拆解）：对财务报表数据完成杜邦分析（净利率→资产周转率→权益乘数→ROE的逐层拆解），按给定经营公式拆解净利润的成本结构（销售成本率、交付成本率、运营成本率占比）。
+
+3. 原因分析（趋势归因、异常解读）：在确定性的趋势拟合和异常检测结果之上，借助大模型调度（1.5）对结论做自然语言解读，指出趋势方向、驱动因素和显著异常项；模型只读取已算好的数值做解读，不参与计算、不自算。
+
+4. 预测分析（趋势预测、不确定性量化）：对连续月度历史价格数据，基于确定性线性回归模型完成趋势拟合与未来预测（horizon 1~24个月），输出波动特性（slope、trend、price_range、relative_range_percent）、预测区间（value/lower/upper，95%残差带）、不确定性说明，所有预测结论标注decision_reference_only且写明不确定范围。
+
+工作原理：一个分析请求 → 一次指标与范围识别 → 一次确定性取数与运算 → 一层分析方法套用 → 一个带来源标注并经人核对的结论输出。指标或范围不明沿原链路向员工问清、问齐为止，不凭猜测补范围；结论带每个数字的来源与所用指标定义版本标注、附结论解读；涉及预测的写明不确定范围；关键结论由真人确认后才采信。指标登记、分析方法登记与每次运行记录全部留痕。
+
+二、我提供的接口：
+接口1：POST /v1/analysis-jobs/evaluate
+- 路径：POST /v1/analysis-jobs/evaluate
+- 方法：POST
+- 输入：JSON body，schema_version="v1"，trace_id（必填，调用方追踪编号），analysis_type（"financial_statement" | "price_forecast" | "business_metric"），及对应类型的records/target_limits等字段。所有数值字段使用JSON字符串（非float）以保持Decimal精度。
+  ● financial_statement：records数组，每条含period(YYYY-MM)、source_record_id、metrics字典（指标名→Decimal字符串）
+  ● price_forecast：records数组，每条含date(每月1日)、source_record_id、price(正Decimal字符串)；forecast_horizon(1~24)
+  ● business_metric：record对象含period/source_record_id/revenue/sales_cost/delivery_cost/operating_cost(均Decimal字符串)；target_limits含sales_cost_ratio/delivery_cost_ratio/operating_cost_ratio(0~100的Decimal字符串)
+- 输出：JSON，含schema_version、trace_id（原样返回）、analysis_type、status（complete/partial/not_computable）、对应类型的具体分析结果（metrics/dupont/forecasts/volatility/cost_ratios/target_comparisons/alert_candidates等）、conclusions结构化结论数组、provenance溯源链（每条含output_field/source_record_id/source_field/period/formula_version）、calculation_metadata（算法和公式版本）、decision_reference_only:true、human_confirmation_required:true、effective:false
+- 错误情况：
+  ● 422 VALIDATION_ERROR：输入不符合schema（缺少必填字段、类型错误、Decimal精度越界、期间不连续/不唯一等）
+  ● 业务级not_computable在status字段体现，HTTP仍返回200（如收入为零无法计算成本占比、价格数据不足3期等）
+
+接口2：POST /v1/analysis-jobs/analyze
+- 路径：POST /v1/analysis-jobs/analyze
+- 方法：POST
+- 输入：同 /v1/analysis-jobs/evaluate 的 AnalysisRequest
+- 输出：JSON，含computation（同evaluate输出）+ narrative（LLM对计算结果的解读文字，以"⚠️ 以上分析由AI基于确定性计算结果生成，仅供决策参考，须经真人确认后生效"结尾）；若DEEPSEEK_API_KEY未配置则narrative返回skipped状态
+- 错误情况：同evaluate的错误情况；LLM调用失败时narrative.status="error"并附reason，computation部分不受影响
+
+接口3：POST /v1/chat
+- 路径：POST /v1/chat
+- 方法：POST
+- 输入：JSON，message（用户自然语言消息）、history（可选，对话历史数组）
+- 输出：JSON，含role="assistant"、content（意图确认+格式化分析结果+图表标记+AI分析解读）、action（解析出的intent动作类型）、data_files（匹配到的数据文件）、focus（分析角度）、result（完整计算结果）、records（源数据）
+- 错误情况：DEEPSEEK_API_KEY未配置返回错误提示；意图解析失败返回可用的数据文件列表
+
+接口4：GET /v1/monitor/latest
+- 路径：GET /v1/monitor/latest
+- 方法：GET
+- 输入：无
+- 输出：JSON，最新一期律所经营指标分析结果（无LLM），含period
+- 错误情况：404 无经营指标数据文件
+
+接口5：POST /v1/analysis-jobs/narrate
+- 路径：POST /v1/analysis-jobs/narrate
+- 方法：POST
+- 输入：JSON，已计算完成的analysis result payload（同evaluate输出格式）
+- 输出：JSON，含schema_version、trace_id、analysis_type、narrative（LLM解读文字）、status（complete/skipped/error）、model
+- 错误情况：analysis_type不支持返回错误；LLM调用失败返回error状态
+
+接口6：GET /health
+- 路径：GET /health
+- 方法：GET
+- 输入：无
+- 输出：{"status":"ok","service":"analysis-prediction-engine"}
+- 错误情况：服务不可达时HTTP连接错误
+
+三、我需要调用哪些模块：
+（一）上游 L2 同层引擎（一律由流程执行引擎调度衔接，同层引擎之间不直接互相调用）：
+
+1. 需要调用模块：意图分析引擎
+   - 调用目的：接收L4用户自然语言请求，识别为经营分析与预测类事项，解读出任务清单（指标类型与分析类型），将分析任务经流程执行引擎调度进入本引擎。指标或范围不明时沿原链路向员工问清、问齐为止，本引擎不凭猜测补范围。
+   - 需要对方提供什么接口：接收自然语言/结构化上下文、返回任务清单的接口，任务清单中需标明分析类型（financial_statement/price_forecast/business_metric）、指标定义版本及对应的数据引用。
+   - 当前是否已 mock：是——chat服务内置基于DeepSeek LLM的意图解析逻辑（_INTENT_PROMPT），从用户消息中提取action、data_files、focus、forecast_horizon等字段，但非正式意图分析引擎接口，也未实现"指标不明反问确认"的闭环机制。
+
+2. 需要调用模块：数据操作引擎
+   - 调用目的：按指标定义确定的表名与条件，归集汇总基础数字（按公司、部门、区域、科目、期间等维度），归集汇总交数据库执行。本引擎在归集好的基础数字之上做趋势解读与预测，不负责归集汇总。
+   - 需要对方提供什么接口：按期间/指标维度返回已归集数据的接口，数据格式需符合本引擎各analysis_type的输入schema（records含source_record_id、period、metrics/price等字段，数值用字符串传递以保精度），并附带所用指标定义版本标注。
+   - 当前是否已 mock：是——本引擎通过静态JSON文件（2023-2025年财务报表、钢材价格、律所经营指标_请求体.json）模拟上游归集数据输入，chat服务自动扫描DATA_DIR下匹配的JSON文件。
+
+3. 需要调用模块：规则计算引擎
+   - 调用目的：按明文规则的确定性计算（同环比、占比、达成率等）和阈值判断（如成本占比≤目标值），其计算结果可作为本引擎的分析输入。本引擎在规则计算引擎的计算结果之上做趋势解读、原因分析和预测，AI不自算。注：当前本引擎已将部分确定性计算内置（calculators/和forecasting/模块），正式平台中这些计算应逐步迁移至规则计算引擎统一承担。
+   - 需要对方提供什么接口：接收指标数据和计算规则、返回确定性计算结果（含公式版本号）的接口；阈值判断接口返回实际值、目标值、差异值和是否超标标记。数值使用Decimal精度、字符串传递。
+   - 当前是否已 mock：部分——确定性计算（同环比、线性回归、Z-score、杜邦分解、占比等）已在本引擎内实现，所有计算使用Python Decimal、保留明确精度，计算结果附formula_version；但尚未对接独立的规则计算引擎服务。阈值判断逻辑（threshold_comparison）在本引擎business_metrics中实现，超标识别结果通过alert_candidates输出。
+
+（二）调度者（L2）：
+
+4. 需要调用模块：流程执行引擎
+   - 调用目的：同层引擎之间不直接互相调用、一律由流程执行引擎调度衔接。意图分析引擎识别任务后，由流程执行引擎调度：数据操作引擎先归集出基础数字 → 本引擎在其上做趋势解读与预测 → 内容产出引擎把分析结论写进报告、监控提醒引擎按需取用分析结论。本引擎作为同步计算节点，接受输入→返回结果，不自行管理异步状态、不持久化任务、不发送受理回执或通知。
+   - 需要对方提供什么接口：标准化的任务分派协议，含统一追踪编号（trace_id贯穿全链路）；按需调用本引擎的同步接口并管理异步受理回执、结果通知和超时重试。
+   - 当前是否已 mock：是——本引擎接口为同步REST API，trace_id由调用方传入、原样返回；异步编排和通知由调用方在上层实现，本引擎不感知。
+
+（三）下游 L2 同层引擎（由流程执行引擎调度衔接）：
+
+5. 需要调用模块：内容产出引擎
+   - 调用目的：将本引擎输出的结构化分析结论与图表数据（metrics、dupont、forecasts、conclusions等）写成自然语言报告、方案、汇报课件等文字成果。本引擎只负责"分析出结论"，不负责"把结论写成报告"。
+   - 需要对方提供什么接口：接收结构化分析结论（本引擎输出格式）并生成成文成稿的接口。
+   - 当前是否已 mock：是——本引擎内置llm_narrative服务可调用大模型生成简短解读（200-250字），但这仅是开发期临时方案；正式的文字报告生成应由内容产出引擎承担，本引擎的narrate接口和evaluate接口均可按约定格式输出结构化结论供对方消费。
+
+6. 需要调用模块：监控提醒引擎
+   - 调用目的：按需取用本引擎输出的分析结论（alert_candidates：超标指标、实际值、目标值、超幅、严重程度），以丰富提醒内容。本引擎只提供分析结论，阈值的实际判断归规则计算引擎，提醒的推送与触达归监控提醒引擎。
+   - 需要对方提供什么接口：接收alert_candidates数组的接口，每条含metric、actual、target、excess、severity、source_record_id等字段。
+   - 当前是否已 mock：是——本引擎输出alert_candidates字段（business_metric分析类型），但未对接监控提醒引擎的实际取用和推送通道；集成测试验证了超标项的正确识别和结构化输出。
+
+（四）向下调用的 L1 基础模块（共六处）：
+
+7. 需要调用模块：数据模块（1.7）
+   - 调用目的：按指标定义确定的表名与条件，取结构固定的表中的原始数据；指标登记、分析方法登记与每次运行记录按三库分存于此读写。
+   - 需要对方提供什么接口：按表名/条件查询的取数接口（返回结构化数据，数值用字符串保精度）；指标定义登记与版本管理的读写接口；分析方法登记与运行记录的读写接口。
+   - 当前是否已 mock：是——数据取数通过静态JSON文件模拟；指标登记、分析方法登记和运行记录尚未实现持久化，当前仅在内存中通过formula_version和calculation_metadata字段标注版本。
+
+8. 需要调用模块：执行沙箱（1.14）
+   - 调用目的：分析代码或统计预测程序连同参数、数据送入沙箱隔离运行，运行完即清理。
+   - 需要对方提供什么接口：接受代码/程序+参数+数据的沙箱执行接口，返回隔离运行结果；需支持Python Decimal精度语义。
+   - 当前是否已 mock：是——当前确定性计算（线性回归、Z-score、杜邦分解等）直接在FastAPI进程中同步执行，未做沙箱隔离；正式平台应将计算逻辑迁移至执行沙箱中隔离运行。
+
+9. 需要调用模块：大模型调度（1.5）
+   - 调用目的：识别指标与分析类型（接收意图分析引擎输出的分析任务后再次确认具体指标）、解读结论时取用模型。模型固定、不直连、不训练、不改造。
+   - 需要对方提供什么接口：统一的LLM调用接口（替代当前直接调用DeepSeek API的方式），支持传入system prompt和user prompt、返回文本内容；模型由大模型调度统一管理，本引擎不感知具体模型ID。
+   - 当前是否已 mock：是——llm_narrative.py和chat_service.py直接通过环境变量（DEEPSEEK_API_KEY/DEEPSEEK_BASE_URL/DEEPSEEK_MODEL）连接DeepSeek API，未经过平台统一的大模型调度；正式平台需切换为调用大模型调度接口，且模型应固定、不直连。
+
+10. 需要调用模块：上下文与提示词管理（1.6）
+    - 调用目的：取本次对话的上下文与本引擎的提示词、示例句，供大模型调用时拼装完整的prompt。
+    - 需要对方提供什么接口：按引擎标识和当前会话ID返回上下文的接口；按引擎标识返回提示词模板和示例句的接口。
+    - 当前是否已 mock：是——提示词模板（_PROMPTS三套、_INTENT_PROMPT一套）硬编码在llm_narrative.py和chat_service.py中；对话上下文当前通过chat接口的history参数传入，未对接统一的上下文管理服务。
+
+11. 需要调用模块：账号网关（1.8）
+    - 调用目的：按当前操作真人校验权限。本引擎接收到的请求应为已通过权限校验的合法请求；引擎与技能自身不带数据权限。
+    - 需要对方提供什么接口：本引擎不直接调用账号网关；权限校验由流程执行引擎在上游完成后再调度本引擎。本引擎需能接收和传递操作人标识（通过trace_id链路关联），以配合事后追溯。
+    - 当前是否已 mock：是——本引擎HTTP接口当前无权限校验，trace_id由调用方任意传入；human_confirmation_required标记在响应中固定为true。
+
+12. 需要调用模块：安全合规（1.9）
+    - 调用目的：全程留痕，事后可追溯到人、到指标定义、到数据。本引擎的每次运行记录（输入指标定义版本、分析方法版本、输出结论、provenance溯源链）均应由安全合规模块持久化留痕。
+    - 需要对方提供什么接口：本引擎不直接调用安全合规模块；留痕由平台统一机制在L2接口层完成。本引擎需输出完整的provenance（output_field→source_record_id→source_field→period→formula_version）、calculation_metadata（algorithm_version+formula_version）、trace_id，供安全合规模块消费。
+    - 当前是否已 mock：是——本引擎已在每次响应中输出provenance溯源链和calculation_metadata，但尚未对接安全合规模块的实际持久化；留痕数据当前仅随HTTP响应返回，未独立存储。
+
+四、当前 mock 的内容：
+1. 上游数据操作引擎（数据归集）：通过项目根目录下20+个静态JSON文件模拟（2023-2025年利润表/资产负债表/现金流量表_请求体.json、2023-2025年钢材价格_请求体.json、2023-Q1~2025-Q4律所经营指标_请求体.json），覆盖制造业和法律服务行业两类场景，所有数据已脱敏、数值使用字符串格式。
+2. 意图分析引擎（意图解析）：chat服务内置基于DeepSeek LLM的意图解析prompt（_INTENT_PROMPT），从用户自然语言消息中提取action/data_files/focus/forecast_horizon，模拟意图分析引擎的任务分派功能；未实现"指标不明反问确认"的闭环机制。
+3. 规则计算引擎（确定性计算与阈值判断）：确定性计算（同环比、线性回归、Z-score、杜邦分解、占比等）和阈值判断（threshold_comparison）已在本引擎内以Python Decimal实现，计算结果附formula_version标注；尚未对接独立的规则计算引擎服务。
+4. 流程执行引擎（异步编排与通知）：本引擎接口为同步REST API，trace_id由调用方传入、原样返回；不创建异步任务、不持久化状态、不发送受理回执或完成通知；异步编排和通知由调用方在上层实现。
+5. 内容产出引擎（报告生成）：本引擎内置LLM叙事仅输出200-250字简短解读，非完整报告；正式报告成文应由内容产出引擎消费本引擎的结构化结论后生成。
+6. 监控提醒引擎（预警推送）：本引擎输出alert_candidates数组（含超标指标、幅度、严重程度），但未对接监控提醒引擎的实际取用和推送通道。
+7. 数据模块（1.7）：所有测试和演示数据均为静态JSON文件，未对接实际数据库或数据服务；指标登记、分析方法登记和运行记录尚未实现持久化，当前仅在内存中通过formula_version和calculation_metadata标注。
+8. 执行沙箱（1.14）：确定性计算直接在FastAPI进程中同步执行，未做沙箱隔离；正式平台需将计算逻辑迁移至执行沙箱中隔离运行。
+9. 大模型调度（1.5）：llm_narrative.py和chat_service.py直接通过环境变量连接DeepSeek API，未经过平台统一的大模型调度；模型未固定、可随意更换。
+10. 上下文与提示词管理（1.6）：提示词模板硬编码在源码中，对话上下文通过chat接口的history参数手动传入，未对接统一的上下文管理服务。
+11. 账号网关（1.8）：本引擎HTTP接口无权限校验，trace_id由调用方任意传入，未校验操作人身份。
+12. 安全合规（1.9）：provenance溯源链和calculation_metadata已输出但未持久化存储，未与平台留痕机制对接。
+
+五、后续联调风险：
+1. 数据格式对齐风险：本引擎要求上游（数据操作引擎）输出的数据严格符合schema（期间格式YYYY-MM、数值用JSON字符串保精度、records唯一性约束、价格数据月度连续等）。若上游输出格式有偏差（如数值用float、期间格式不一致、数据不连续），会在Pydantic校验层直接拒绝。建议联调前双方先对齐各analysis_type的输入schema，用本引擎已有的JSON fixture文件作为参考样例。
+2. 规则计算引擎对接风险：当前本引擎内置了全部确定性计算逻辑（calculators/、forecasting/模块）。若后续将这些计算迁移至规则计算引擎统一承担，需约定：Decimal精度协议、公式版本号命名规范、阈值判断的输入输出schema、以及本引擎如何消费规则计算引擎的计算结果作为分析输入。迁移过程中需保证同环比、杜邦分解、线性趋势拟合等结果与原内置实现等价。
+3. 大模型调用路径变更风险：当前本引擎的意图解析（chat）和叙事生成（narrate）直接调用DeepSeek API；正式平台应通过大模型调度（1.5）统一调用、模型固定、不直连。切换调用路径时，prompt模板和输出格式需保持一致，否则可能影响解读质量和意图解析准确率。此外，本引擎需新增"指标不明反问确认"能力——当意图分析引擎识别出的指标或范围不明时，需沿原链路向员工问清，当前实现无此闭环。
+4. 异步任务模型对接风险：本引擎当前是同步API（请求→计算→返回），但平台调用链是异步模型（流程执行引擎先返回受理回执→完成后经通知通道送达结果）。本引擎不管理异步状态和任务持久化，需由流程执行引擎在上层实现异步包装。联调时需确认：trace_id如何贯穿同步调用与异步通知、not_computable状态如何通知调用方、超时和重试策略由哪层负责。
+5. 执行沙箱迁移风险：当前本引擎的确定性计算（线性回归、Z-score、统计预测等）直接在FastAPI进程中同步执行。迁移至执行沙箱（1.14）时需考虑：沙箱的启动延迟是否影响分析响应时间、沙箱中Python环境和Decimal库的版本一致性、沙箱运行完即清理的策略下如何保留运行记录供安全合规留痕。
+6. 指标登记与版本管理风险：规范要求"结论带每个数字的来源与所用指标定义版本标注"，当前本引擎通过formula_version和provenance标注算法版本和数据来源，但尚未实现指标定义的独立登记和版本管理（应由数据模块1.7承担）。若联调时发现指标定义版本未就绪，provenance连锁可能断裂——上游指标定义变更后本引擎无法追溯分析时所依据的具体版本。
+7. 安全合规留痕对接风险：规范要求事后可追溯到人、到指标定义、到数据。本引擎已输出provenance溯源链和calculation_metadata，但这些数据当前仅随HTTP响应返回、未持久化。需确认安全合规（1.9）的留痕接口和存储schema，确保本引擎输出的trace_id、provenance、calculation_metadata能被完整捕获和索引。
+8. 引擎职责边界模糊风险：规范明确了四条边界——归集汇总归数据操作引擎、阈值判断归规则计算引擎、报告成文归内容产出引擎、提醒推送归监控提醒引擎。若联调时发现边界有交叉（如本引擎当前实际承担了阈值判断和部分确定性计算），需按规范方向即时调整，并确认迁移优先级。
+9. 跨行业数据模型差异风险：本引擎设计覆盖制造业（财务报表多期records、原料价格序列）和法律服务行业（律所单期record+target_limits），两类场景的数据模型不同。若后续扩展更多行业客户，business_metric的单期模型可能需扩展为多期对比模型，需在联调前约定扩展方式。
+
+六、联调前我能保证什么：
+1. 本模块能独立启动：✅ 能独立启动。`PYTHONPATH=src python -m uvicorn analysis_prediction_engine.main:app --host 127.0.0.1 --port 8000` 即可启动，无需外部依赖（除DeepSeek API用于LLM功能外）。
+2. 本模块有测试数据：✅ 有测试数据。根目录下有20+个脱敏JSON fixture文件，覆盖两类客户三种分析类型多个年度/季度，另有tests/fixtures/下三份集成测试专用数据。
+3. 本模块有测试结果截图：✅ 有测试结果。17个测试文件覆盖单元测试（calculators、contracts、services、provenance）、集成测试（financial_scenario、price_scenario、business_metrics_scenario、engine_boundaries、evaluate_api）和健康检查。
+4. 本模块有接口文档：✅ 有接口文档。README.md包含能力边界说明、安装运行指南、API列表和平台集成说明；分析预测引擎和真实需求关联说明文档包含完整的调用链和职责边界论证。
+5. 本模块有 mock 数据：✅ 有mock数据。见第四条12项mock内容详细说明。
+6. 本模块有 README：✅ 有README。README.md说明能力边界、API列表、安装运行、平台集成要点。

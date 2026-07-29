@@ -1,0 +1,77 @@
+# 权限模块联调准备表
+
+模块名称：权限管理模块（permission-gateway）  
+负责人：权限模块开发负责人
+
+## 一、我提供给其他模块的能力
+
+1. 全平台唯一的实时 allow/deny 权限判定，按责任真人、动作、数据、上下文和当前授权事实计算。
+2. 岗位标准授权、数据转授、制度规则、数据动作与数据登记、资源发布授权及撤销的控制面管理。
+3. 追加式决策审计、trace/request/transfer 关联查询、数据库故障 fallback 留痕和对账。
+
+## 二、我提供的接口
+
+接口 1：权限判定（仅机制直达）
+
+- 路径：`POST /api/permission/check`
+- 方法：`POST`
+- 输入：仅 L1 对内通道可调用；`X-L1-Caller-Service=l1_internal_channel`、`X-L1-Mechanism-Secret`，以及 `ingress_mode=mechanism_direct`、四要素、`responsible_actor_id`、执行体、`transfer_id`、身份上下文哈希和已验签岗位事实。
+- 输出：`allowed`、`result`、`reason_code`、`decision_id`、`trace_id`、`request_id`、四要素和时间。
+- 错误情况：不可信入口 `403 UNTRUSTED_INGRESS`；业务字段错误 `400`；缺字段/类型错误 `422`；数据库故障 `503`；内部异常 `500`。正常允许/拒绝均为 `200`。
+
+接口 2：权限审计查询
+
+- 路径：`GET /api/permission/audits`
+- 方法：`GET`
+- 输入：`trace_id`、`request_id`、`actor_id`、`result`、时间范围、分页游标。
+- 输出：决策及责任真人、执行体、原始调用服务、入口模式、`transfer_id`、身份上下文哈希。
+- 错误情况：数据库不可用返回 `503`。
+
+接口 3：权限控制面
+
+- 路径：`POST /api/org/commands`、`GET /api/org/snapshot`、`POST /api/permissions/commands`、`GET /api/permissions/snapshot`。
+- 方法：`POST`、`GET`。
+- 输入：控制面身份头 `X-Actor-ID`、`X-Actor-Roles`、`X-Tenant-ID`；命令为 `action + payload`。
+- 输出：已创建或已变更的授权、转授、规则、数据、动作、资源发布或快照。
+- 错误情况：身份/角色不足、租户不一致、字段非法、资源不存在、组织环路或席位冲突分别返回 `400/403/404/409`。
+
+接口 4：能力发现与健康检查
+
+- 路径：`GET /health`、`GET /api/integrations/capabilities`。
+- 方法：`GET`。
+- 输入：无业务数据。
+- 输出：服务、数据库、版本和机制直达集成契约。
+- 错误情况：数据库不可用时健康检查返回 `503`。
+
+## 三、我需要调用哪些模块
+
+1. 需要调用模块：账号网关。
+   - 调用目的：账号、岗位、任职、汇报线是账号网关唯一事实；权限模块不直连其数据库。
+   - 需要对方提供什么接口：账号网关签发的短时 `IdentityContext`，由 L1 层接口验签后传入岗位和管理范围事实。
+   - 当前是否已 mock：测试中使用已验签上下文 payload；本机联调使用 HMAC 签名令牌。
+
+2. 需要调用模块：L1 层接口。
+   - 调用目的：接收唯一的机制直达权限判定请求，获得可信服务身份、转交编号和身份上下文证据。
+   - 需要对方提供什么接口：`POST /api/layer/dispatch` 和机制直达服务身份配置。
+   - 当前是否已 mock：层接口拥有签名、重放拒绝和身份上下文验签自动化测试。
+
+## 四、当前 mock 的内容
+
+1. pytest fixture 使用临时 SQLite 和控制面测试身份头。
+2. 身份岗位与管理范围使用层接口已验签字段模拟，不复制真实 HR 数据。
+3. 服务关系、动作、岗位标准授权、转授、资源发布与数据库故障均有确定性测试样例。
+
+## 五、后续联调风险
+
+1. 正式判定接口拒绝业务模块直连；未接入 L1 层接口将得到 `403 UNTRUSTED_INGRESS`。
+2. 第一阶段的机制密钥仅适合本机可信网络，跨主机必须迁移到 mTLS。
+3. 权限库中的人员、任职、汇报线表仅为迁移兼容；正式路径以账号网关签发事实为准，旧副本需按切换计划清除。
+
+## 六、联调前我能保证什么
+
+1. 本模块能独立启动，默认监听 `127.0.0.1:8001`。
+2. 本模块有覆盖岗位授权、转授、制度拒绝、过期、租户隔离、资源发布撤销和审计的测试数据。
+3. 本模块有自动化测试结果：`25 passed`；空 SQLite 已验证 `alembic upgrade head` 至 `0004`。
+4. 本模块有接口文档：`docs/api.md`、`docs/error-codes.md`、`docs/platform-integration.md`、`docs/l1-layer-interface-security.md`。
+5. 本模块有示例请求与响应：`examples/`，以及 fallback 对账与网关导入脚本。
+6. 本模块有 `README.md`、`.env.example`、Dockerfile、迁移和交付清单。

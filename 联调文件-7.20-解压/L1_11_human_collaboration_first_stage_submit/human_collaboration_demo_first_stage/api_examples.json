@@ -1,0 +1,93 @@
+{
+  "create_human_task": {
+    "protocol_version": "1.0",
+    "message_id": "msg_create_001",
+    "trace_id": "trace_travel_001",
+    "request_id": "req_create_001",
+    "parent_message_id": null,
+    "source": {
+      "layer": "L2",
+      "service_code": "l2.workflow_execution"
+    },
+    "target": {
+      "layer": "L1",
+      "service_code": "l1.human_collaboration"
+    },
+    "channel": "l2_to_l1",
+    "route_type": "task.dispatch",
+    "action": "human.task.create",
+    "capability_id": "CAP.HUMAN.TASK.CREATE",
+    "capability_dictionary_version": "2026.07.17",
+    "registry_version": "registry_2026.07.17",
+    "actor": {
+      "person_id": "employee_001",
+      "tenant_id": "tenant_hanhe",
+      "position_id": "finance_staff"
+    },
+    "context": {
+      "workflow_instance_id": "flow_travel_001",
+      "node_id": "node_human_approval_001",
+      "task_id": "task_travel_001",
+      "data_refs": [
+        {
+          "ref_id": "dataref_travel_001",
+          "resource_type": "travel_reimbursement",
+          "version": "v1",
+          "data_labels": ["internal"],
+          "allowed_actions": ["read"]
+        }
+      ],
+      "artifact_refs": []
+    },
+    "idempotency_key": "flow_travel_001-node_human_approval_001-v1",
+    "deadline_at": "2026-07-20 10:00:00",
+    "payload": {
+      "collaboration_type": "approval_review",
+      "work_mode": "on_loop",
+      "trigger_source_module": "l2.rule_calculation",
+      "title": "差旅费审批异常",
+      "content": "差旅费超标且凭证不完整，需要财务人工确认。",
+      "ai_result": "报销金额 3680.00 元；标准上限 3000.00 元。",
+      "evidence_summary": "差旅标准、报销单和凭据引用。",
+      "risk_level": "high",
+      "target_person_id": "finance_checker_001",
+      "deadline_at": "2026-07-20 10:00:00",
+      "decision_options": ["approve", "modify_approve", "reject"]
+    }
+  },
+  "respond_approve": {
+    "protocol_version": "1.0",
+    "message_id": "msg_decision_001",
+    "trace_id": "trace_travel_001",
+    "request_id": "req_decision_001",
+    "parent_message_id": "msg_create_001",
+    "source": {
+      "layer": "L2",
+      "service_code": "l2.workflow_execution"
+    },
+    "target": {
+      "layer": "L1",
+      "service_code": "l1.human_collaboration"
+    },
+    "channel": "l2_to_l1",
+    "route_type": "command.handoff",
+    "action": "human.task.respond",
+    "actor": {
+      "person_id": "finance_checker_001",
+      "tenant_id": "tenant_hanhe"
+    },
+    "context": {
+      "workflow_instance_id": "flow_travel_001",
+      "node_id": "node_human_approval_001",
+      "task_id": "task_travel_001",
+      "data_refs": [],
+      "artifact_refs": []
+    },
+    "idempotency_key": "decision-flow_travel_001-node_human_approval_001-v1",
+    "payload": {
+      "decision": "approve",
+      "modified_result": "",
+      "comment": "已核对依据，同意。"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+[
+  {"id":"s01_accounting_estimates","scene":"场景1","name":"坏账准备、所得税、递延所得税计算","requirement":"规则化会计估计：AI 按账龄和预置比例计算坏账准备；按利润表和纳税调整项计算所得税、递延所得税。","sandbox_role":"运行确定性财务计算脚本，输出结果表和审计记录。","risk_level":"high","needs_human_approval":true},
+  {"id":"s02_gross_margin","scene":"场景2","name":"多维度毛利贡献自动计算","requirement":"销售×成本数据聚合+多维切片。","sandbox_role":"运行聚合和切片脚本，生成区域、产品、客户、业务员维度结果。","risk_level":"medium","needs_human_approval":false},
+  {"id":"s03_product_cost","scene":"场景3","name":"产品成本测算与配方变更测算","requirement":"原料价格+配方结构+加工成本模型。","sandbox_role":"隔离执行成本重算脚本，避免脚本误读或误改主系统数据。","risk_level":"high","needs_human_approval":true},
+  {"id":"s04_invoice_matching","scene":"场景4","name":"发票核销（真伪+入库单匹配）","requirement":"发票验真+入库单匹配核销，异常项提示。","sandbox_role":"运行发票和入库单匹配脚本；真实发票验真应走受控外部接口。","risk_level":"high","needs_human_approval":true},
+  {"id":"s05_bom_warning","scene":"场景5","name":"委外材料核销及配比变动预警","requirement":"BOM 配比核算+异常变动预警。","sandbox_role":"运行 BOM 比对脚本，输出异常变动清单。","risk_level":"medium","needs_human_approval":false},
+  {"id":"s06_messy_table_pivot","scene":"场景6","name":"杂乱数据表一键分类+透视分析","requirement":"员工用自然语言描述需求，AI 自动完成数据清洗、分类、匹配、公式计算、透视表生成。","sandbox_role":"运行数据清洗、分类、匹配、公式计算和透视脚本。","risk_level":"medium","needs_human_approval":false},
+  {"id":"s07_mix_compatibility","scene":"场景7","name":"产品混配性判断+混配试验表生成","requirement":"原料化学规则+混配判断。","sandbox_role":"运行规则判断脚本；化学规则库和模型判断从外部模块读取。","risk_level":"high","needs_human_approval":true},
+  {"id":"s08_batch_media","scene":"场景8","name":"批量素材处理+字幕/配音/剪辑","requirement":"素材批量自动化加工。","sandbox_role":"隔离运行批处理脚本，限制 CPU、磁盘、时长，避免大文件任务拖垮主机。","risk_level":"medium","needs_human_approval":false},
+  {"id":"s09_short_video","scene":"场景9","name":"短视频端到端自动剪辑+配字幕配音+背景音乐","requirement":"端到端短视频自动化。","sandbox_role":"运行媒体处理工作流；MVP 只生成执行计划。","risk_level":"medium","needs_human_approval":false},
+  {"id":"s10_market_growth","scene":"场景10","name":"市场分析+客户来年产品量增长预测","requirement":"市场+客户双维预测。","sandbox_role":"运行预测计算脚本；大模型分析由 1.5 调度提供。","risk_level":"medium","needs_human_approval":false},
+  {"id":"s11_platform_rules","scene":"场景11","name":"多平台推流/限流规则自动适配","requirement":"平台规则库+内容适配建议。","sandbox_role":"隔离运行平台规则检查脚本，避免脚本直接发布内容。","risk_level":"high","needs_human_approval":true},
+  {"id":"s12_daily_price_trend","scene":"场景12","name":"上游原料价格每日趋势分析","requirement":"价格数据采集+趋势预测。","sandbox_role":"浏览器沙箱抓取白名单价格网页，输出趋势和异常。","risk_level":"medium","needs_human_approval":false},
+  {"id":"s13_material_photo_translation","scene":"场景13","name":"拍照识别原料属性+进口原料翻译","requirement":"图像识别+多语言翻译。","sandbox_role":"处理图片/OCR 结果；视觉识别和翻译模型通过 1.5 调用。","risk_level":"medium","needs_human_approval":false},
+  {"id":"s14_price_forecast","scene":"场景14","name":"原料价格波动分析+未来趋势预测","requirement":"年度价格波动特性+未来涨势预测。","sandbox_role":"运行价格波动和预测脚本。","risk_level":"medium","needs_human_approval":false},
+  {"id":"s15_contract_diff","scene":"场景15","name":"合同条款变动识别+合同归档","requirement":"合同条款差异对比+归档管理。","sandbox_role":"隔离运行合同文本对比脚本；归档写回必须走 1.10 和人机确认。","risk_level":"high","needs_human_approval":true},
+  {"id":"s16_quality_trace","scene":"场景16","name":"成品质量自动检测+质量追溯","requirement":"成品质量自动检测、质量追溯。","sandbox_role":"运行质量指标判断脚本；图像/仪器接入由 1.10 提供。","risk_level":"high","needs_human_approval":true},
+  {"id":"s17_stocking_reference","scene":"场景17","name":"库存+销售历史+市场预测的备货参考","requirement":"根据库存、包材库存、销售历史和市场前景提供备货参考。","sandbox_role":"运行备货测算脚本。","risk_level":"medium","needs_human_approval":false},
+  {"id":"s18_after_hours_review","scene":"场景18","name":"销售订单+新客户条件+合同非工作时间AI审查","requirement":"非工作时间快捷完成订单、新客户条件和合同审查。","sandbox_role":"隔离运行审查规则脚本；放行和驳回归人机协同。","risk_level":"high","needs_human_approval":true},
+  {"id":"s19_over_stock_warning","scene":"场景19","name":"跨部门同时下单超库存预警","requirement":"多个部门同时下单时自动计算实时库存和超量风险。","sandbox_role":"运行实时库存合并和预警脚本，输出超库存风险。","risk_level":"high","needs_human_approval":true},
+  {"id":"s20_purchase_plan","scene":"场景20","name":"采购计划分析+历史数据对比+未来需求预测","requirement":"对比历史数据，预测未来采购需求。","sandbox_role":"运行采购需求预测脚本。","risk_level":"medium","needs_human_approval":false}
+]

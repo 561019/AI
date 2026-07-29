@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Data Operation Engine Standard Response Envelope",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["status", "trace_id", "request_id", "data", "error"],
+      "properties": {"status": {"const": "success"}, "trace_id": {"type": "string"}, "request_id": {"type": "string"}, "task_id": {"type": "string"}, "data": {}, "error": {"type": "null"}}
+    },
+    {
+      "type": "object",
+      "required": ["status", "trace_id", "request_id", "task_id", "progress", "status_url", "error"],
+      "properties": {"status": {"const": "accepted"}, "trace_id": {"type": "string"}, "request_id": {"type": "string"}, "task_id": {"type": "string"}, "progress": {"type": "string"}, "status_url": {"type": "string"}, "error": {"type": "null"}}
+    },
+    {
+      "type": "object",
+      "required": ["status", "data", "error"],
+      "properties": {
+        "status": {"const": "failed"},
+        "data": {"type": "null"},
+        "error": {"type": "object", "required": ["code", "message", "details", "retryable"], "properties": {"code": {"type": "string"}, "message": {"type": "string"}, "details": {"type": "object"}, "retryable": {"type": "boolean"}}}
+      }
+    }
+  ]
+}

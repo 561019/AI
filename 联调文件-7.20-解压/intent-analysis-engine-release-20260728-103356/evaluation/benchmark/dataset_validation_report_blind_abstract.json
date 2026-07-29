@@ -1,0 +1,21 @@
+{
+  "total": 108,
+  "by_split": {
+    "validation": 108
+  },
+  "by_intent_category": {
+    "ambiguous_request": 8,
+    "clarification_evaluation": 6,
+    "colloquial_expression": 12,
+    "conflict_resolution": 5,
+    "context_dependency": 14,
+    "future_scope": 7,
+    "insufficient_information": 12,
+    "long_text_requirement": 6,
+    "multi_task_request": 7,
+    "negation_expression": 10,
+    "omitted_expression": 13,
+    "short_instruction": 8
+  },
+  "ids_are_unique": true
+}

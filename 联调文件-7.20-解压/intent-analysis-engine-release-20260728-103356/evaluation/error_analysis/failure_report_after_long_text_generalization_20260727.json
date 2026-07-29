@@ -1,0 +1,7 @@
+{
+  "source_report": "evaluation\\benchmark\\validation_report_after_long_text_generalization_20260727.json",
+  "split": "validation",
+  "total_failed": 0,
+  "by_error_type": {},
+  "failures": []
+}

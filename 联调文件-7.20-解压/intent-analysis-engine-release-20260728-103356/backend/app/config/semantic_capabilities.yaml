@@ -1,0 +1,893 @@
+capabilities:
+  - engine_code: ENG_DOCUMENT_TABLE_PARSING
+    task_type: DOCUMENT_TABLE_PARSE
+    task_name: 解析文档表格
+    description: 解析用户提供的文档、附件、表格、合同、发票或单据内容。
+    examples:
+      - 解析上传的销售明细Excel表格
+      - 读取合同附件里的表格
+      - 帮我识别这张发票里的字段和金额
+      - 把这个PDF里的表格内容提取出来
+      - 解析一下这个Word文档里的业务数据
+      - 导入附件里的订单明细
+      - 帮我读一下这个单据内容
+      - 抽取上传文件里的客户信息
+      - 看看这个表格里有哪些销售记录
+      - 把合同文件里的条款表格解析出来
+      - 帮我从附件中提取发票信息
+      - 识别这份报价单里的表格
+      - 读取上传Excel中的费用明细
+      - 解析客户名单附件
+      - 把这个采购单里的数据读出来
+      - 看一下文件里面的表格内容
+      - 提取PDF清单中的订单信息
+      - 帮我解析这份业务单据
+      - 把附件中的明细表导入
+      - 读取这张电子表格里的数据
+    keywords:
+      - 解析
+      - 表格
+      - 附件
+      - Excel
+    required_inputs:
+      - file
+
+  - engine_code: ENG_DOCUMENT_TABLE_PARSING
+    task_type: FILE_STRUCTURE_EXTRACT
+    task_name: 提取文件结构
+    description: 提取文件字段、目录、结构和表头信息。
+    examples:
+      - 提取这个Excel的字段结构
+      - 读取附件目录结构
+      - 附件目录结构是什么样
+      - 看看这个文件有哪些字段
+      - 帮我看一下附件的表头
+      - 识别这个Excel包含哪些列
+      - 提取上传文件的数据结构
+      - 看一下这个表的字段清单
+      - 帮我整理文件目录层级
+      - 这个附件的结构帮我列出来
+      - 读取文档里的章节目录
+      - 看看这个数据文件是什么格式
+      - 提取表格字段定义
+      - 帮我确认文件里的列名
+      - 看一下这份清单的字段组成
+      - 把附件结构说明列一下
+      - 提取这个模板的表头结构
+      - 文件中有哪些sheet和字段
+      - 识别数据文件的结构信息
+      - 帮我看这个上传表的目录和字段
+      - 确认上传表的列名和结构
+      - 看一下电子表字段组成
+      - 帮我梳理字段清单
+    keywords:
+      - 字段
+      - 结构
+      - 目录
+      - 列名
+      - 表头
+    required_inputs:
+      - file
+
+  - engine_code: ENG_EXTERNAL_SYSTEM_CONNECTOR
+    task_type: EXTERNAL_DATA_FETCH
+    task_name: 获取外部系统数据
+    description: 从CRM、ERP、OA、财务系统等外部系统获取业务数据。
+    examples:
+      - 从CRM系统获取客户资料
+      - 拉取ERP里的订单明细
+      - 到OA里查审批记录
+      - 从财务系统取付款数据
+      - 帮我同步CRM客户列表
+      - 拉一下SAP里的库存信息
+      - 从业务系统获取销售数据
+      - 查询金蝶里的凭证状态
+      - 从用友系统导出费用明细
+      - 去ERP看一下采购订单
+      - 获取飞书审批单数据
+      - 从钉钉拉取考勤记录
+      - 帮我拿到外部系统的合同清单
+      - 查一下CRM里的跟进记录
+      - 拉取财务系统本月回款
+      - 从系统里同步订单状态
+      - 获取OA流程里的申请信息
+      - 把ERP的商品资料拉出来
+      - 查询SAP供应商数据
+      - 从外部系统读取业务明细
+    keywords:
+      - CRM
+      - ERP
+      - 获取
+      - 拉取
+    required_inputs:
+      - external_system
+      - operation
+
+  - engine_code: ENG_EXTERNAL_SYSTEM_CONNECTOR
+    task_type: EXTERNAL_SYSTEM_SUBMIT
+    task_name: 提交外部系统
+    description: 向外部业务系统提交、推送、写入、更新或回传数据。
+    examples:
+      - 把审批结果回传到OA
+      - 推送客户资料到CRM
+      - 将提成计算结果写入财务系统
+      - 把订单状态更新到ERP
+      - 提交付款申请到OA
+      - 把生成的凭证同步到金蝶
+      - 回传发票识别结果
+      - 将客户名单导入CRM
+      - 把费用报销结果推送到用友
+      - 更新SAP里的库存记录
+      - 把审核通过的数据写回系统
+      - 提交业务单据到外部平台
+      - 将合同编号回写到CRM
+      - 同步审批状态到钉钉
+      - 把报表结果上传到财务系统
+      - 推送通知数据到企业微信
+      - 把计算结果提交给ERP
+      - 将客户分组结果写入CRM
+      - 回传处理结果到业务系统
+      - 把生成结果更新到外部系统
+      - 把处理结果同步回业务平台
+      - 将订单状态推送回业务平台
+      - 把审批结论回写到外部平台
+    keywords:
+      - 提交
+      - 推送
+      - 写入
+      - 回传
+      - 回写
+      - 推回
+    required_inputs:
+      - external_system
+      - operation
+
+  - engine_code: ENG_DATA_COLLECTION_AGGREGATION
+    task_type: DATA_QUERY_FETCH
+    task_name: 获取业务数据
+    description: 查询、获取、查看、拉取、导出业务数据、明细、记录或列表。
+    examples:
+      - 查询本月销售明细
+      - 获取客户列表
+      - 客户名单给我看一下
+      - 把客户信息调出来
+      - 看一下上个月订单明细
+      - 拉取各区域销售数据
+      - 帮我导出库存记录
+      - 列出高价值客户清单
+      - 找出本周新增客户
+      - 把销售人员名单给我
+      - 查询合同台账
+      - 获取费用报销记录
+      - 看看客户资料
+      - 调一下销售数据
+      - 把订单列表整理出来
+      - 查一下最近回款明细
+      - 获取产品销售记录
+      - 列出本月发票清单
+      - 把业务数据拿出来
+      - 查看客户信息
+    keywords:
+      - 查询
+      - 获取
+      - 明细
+      - 列表
+    required_inputs:
+      - data_source
+      - operation
+
+  - engine_code: ENG_DATA_COLLECTION_AGGREGATION
+    task_type: DATA_AGGREGATION_SUMMARY
+    task_name: 数据统计汇总
+    description: 对业务数据进行统计、汇总、合计或聚合。
+    examples:
+      - 统计销售金额
+      - 按区域汇总本月销售金额
+      - 汇总各部门费用
+      - 合计上个月订单数量
+      - 统计客户新增数量
+      - 帮我汇总一下回款金额
+      - 算一下各产品销售额合计
+      - 整理销售数据的总数
+      - 统计本季度收入
+      - 汇总库存数量
+      - 按渠道统计订单数
+      - 合计每个区域的利润
+      - 看看本月总销售额
+      - 帮我统计费用总额
+      - 汇总客户投诉数量
+      - 统计各销售人员业绩
+      - 按月份汇总收入
+      - 计算整体成本合计
+      - 整理出数据汇总表
+      - 做一个销售统计
+    keywords:
+      - 统计
+      - 汇总
+      - 合计
+      - 聚合
+    required_inputs:
+      - classification_field
+      - statistical_range
+      - summary_field
+
+  - engine_code: ENG_DATA_COLLECTION_AGGREGATION
+    task_type: DATA_ANALYSIS_GROUP_SUM
+    task_name: 分类求和
+    description: 按区域、产品、客户、部门、渠道等维度进行分类求和或合计。
+    examples:
+      - 按区域分类求和销售额
+      - 按产品合计数量
+      - 按客户汇总回款金额
+      - 按部门统计费用合计
+      - 按渠道求和订单金额
+      - 各区域销售金额分别是多少
+      - 帮我按销售人员合计业绩
+      - 按月份求和收入
+      - 各产品的销售额加总
+      - 按客户类型合计订单数
+      - 按门店汇总营业额
+      - 分区域统计利润合计
+      - 分产品算销售数量
+      - 分部门汇总成本
+      - 按业务线合计收入
+      - 各渠道费用求和
+      - 帮我做分类合计
+      - 按分类字段汇总金额
+      - 每个区域的订单金额求和
+      - 各客户贡献金额合计
+    keywords:
+      - 分类求和
+      - 按
+      - 求和
+      - 合计
+    required_inputs:
+      - classification_field
+      - summary_field
+
+  - engine_code: ENG_DATA_COLLECTION_AGGREGATION
+    task_type: DATA_ANALYSIS_PIVOT
+    task_name: 生成数据透视表
+    description: 生成或整理数据透视表。
+    examples:
+      - 生成销售数据透视表
+      - 做一张经营数据透视表
+      - 帮我按区域和产品做透视表
+      - 把销售明细整理成透视表
+      - 生成客户订单透视分析
+      - 用这张表做数据透视
+      - 按月份和渠道做透视表
+      - 帮我看一下透视汇总
+      - 生成费用数据透视表
+      - 整理一个销售透视表
+      - 把订单数据做成透视表
+      - 按部门和科目透视费用
+      - 做个客户维度的数据透视
+      - 生成产品销售透视
+      - 按销售人员做透视汇总
+      - 帮我把明细透视一下
+      - 创建库存透视表
+      - 做一张多维汇总透视表
+      - 按区域月份生成透视表
+      - 把经营数据透视出来
+    keywords:
+      - 透视表
+    required_inputs: []
+
+  - engine_code: ENG_DATA_COLLECTION_AGGREGATION
+    task_type: DATA_FILTER
+    task_name: 数据筛选
+    description: 筛选、过滤或找出符合条件的业务数据。
+    examples:
+      - 筛选高风险订单
+      - 过滤无效客户记录
+      - 找出逾期未回款客户
+      - 筛出金额大于一万的订单
+      - 过滤掉重复客户
+      - 帮我找高风险客户
+      - 把异常订单筛出来
+      - 找出低库存商品
+      - 筛选本月新增客户
+      - 过滤已取消订单
+      - 找出未开票合同
+      - 筛出销售额低于目标的区域
+      - 帮我挑出重点客户
+      - 过滤无效发票记录
+      - 找出超过账期的回款
+      - 筛选待处理工单
+      - 把风险较高的订单列出来
+      - 过滤不符合条件的数据
+      - 找一下异常库存记录
+      - 筛出需要复核的数据
+      - 把库存不足的物料挑出
+      - 筛出超期未付款客户
+      - 找出符合条件的数据批次
+      - 高风险客户清单
+      - 流失风险客户名单
+      - 异常门店列表
+      - 可疑客户群清单
+      - 需要跟进的风险对象名单
+    keywords:
+      - 筛选
+      - 过滤
+      - 挑出
+      - 找出
+      - 清单
+      - 名单
+    required_inputs: []
+
+  - engine_code: ENG_DATA_COLLECTION_AGGREGATION
+    task_type: DATA_SORT
+    task_name: 数据排序
+    description: 对业务数据进行排序、排名或排行。
+    examples:
+      - 按销售额排名
+      - 对客户列表排序
+      - 把订单金额从高到低排一下
+      - 按回款金额排行
+      - 生成销售人员业绩排名
+      - 客户贡献度排序
+      - 按库存数量升序排列
+      - 帮我做区域销售排名
+      - 产品销售额排个序
+      - 费用金额从大到小排序
+      - 按订单数量排名
+      - 看看客户成交额排行
+      - 把数据按日期排序
+      - 按利润率排一下
+      - 做一个门店销售排行榜
+      - 按逾期天数排序
+      - 合同金额排名
+      - 把发票按金额排列
+      - 按风险分从高到低排序
+      - 统计后按结果排名
+      - 订单金额帮我排个榜
+    keywords:
+      - 排序
+      - 排名
+    required_inputs: []
+
+  - engine_code: ENG_DATA_COLLECTION_AGGREGATION
+    task_type: COMPLAINT_INFORMATION_ORGANIZE
+    task_name: 投诉信息整理
+    description: 整理客户投诉、反馈、问题记录等信息。
+    examples:
+      - 整理客户投诉
+      - 梳理投诉信息
+      - 归档客户反馈记录
+      - 汇总投诉记录
+      - 帮我归类客户投诉
+      - 整理最近的售后问题
+      - 梳理用户反馈内容
+      - 把投诉明细分类
+      - 统计并整理投诉原因
+      - 客户投诉帮我归档
+      - 把问题反馈整理成清单
+      - 梳理本月投诉情况
+      - 整理客服记录里的问题
+      - 投诉内容帮我分类
+      - 把负面反馈整理出来
+      - 看看客户都投诉什么
+      - 汇总售后投诉信息
+      - 整理工单中的客户问题
+      - 梳理投诉主题
+      - 把客户意见归纳一下
+    keywords:
+      - 客户投诉
+      - 整理
+      - 投诉信息
+    required_inputs:
+      - data_object
+
+  - engine_code: ENG_RULE_CALCULATION
+    task_type: RULE_CALCULATION_GENERAL
+    task_name: 规则计算
+    description: 根据业务规则、政策、公式进行计算、核算或测算。
+    examples:
+      - 根据公式计算费用
+      - 按规则核算奖金
+      - 按政策测算补贴金额
+      - 计算客户折扣
+      - 核算绩效奖金
+      - 按规则算一下扣款
+      - 根据公式算税额
+      - 测算活动费用
+      - 帮我计算分摊金额
+      - 按制度核算报销额度
+      - 算一下成本分摊
+      - 根据政策计算奖励
+      - 按公式测算价格
+      - 核算费用报销金额
+      - 计算合同违约金
+      - 按规则算补偿金额
+      - 根据业务政策做测算
+      - 费用怎么算帮我核一下
+      - 按规则计算结算金额
+      - 把这笔费用按公式算出来
+    keywords:
+      - 计算
+      - 核算
+      - 规则
+      - 公式
+    required_inputs:
+      - calculation_policy
+      - calculation_basis
+
+  - engine_code: ENG_RULE_CALCULATION
+    task_type: RULE_CALCULATION_COMMISSION
+    task_name: 计算销售提成
+    description: 识别销售提成、佣金、销售人员奖金等需要按政策或规则计算的请求。
+    examples:
+      - 帮我看看销售人员奖金怎么算
+      - 帮我算一算销售提成
+      - 核一下各区域销售佣金
+      - 销售奖金按照政策算出来
+      - 计算销售提成
+      - 核算销售提成
+      - 算一下销售佣金
+      - 测算销售人员提成
+      - 看看销售提成该怎么算
+      - 帮忙整理奖励情况
+      - 销售提成
+      - 销售人员奖金
+      - 根据销售数据核算佣金
+      - 按上月销售数据计算提成
+      - 各区域提成帮我核一下
+      - 根据销售明细算奖金
+      - 提成政策套一下算结果
+      - 把销售奖金核算出来
+      - 销售奖励情况帮我看看
+      - 看看业务员提成金额
+    keywords:
+      - 销售提成
+      - 提成
+      - 佣金
+      - 奖金
+    required_inputs:
+      - calculation_policy
+      - sales_data_source
+      - statistical_range
+
+  - engine_code: ENG_ANALYTICS_FORECASTING
+    task_type: DATA_ANALYSIS_PROBLEM
+    task_name: 经营分析
+    description: 识别经营情况、业务表现、异常原因、风险和趋势洞察类分析请求。
+    examples:
+      - 最近经营情况怎么样
+      - 帮我分析一下经营表现
+      - 看看业务情况有什么问题
+      - 分析销售波动原因
+      - 经营情况
+      - 客户流失原因分析
+      - 看看收入下降是为什么
+      - 帮我诊断利润异常
+      - 分析库存风险
+      - 最近业务表现如何
+      - 看一下经营有没有异常
+      - 分析订单减少的原因
+      - 帮我做经营分析
+      - 业务风险帮我看一下
+      - 看看销售趋势有什么变化
+      - 分析客户投诉背后的原因
+      - 诊断回款变慢的问题
+      - 洞察本季度经营表现
+      - 帮忙看看业绩波动
+      - 最近经营数据说明什么
+      - 销售情况给我看一眼
+      - 渠道投入产出复盘
+      - 供应链周转情况分析
+      - 复盘渠道健康度
+      - 判断客户经营质量下滑信号
+      - 分析线索转化变差的问题
+    keywords:
+      - 经营情况
+      - 经营分析
+      - 业务表现
+      - 原因
+      - 复盘
+      - 健康度
+      - 投入产出
+      - 周转
+    required_inputs:
+      - analysis_object
+      - analysis_method
+
+  - engine_code: ENG_ANALYTICS_FORECASTING
+    task_type: DATA_ANALYSIS_YOY
+    task_name: 同比分析
+    description: 识别同比、去年同期对比、年度变化类分析请求。
+    examples:
+      - 分析本月销售额同比变化
+      - 和去年同期相比怎么样
+      - 看一下收入同比增长
+      - 做销售额同比分析
+      - 本季度利润同比如何
+      - 客户数量和去年同期比一下
+      - 同比去年销售表现
+      - 帮我算同比变化
+      - 对比去年同月订单数
+      - 看看费用同比是否上升
+      - 分析回款同比情况
+      - 本月成本同比变化
+      - 与去年同期收入对比
+      - 同比分析各区域销售
+      - 看看今年和去年差多少
+      - 订单金额同比趋势
+      - 客户投诉同比变化
+      - 库存周转同比怎么样
+      - 帮我做去年同期对比
+      - 本期和去年同期比一比
+    keywords:
+      - 同比
+      - 去年同期
+    required_inputs:
+      - summary_field
+      - statistical_range
+
+  - engine_code: ENG_ANALYTICS_FORECASTING
+    task_type: DATA_ANALYSIS_MOM
+    task_name: 环比分析
+    description: 识别环比、上期对比、月度连续变化类分析请求。
+    examples:
+      - 分析本月销售额环比变化
+      - 和上个月相比怎么样
+      - 看一下收入环比增长
+      - 做销售额环比分析
+      - 本周订单环比变化
+      - 利润环比下降原因
+      - 客户数量环比怎么样
+      - 比上期多了多少
+      - 帮我算环比变化
+      - 对比上月回款金额
+      - 费用环比是否上升
+      - 本月成本环比分析
+      - 与上期收入对比
+      - 环比分析各区域销售
+      - 看看这月和上月差多少
+      - 订单金额环比趋势
+      - 客户投诉环比变化
+      - 库存周转环比怎么样
+      - 帮我做上期对比
+      - 本期和上期比一比
+    keywords:
+      - 环比
+      - 上个月
+    required_inputs:
+      - summary_field
+      - statistical_range
+
+  - engine_code: ENG_ANALYTICS_FORECASTING
+    task_type: DATA_ANALYSIS_FORECAST
+    task_name: 预测分析
+    description: 识别预测、预估、未来趋势推演类分析请求。
+    examples:
+      - 预测下季度销售额趋势
+      - 预估未来三个月收入
+      - 看看下个月订单量可能是多少
+      - 帮我预测客户增长
+      - 未来销售走势怎么样
+      - 预估本季度利润
+      - 测算下半年经营趋势
+      - 预测库存消耗情况
+      - 未来回款大概怎样
+      - 帮忙推演销售趋势
+      - 预估下月费用
+      - 看看未来三个月风险
+      - 预测订单金额变化
+      - 推算明年收入规模
+      - 未来客户流失可能性
+      - 对销售趋势做预测
+      - 预判经营情况走势
+      - 帮我做趋势预测
+      - 下季度业绩大概多少
+      - 估一下未来收入
+    keywords:
+      - 预测
+      - 预估
+      - 趋势
+    required_inputs:
+      - analysis_object
+
+  - engine_code: ENG_KNOWLEDGE_QA
+    task_type: QUESTION_ANSWER
+    task_name: 智能问答
+    description: 识别政策、制度、规则解释等知识问答请求。
+    examples:
+      - 公司的报销政策是什么
+      - 解释一下销售政策
+      - 提成规则怎么理解
+      - 报销标准是多少
+      - 这个制度什么意思
+      - 告诉我差旅政策
+      - 销售奖金政策是什么
+      - 客户分级规则怎么定
+      - 为什么要这样计提
+      - 费用报销有哪些要求
+      - 帮我查一下制度说明
+      - 这个规则适用什么场景
+      - 知识库里有没有合同模板说明
+      - 问一下采购审批规则
+      - 如何理解回款政策
+      - 说明一下客户评级标准
+      - 这条政策怎么执行
+      - 报销需要哪些材料
+      - 公司制度里怎么规定
+      - 帮我回答一个政策问题
+    keywords:
+      - 政策
+      - 制度
+      - 问答
+    required_inputs:
+      - question
+
+  - engine_code: ENG_CONTENT_OUTPUT
+    task_type: DOCUMENT_GENERATE
+    task_name: 生成业务文档
+    description: 识别报告、文档、材料生成请求。
+    examples:
+      - 生成经营分析报告
+      - 写一份销售总结文档
+      - 输出客户分析报告
+      - 生成业务复盘材料
+      - 帮我写经营情况报告
+      - 起草一份销售分析文档
+      - 把数据整理成报告
+      - 生成月度经营报告
+      - 写一份费用分析材料
+      - 输出订单分析文档
+      - 帮我生成汇报材料
+      - 做一份客户情况报告
+      - 整理成管理层报告
+      - 写本月业务总结文档
+      - 生成项目复盘报告
+      - 起草经营分析材料
+      - 输出一份正式报告
+      - 帮我做销售报告
+      - 把分析结果写成文档
+      - 生成经营汇报材料
+      - 门店经营周报
+      - 营业额周报
+      - 渠道健康度月报
+      - 销售日报
+      - 续约经营季报
+    keywords:
+      - 报告
+      - 文档
+      - 材料
+      - 周报
+      - 月报
+      - 日报
+      - 季报
+    required_inputs:
+      - content_type
+      - topic
+
+  - engine_code: ENG_CONTENT_OUTPUT
+    task_type: CONTENT_GENERATE
+    task_name: 生成业务内容
+    description: 识别通知、文案、邮件、说明等文本内容生成请求。
+    examples:
+      - 写一份会议通知
+      - 起草一封客户邮件
+      - 帮我写产品说明
+      - 生成一段销售话术
+      - 写一份内部通知
+      - 起草活动文案
+      - 帮我输出客户沟通话术
+      - 写一个报销说明
+      - 生成消息推送内容
+      - 起草业务通知
+      - 帮我写邮件正文
+      - 输出一段宣传文案
+      - 写一个客户回访话术
+      - 生成培训通知
+      - 帮我整理说明文字
+      - 起草付款提醒邮件
+      - 写一份系统公告
+      - 生成客户告知内容
+      - 做一段产品介绍文案
+      - 写一个会议纪要摘要
+    keywords:
+      - 通知
+      - 文案
+      - 邮件
+    required_inputs:
+      - content_type
+      - topic
+
+  - engine_code: ENG_CONTENT_OUTPUT
+    task_type: IMPROVEMENT_PLAN_GENERATE
+    task_name: 生成方案
+    description: 识别改进方案、计划、处理建议等内容生成请求。
+    examples:
+      - 生成客户投诉改进方案
+      - 起草整改计划
+      - 帮我写处理建议
+      - 输出销售提升方案
+      - 生成经营改善方案
+      - 制定客户维护计划
+      - 帮我做投诉处理方案
+      - 起草服务改进计划
+      - 生成库存优化建议
+      - 写一份风险应对方案
+      - 帮我整理改进措施
+      - 做一个费用控制方案
+      - 输出客户流失改善计划
+      - 生成业绩提升计划
+      - 写一个流程优化方案
+      - 起草问题整改方案
+      - 帮我给出处理办法
+      - 生成运营改善建议
+      - 制定下一步行动计划
+      - 帮忙写改进方案
+    keywords:
+      - 改进方案
+      - 方案
+      - 计划
+    required_inputs:
+      - topic
+
+  - engine_code: ENG_MULTIMEDIA_GENERATION
+    task_type: MULTIMEDIA_GENERATE
+    task_name: 生成多媒体内容
+    description: 识别图片、海报、封面、视频、音频等多媒体生成请求。
+    examples:
+      - 生成一张新品发布海报
+      - 制作活动宣传图
+      - 设计产品封面
+      - 生成销售战报图片
+      - 做一个短视频脚本和封面
+      - 生成会议宣传海报
+      - 帮我做品牌配图
+      - 输出一张活动长图
+      - 生成客户案例图片
+      - 制作促销海报
+      - 设计公众号封面图
+      - 生成产品介绍视频
+      - 做一段宣传音频
+      - 帮我生成多媒体素材
+      - 画一张业务流程配图
+      - 生成培训课程封面
+      - 制作销售活动视频
+      - 输出活动邀请海报
+      - 帮我做宣传图片
+      - 生成营销物料图片
+    keywords:
+      - 图片
+      - 海报
+      - 视频
+      - 音频
+    required_inputs:
+      - media_type
+      - topic
+
+  - engine_code: ENG_WORKFLOW_EXECUTION
+    task_type: PROCESS_HANDLE
+    task_name: 办理业务流程
+    description: 识别需要办理、流转或处理的业务流程任务。
+    examples:
+      - 办理报销流程
+      - 处理采购工单
+      - 帮我推进审批流程
+      - 流转付款申请
+      - 处理这个业务流程
+      - 办一下请假审批
+      - 跟进立项流程
+      - 推进合同审批
+      - 处理客户工单
+      - 办理费用报销
+      - 帮我走完这个流程
+      - 处理采购申请单
+      - 流转销售审批
+      - 办理付款流程
+      - 跟一下审批进度
+      - 处理待办工单
+      - 帮我完成流程办理
+      - 推进报销审批
+      - 办理业务申请
+      - 处理流程节点
+    keywords:
+      - 办理
+      - 流程
+      - 工单
+    required_inputs:
+      - process_name
+
+  - engine_code: ENG_WORKFLOW_EXECUTION
+    task_type: WORKFLOW_START
+    task_name: 发起业务流程
+    description: 识别发起、提交、启动、创建审批流程的请求。
+    examples:
+      - 发起采购审批流程
+      - 提交付款申请
+      - 启动报销流程
+      - 创建请假审批
+      - 发起立项申请
+      - 提交合同审批
+      - 帮我走一个采购流程
+      - 新建付款审批
+      - 发起费用报销
+      - 启动业务工单
+      - 创建采购申请
+      - 提交销售折扣审批
+      - 发起客户准入流程
+      - 开一个审批单
+      - 帮我提交流程
+      - 发起用章申请
+      - 创建付款申请单
+      - 提交项目审批
+      - 启动合同流程
+      - 发起新的工单
+    keywords:
+      - 发起
+      - 审批
+      - 采购
+    required_inputs:
+      - process_name
+
+  - engine_code: ENG_MONITORING_REMINDER
+    task_type: MONITORING_REMINDER
+    task_name: 创建监控提醒
+    description: 识别监控、预警、告警、通知、到期提醒等请求。
+    examples:
+      - 库存低于100时提醒我
+      - 合同到期前通知我
+      - 监控回款逾期情况
+      - 销售额低于目标预警
+      - 订单超过三天未处理提醒
+      - 客户流失风险告警
+      - 到期付款提醒我
+      - 每天推送库存异常
+      - 设置费用超预算提醒
+      - 监控高风险订单
+      - 合同快到期时告警
+      - 回款超过账期提醒
+      - 库存少于安全值通知
+      - 订阅销售日报提醒
+      - 当订单金额超过阈值提醒
+      - 监控客户投诉增长
+      - 设置审批超时提醒
+      - 每周提醒我看经营数据
+      - 创建风险预警
+      - 到期事项自动通知我
+    keywords:
+      - 提醒
+      - 监控
+      - 预警
+      - 到期
+    required_inputs:
+      - monitoring_object
+      - trigger_condition
+
+  - engine_code: ENG_DIGITAL_ASSET
+    task_type: DIGITAL_ASSET_ACCRUAL_VOUCHER
+    task_name: 创建数字资产凭证
+    description: 识别计提凭证、会计凭证、记账凭证、业务单据等数字资产创建请求。
+    examples:
+      - 根据本月提成计算结果生成计提凭证
+      - 生成会计凭证
+      - 生成计提凭证
+      - 根据销售提成结果生成凭证
+      - 创建记账凭证
+      - 把计算结果做成凭证
+      - 生成业务单据
+      - 登记数字资产凭证
+      - 根据费用计提结果生成凭证
+      - 制作会计凭证
+      - 开具业务凭证
+      - 归档这张电子单据
+      - 按提成结果创建凭证
+      - 生成销售奖金计提凭证
+      - 把计提结果转成凭证
+      - 创建应计凭证
+      - 生成财务入账凭证
+      - 根据核算结果登记凭证
+      - 生成本月提成凭证
+      - 把业务结果生成数字资产
+    keywords:
+      - 计提凭证
+      - 凭证
+      - 单据
+    required_inputs:
+      - asset_type
+      - source_result

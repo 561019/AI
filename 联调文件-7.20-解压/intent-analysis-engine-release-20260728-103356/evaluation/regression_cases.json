@@ -1,0 +1,32 @@
+[
+  {
+    "text": "筛选高风险订单",
+    "previous_result": "ENG_ANALYTICS_FORECASTING / DATA_ANALYSIS_PROBLEM",
+    "expected_result": "ENG_DATA_COLLECTION_AGGREGATION / DATA_FILTER",
+    "reason": "宽泛的风险分析关键词优先于明确的筛选动作。"
+  },
+  {
+    "text": "生成经营分析报告",
+    "previous_result": "ENG_ANALYTICS_FORECASTING / DATA_ANALYSIS_PROBLEM",
+    "expected_result": "ENG_CONTENT_OUTPUT / DOCUMENT_GENERATE",
+    "reason": "报告生成动作被分析关键词抢占。"
+  },
+  {
+    "text": "附件目录结构是什么样",
+    "previous_result": "ENG_DOCUMENT_TABLE_PARSING / DOCUMENT_TABLE_PARSE",
+    "expected_result": "ENG_DOCUMENT_TABLE_PARSING / FILE_STRUCTURE_EXTRACT",
+    "reason": "文件结构类口语表达没有被语义能力库充分覆盖。"
+  },
+  {
+    "text": "客户名单给我看一下",
+    "previous_result": "fallback / clarification",
+    "expected_result": "ENG_DATA_COLLECTION_AGGREGATION / DATA_QUERY_FETCH",
+    "reason": "客户名单查看类口语表达没有被语义能力库充分覆盖。"
+  },
+  {
+    "text": "把上个月各区域销售数据整理出来，算提成，再生成凭证",
+    "previous_result": "single_task_or_fallback",
+    "expected_result": "ENG_DATA_COLLECTION_AGGREGATION / DATA_QUERY_FETCH -> ENG_RULE_CALCULATION / RULE_CALCULATION_COMMISSION -> ENG_DIGITAL_ASSET / DIGITAL_ASSET_ACCRUAL_VOUCHER",
+    "reason": "多动作请求需要拆成获取销售明细、计算销售提成、生成计提凭证三个独立任务。"
+  }
+]

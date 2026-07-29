@@ -1,0 +1,747 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>多媒体生成引擎 v1.1 任务适配版</title>
+<style>
+:root{
+  --bg:#f5f7f8;--panel:#fff;--ink:#172635;--muted:#657384;--line:#d9e2ea;
+  --blue:#1f5f8b;--green:#2f7a4c;--red:#a63c35;--amber:#9b6500;
+  --soft-blue:#eef6fb;--soft-green:#edf8f1;--soft-red:#fff2f0;--soft-amber:#fff8e8;
+  --shadow:0 10px 24px rgba(24,38,52,.08)
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",Arial,sans-serif;overflow-x:hidden}
+header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line);padding:14px 20px;display:flex;justify-content:space-between;align-items:center;gap:16px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:50px;height:50px;border-radius:8px;background:var(--blue);color:#fff;display:grid;place-items:center;font-weight:900}
+h1{margin:0;font-size:22px}
+.sub{font-size:12px;color:var(--muted);line-height:1.5;margin-top:4px}
+.status{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:7px 10px;font-size:12px;font-weight:900;background:#eef4f8;color:#17384f;white-space:nowrap}
+.status.ok{background:#e8f6ee;color:var(--green);border-color:#b9dfca}
+.status.bad{background:#fff0ef;color:var(--red);border-color:#e7b9b5}
+.status.warn{background:#fff6df;color:var(--amber);border-color:#efd392}
+.layout{max-width:1760px;margin:0 auto;padding:18px;display:grid;grid-template-columns:420px minmax(0,1fr);gap:16px}
+.side,.section{background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:16px;min-width:0}
+.side{position:sticky;top:88px;align-self:start;max-height:calc(100vh - 106px);overflow:auto}
+.main{display:grid;gap:16px;min-width:0}
+.title{font-weight:900;color:#173c59;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+label{display:block;font-size:12px;color:#536579;font-weight:900;margin:12px 0 6px}
+input,select,textarea{width:100%;border:1px solid #cbd7e1;border-radius:8px;background:#fbfdff;color:var(--ink);padding:10px 11px;font:inherit}
+textarea{min-height:118px;resize:vertical;line-height:1.55}
+.buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+button{border:0;border-radius:8px;padding:10px 12px;font-weight:900;cursor:pointer;background:var(--blue);color:#fff;box-shadow:0 8px 16px rgba(31,95,139,.16)}
+button.secondary{background:#edf3f7;color:#17364f;box-shadow:none}
+button:disabled{opacity:.5;cursor:not-allowed}
+.hint{font-size:12px;color:var(--muted);line-height:1.65}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.grid2>*,.grid4>*{min-width:0}
+.metric{border:1px solid #dce6ee;background:#f9fbfd;border-radius:8px;padding:12px;min-height:82px}
+.metric .cap{font-size:12px;color:var(--muted);font-weight:800}
+.metric .num{font-size:21px;font-weight:900;color:var(--blue);margin-top:6px;word-break:break-word}
+.dispatchBox{border:1px solid #d8e4ed;background:#f9fcfe;border-radius:8px;padding:12px}
+.dispatchHead{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:10px}
+.dispatchId{font-size:20px;font-weight:900;color:var(--blue);word-break:break-all}
+.kvGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.kv{border:1px solid #dfe8ef;background:#fff;border-radius:8px;padding:9px;min-width:0}
+.kv.wide{grid-column:1/-1}
+.kvLabel{font-size:12px;color:var(--muted);font-weight:900;margin-bottom:5px}
+.kvValue{font-size:13px;line-height:1.55;word-break:break-word;white-space:pre-wrap}
+details.manual{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+details.manual summary{cursor:pointer;font-weight:900;color:#173c59}
+.flowHeader{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
+.flowHeader h2{margin:0;font-size:17px;color:#173c59}
+.legend{display:flex;gap:9px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px}
+.dot.done{background:var(--green)}.dot.run{background:var(--amber)}.dot.fail{background:var(--red)}.dot.wait{background:#9aa8b5}
+.flowTrack{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;padding-bottom:3px;min-width:0;max-width:100%}
+.flowNode{min-width:132px;flex:1 1 132px;border:1px solid #d7e2ea;background:#fbfdff;border-radius:8px;padding:12px;position:relative}
+.flowNode.completed{background:var(--soft-green);border-color:#a8d8bd}
+.flowNode.running{background:var(--soft-amber);border-color:#e2c37b}
+.flowNode.failed{background:var(--soft-red);border-color:#dfb0ab}
+.flowNode.pending{background:#f7f9fb;border-style:dashed;color:#596a78}
+.flowNode.reserved,.flowNode.skipped{background:#f8fafc;border-style:dashed;color:#687887}
+.flowNodeTitle{font-weight:900;color:#173c59;margin-bottom:7px}
+.flowNodeSub{font-size:12px;line-height:1.45;color:#4f6274;word-break:break-word}
+.connector{align-self:center;color:#8aa0b2;font-weight:900}
+.flowNote{margin-top:10px;border-top:1px solid var(--line);padding-top:10px;font-size:12px;color:var(--muted);line-height:1.65}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tab{border:1px solid #d7e4ed;background:#edf4f8;color:#17384f;border-radius:999px;padding:7px 10px;font-weight:900;font-size:12px;cursor:pointer;box-shadow:none}
+.tab.active{background:var(--blue);color:#fff}
+.panel{display:none}.panel.active{display:block}
+.json,.xml,.log{height:420px;overflow:auto;border-radius:8px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.55;white-space:pre-wrap;background:#f8fbfd;border:1px solid #dbe6ee;color:#23384c}
+.log{background:#102538;color:#d8ebf8}
+.cards{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.card{border:1px solid #dbe6ee;background:#fbfdff;border-radius:8px;padding:12px}
+.card h3{margin:0 0 6px;font-size:17px;color:#173c59}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}
+.chip{border:1px solid #cbd7e2;background:#fff;border-radius:999px;padding:5px 8px;font-size:12px;font-weight:800;color:#304b63}
+.chip.green{border-color:#a8d3ba;color:#2f7148;background:#f3fbf6}
+.chip.red{border-color:#d6aaa5;color:#8f3028;background:#fff8f7}
+.toast{position:fixed;right:20px;bottom:20px;background:#102f45;color:#fff;padding:12px 14px;border-radius:8px;box-shadow:var(--shadow);opacity:0;transform:translateY(10px);transition:.2s;z-index:20}
+.toast.show{opacity:1;transform:translateY(0)}
+.resultBox{border:1px solid #dbe6ee;background:#fbfdff;border-radius:8px;padding:14px}
+.resultHead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.resultHead h2{margin:0;font-size:17px;color:#173c59}
+.resultBadge{border:1px solid #cbd7e2;background:#f2f7fb;color:var(--blue);border-radius:999px;padding:5px 9px;font-size:12px;font-weight:900}
+.resultGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.resultField{border:1px solid #dbe6ee;background:#fff;border-radius:8px;padding:11px;min-width:0}
+.resultField.wide{grid-column:1/-1}
+.resultLabel{font-size:12px;color:var(--muted);font-weight:900;margin-bottom:6px}
+.resultText{white-space:pre-wrap;word-break:break-word;line-height:1.65;color:#1b3146}
+.resultEmpty{border:1px dashed #cbd7e2;background:#f8fbff;color:var(--muted);border-radius:8px;padding:12px}
+.mediaPreview{display:grid;gap:10px}
+.mediaPreview img,.mediaPreview video{max-width:100%;border:1px solid var(--line);border-radius:8px;background:#eef3f7}
+@media(max-width:1200px){.layout{grid-template-columns:1fr}.side{position:static;max-height:none}.grid2,.grid4,.cards,.resultGrid{grid-template-columns:1fr}.kvGrid{grid-template-columns:1fr}.flowTrack{display:grid}}
+@media(max-width:720px){header{display:block}.layout{padding:10px}.metric .num{font-size:18px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">M11</div>
+    <div>
+      <h1>多媒体生成引擎 v1.1 任务适配版</h1>
+      <div class="sub">承接流程执行引擎派发子任务 · 本引擎边界内任务归一 · 调用本地知识库 · 生成多媒体方案/提示词</div>
+    </div>
+  </div>
+  <span class="status" id="backendStatus">连接中</span>
+</header>
+
+<div class="layout">
+  <aside class="side">
+    <div class="title">
+      <span>子任务派发显示</span>
+      <span class="status warn" id="receiveState">等待派发</span>
+    </div>
+    <div class="dispatchBox" id="dispatchBox"></div>
+    <div class="buttons">
+      <button class="secondary" id="loadLatestBtn">接收最新派发</button>
+      <button class="secondary" id="resetBtn">清空记录</button>
+    </div>
+    <p class="hint">这里自动读取多媒体接口收到的最新子任务。流程执行引擎派发后，会显示真人、任务类型、能力接口位、流程编号和需求摘要。</p>
+
+    <details class="manual">
+      <summary>本地手动模拟派发</summary>
+      <label>当前真人</label>
+      <select id="actor">
+        <option value="U001">U001 · 产品推广专员</option>
+        <option value="U002">U002 · 品牌负责人</option>
+        <option value="U004">U004 · 安全审计员</option>
+      </select>
+      <label>取材任务类型</label>
+      <select id="taskType">
+        <option value="multimedia_poster">multimedia_poster · 多媒体海报素材取材</option>
+        <option value="hot_case_reuse">hot_case_reuse · 爆款案例复用取材</option>
+        <option value="product_video">product_video · 产品视频素材取材</option>
+        <option value="video_editing">video_editing · 视频剪接素材取材</option>
+        <option value="fixed_short_video">fixed_short_video · 固定短视频素材取材</option>
+        <option value="text_to_speech">text_to_speech · 语音合成素材取材</option>
+        <option value="media_processing">media_processing · 音画合成/媒体处理素材取材</option>
+      </select>
+      <label>能力接口位</label>
+      <select id="capability">
+        <option value="text_to_image">text_to_image · 文生图（首批，可联调方案/提示词）</option>
+        <option value="text_to_video">text_to_video · 文生视频（预留接口位）</option>
+        <option value="video_editing">video_editing · 视频剪接（首批，可联调剪辑方案）</option>
+        <option value="fixed_short_video">fixed_short_video · 固定类别短视频制作（首批，可联调分镜/脚本）</option>
+        <option value="digital_human">digital_human · 数字人制作（预留接口位）</option>
+        <option value="text_to_speech">text_to_speech · 文字转语音（首批，可联调语音方案）</option>
+        <option value="media_processing">media_processing · 音画合成与媒体处理（首批，可联调处理方案）</option>
+        <option value="music_sound">music_sound · 音乐音效生成（预留接口位）</option>
+        <option value="multilingual_version">multilingual_version · 多语种翻译版本（预留接口位）</option>
+      </select>
+      <label>L4 原始任务 / 子任务需求</label>
+      <textarea id="requirement">请根据智能监测设备的产品资料、品牌规范、Logo、产品图和爆款海报案例，生成一份可用于文生图的产品宣传海报制作方案和提示词。</textarea>
+      <label><input type="checkbox" id="useLLM" checked style="width:auto"> 真实调用文本大模型生成方案/提示词（不是直接生成图片）</label>
+      <div class="buttons">
+        <button id="runBtn">模拟派发到多媒体</button>
+      </div>
+      <p class="hint">手动模拟走同一个接口，方便不打开流程执行引擎时单独测试多媒体承办链路。</p>
+    </details>
+  </aside>
+
+  <main class="main">
+    <section class="section">
+      <div class="title">配置状态 <span class="status" id="configStatus">读取中</span></div>
+      <div class="grid4">
+        <div class="metric"><div class="cap">知识库地址</div><div class="num" id="kbBase">-</div></div>
+        <div class="metric"><div class="cap">模型</div><div class="num" id="modelName">-</div></div>
+        <div class="metric"><div class="cap">Key</div><div class="num" id="keyState">-</div></div>
+        <div class="metric"><div class="cap">任务状态</div><div class="num" id="taskState">-</div></div>
+      </div>
+      <div class="grid2" style="margin-top:12px">
+        <div>
+          <label>LLM_PROTOCOL</label>
+          <select id="llmProtocol">
+            <option value="openai_compatible">openai_compatible</option>
+            <option value="anthropic">anthropic</option>
+          </select>
+        </div>
+        <div>
+          <label>LITELLM_BASE</label>
+          <input id="litellmBase" placeholder="例如 https://...">
+        </div>
+        <div>
+          <label>KIMI_MODEL</label>
+          <input id="kimiModel" placeholder="模型名">
+        </div>
+        <div>
+          <label>LITELLM_KEY</label>
+          <input id="litellmKey" placeholder="只保存在本地 .env">
+        </div>
+        <div>
+          <label>KB_BASE</label>
+          <input id="kbBaseInput" value="http://127.0.0.1:8012">
+        </div>
+      </div>
+      <div class="buttons">
+        <button class="secondary" id="saveConfigBtn">保存本地配置</button>
+        <button class="secondary" id="testLLMBtn">测试 LLM 连接</button>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="title">联调摘要</div>
+      <div class="grid4">
+        <div class="metric"><div class="cap">多媒体任务编号</div><div class="num" id="taskId">-</div></div>
+        <div class="metric"><div class="cap">上游流程编号</div><div class="num" id="flowId">-</div></div>
+        <div class="metric"><div class="cap">知识库返回</div><div class="num" id="materialCount">-</div></div>
+        <div class="metric"><div class="cap">LLM 模式</div><div class="num" id="llmMode">-</div></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="flowHeader">
+        <h2>平台派发链路</h2>
+        <div class="legend">
+          <span><i class="dot done"></i>完成</span>
+          <span><i class="dot run"></i>运行/等待</span>
+          <span><i class="dot fail"></i>失败</span>
+          <span><i class="dot wait"></i>未执行/未启用</span>
+        </div>
+      </div>
+      <div class="flowTrack" id="platformFlow"></div>
+      <div class="flowNote">展示口径：流程执行引擎是派发方；图文一体任务由流程执行引擎拆成文字子任务和多媒体子任务，内容产出引擎只承办文字，多媒体生成引擎只承办图片、视频、音频与素材管理，两者不直接互相调用。</div>
+    </section>
+
+    <section class="section">
+      <div class="flowHeader">
+        <h2>多媒体承办内部流程</h2>
+        <span class="status" id="internalFlowState">等待子任务</span>
+      </div>
+      <div class="flowTrack" id="internalFlow"></div>
+      <div class="flowNote">流程口径按 07.17 资料调整为六步：核对子任务六项、判定成果类型与爆款模式、取素材与风格参考、调用能力接口位、组装核查加标识、三种出口判定。当前联调版真实跑通知识库取材与文本 LLM 方案生成，真实图片/视频生成和文件级显隐式标识仍待后续接口挂接。</div>
+    </section>
+
+    <section class="section">
+      <div class="resultBox">
+        <div class="resultHead">
+          <h2>生成结果展示</h2>
+          <span class="resultBadge" id="resultBadge">等待生成</span>
+        </div>
+        <div id="resultDisplay" class="resultEmpty">收到子任务并运行后，这里会优先展示排版后的提示词；后续接入图片或视频生成服务后，也会在这里展示媒体结果。</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="tabs">
+        <button class="tab active" data-tab="materials">知识库素材</button>
+        <button class="tab" data-tab="xml">XML 上下文</button>
+        <button class="tab" data-tab="messages">LLM Messages</button>
+        <button class="tab" data-tab="llm">LLM 返回</button>
+        <button class="tab" data-tab="refs">引用字段</button>
+        <button class="tab" data-tab="events">事件</button>
+        <button class="tab" data-tab="json">完整 JSON</button>
+      </div>
+      <div class="panel active" id="panel-materials"><div class="cards" id="materials"></div></div>
+      <div class="panel" id="panel-xml"><div class="xml" id="xmlBox">暂无。</div></div>
+      <div class="panel" id="panel-messages"><div class="json" id="messagesBox">暂无。</div></div>
+      <div class="panel" id="panel-llm"><div class="json" id="llmBox">暂无。</div></div>
+      <div class="panel" id="panel-refs"><div class="json" id="refsBox">暂无。</div></div>
+      <div class="panel" id="panel-events"><div class="log" id="eventsBox">暂无。</div></div>
+      <div class="panel" id="panel-json"><div class="json" id="jsonBox">暂无。</div></div>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = location.origin.startsWith('http') ? location.origin : 'http://127.0.0.1:8013';
+let config = null;
+let current = null;
+let lastSeenTaskId = null;
+let progressTimer = null;
+const $ = id => document.getElementById(id);
+const CAPABILITY_OUTPUT_TYPES = {
+  text_to_image: 'image_plan',
+  text_to_video: 'video_plan',
+  video_editing: 'video_edit_plan',
+  fixed_short_video: 'short_video_plan',
+  digital_human: 'digital_human_plan',
+  text_to_speech: 'speech_plan',
+  media_processing: 'media_processing_plan',
+  music_sound: 'music_sound_plan',
+  multilingual_version: 'multilingual_plan'
+};
+const CAPABILITY_TASK_TYPES = {
+  text_to_image: 'multimedia_poster',
+  text_to_video: 'product_video',
+  video_editing: 'video_editing',
+  fixed_short_video: 'fixed_short_video',
+  digital_human: 'product_video',
+  text_to_speech: 'text_to_speech',
+  media_processing: 'media_processing',
+  music_sound: 'product_video',
+  multilingual_version: 'product_video'
+};
+
+function escapeHtml(value){
+  return String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+}
+function toast(message){
+  $('toast').textContent = message;
+  $('toast').classList.add('show');
+  setTimeout(() => $('toast').classList.remove('show'), 2600);
+}
+async function api(path, opts = {}){
+  const res = await fetch(API + path, {headers:{'Content-Type':'application/json'}, ...opts});
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); } catch { data = text; }
+  if (!res.ok) throw new Error(typeof data === 'string' ? data : JSON.stringify(data));
+  return data;
+}
+function friendlyStatus(status){
+  const names = {received:'已接收',running:'运行中',completed:'已完成',llm_failed:'LLM 失败',failed:'失败',unable_to_handle:'无法办理'};
+  return names[status] || status || '等待';
+}
+function statusClass(status){
+  if (status === 'completed') return 'ok';
+  if (status === 'failed' || status === 'llm_failed' || status === 'unable_to_handle') return 'bad';
+  if (status === 'running' || status === 'received') return 'warn';
+  return 'warn';
+}
+
+async function loadConfig(){
+  config = await api('/api/config');
+  $('backendStatus').textContent = '后端已连接';
+  $('backendStatus').className = 'status ok';
+  $('configStatus').textContent = config.ready_for_llm ? 'LLM 配置齐全' : 'LLM 配置不完整';
+  $('configStatus').className = config.ready_for_llm ? 'status ok' : 'status warn';
+  $('kbBase').textContent = config.kb_base;
+  $('modelName').textContent = config.kimi_model || '-';
+  $('keyState').textContent = config.litellm_key_masked || '-';
+  $('llmProtocol').value = config.llm_protocol || 'openai_compatible';
+  $('litellmBase').value = config.litellm_base || '';
+  $('kimiModel').value = config.kimi_model || '';
+  $('kbBaseInput').value = config.kb_base || 'http://127.0.0.1:8012';
+}
+async function saveConfig(){
+  const payload = {
+    kb_base: $('kbBaseInput').value,
+    llm_protocol: $('llmProtocol').value,
+    litellm_base: $('litellmBase').value,
+    kimi_model: $('kimiModel').value
+  };
+  if ($('litellmKey').value.trim()) payload.litellm_key = $('litellmKey').value.trim();
+  await api('/api/config', {method:'POST', body:JSON.stringify(payload)});
+  $('litellmKey').value = '';
+  await loadConfig();
+  toast('配置已保存到本地 .env');
+}
+async function testLLM(){
+  $('testLLMBtn').disabled = true;
+  try {
+    const data = await api('/api/llm/test', {method:'POST'});
+    $('llmBox').textContent = JSON.stringify(data, null, 2);
+    toast('LLM 连接正常');
+  } catch (err) {
+    $('llmBox').textContent = err.message;
+    toast('LLM 连接失败：请检查地址、端口、网络和模型名');
+  } finally {
+    $('testLLMBtn').disabled = false;
+  }
+}
+
+function latestTaskFromStore(data){
+  const items = Object.values(data || {}).filter(Boolean);
+  items.sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+  return items[0] || null;
+}
+async function loadLatestTask({silent = false} = {}){
+  const data = await api('/api/tasks');
+  const latest = latestTaskFromStore(data);
+  if (!latest) {
+    current = null;
+    lastSeenTaskId = null;
+    renderEmpty();
+    return;
+  }
+  const isNew = latest.task_id !== lastSeenTaskId;
+  current = latest;
+  lastSeenTaskId = latest.task_id;
+  renderAll();
+  if (isNew && !silent) toast(`收到子任务：${latest.task_id}`);
+}
+async function runManual(){
+  $('runBtn').disabled = true;
+  const payload = {
+    actor_id: $('actor').value,
+    task_type: $('taskType').value,
+    capability_id: $('capability').value,
+    output_type: CAPABILITY_OUTPUT_TYPES[$('capability').value] || 'media_plan',
+    requirement: $('requirement').value,
+    top_k: 10,
+    use_llm: $('useLLM').checked,
+    source_engine: 'media_page_manual',
+    source_engine_name: '多媒体页面手动模拟派发'
+  };
+  clearInterval(progressTimer);
+  progressTimer = setInterval(() => loadLatestTask({silent:true}).catch(() => {}), 900);
+  try {
+    current = await api('/api/integration/run', {method:'POST', body:JSON.stringify(payload)});
+    renderAll();
+    toast('多媒体承办完成');
+  } catch (err) {
+    toast(err.message);
+    try {
+      const detail = JSON.parse(err.message).detail;
+      current = detail;
+      renderAll();
+    } catch {}
+  } finally {
+    clearInterval(progressTimer);
+    progressTimer = null;
+    $('runBtn').disabled = false;
+    loadLatestTask({silent:true}).catch(() => {});
+  }
+}
+async function reset(){
+  await api('/api/reset', {method:'POST'});
+  current = null;
+  lastSeenTaskId = null;
+  renderEmpty();
+  toast('已清空');
+}
+
+function renderAll(){
+  renderDispatch();
+  renderSummary();
+  renderFlows();
+  renderDetails();
+  renderResultDisplay();
+}
+function renderEmpty(){
+  current = null;
+  renderDispatch();
+  renderSummary();
+  renderFlows();
+  renderDetails();
+  renderResultDisplay();
+}
+function renderDispatch(){
+  const state = $('receiveState');
+  const box = $('dispatchBox');
+  if (!current) {
+    state.textContent = '等待派发';
+    state.className = 'status warn';
+    box.innerHTML = '<div class="hint">尚未收到流程执行引擎派发的子任务。可以先在流程执行引擎页面启动流程，也可以展开下方手动模拟派发。</div>';
+    return;
+  }
+  state.textContent = friendlyStatus(current.status);
+  state.className = `status ${statusClass(current.status)}`;
+  const source = current.source_engine_name || current.source_engine || '流程执行引擎 / 本地联调入口';
+  box.innerHTML = `
+    <div class="dispatchHead">
+      <div>
+        <div class="kvLabel">多媒体子任务编号</div>
+        <div class="dispatchId">${escapeHtml(current.task_id || '-')}</div>
+      </div>
+      <span class="status ${statusClass(current.status)}">${escapeHtml(friendlyStatus(current.status))}</span>
+    </div>
+    <div class="kvGrid">
+      ${kv('派发来源', source)}
+      ${kv('接收时间', current.created_at || '-')}
+      ${kv('上游流程编号', current.parent_flow_id || '-')}
+      ${kv('Trace ID', current.trace_id || '-')}
+      ${kv('上游内容任务', current.upstream_content_task_id || '-')}
+      ${kv('真人', current.actor_id || '-')}
+      ${kv('任务类型', current.task_type || '-')}
+      ${kv('能力接口位', current.capability_id || '-')}
+      ${kv('产出类型', current.output_type || '-')}
+      ${current.upstream_content_summary ? kv('内容产出摘要', current.upstream_content_summary, 'wide') : ''}
+      ${kv('子任务需求', current.requirement || '-', 'wide')}
+    </div>`;
+}
+function kv(label, value, cls = ''){
+  return `<div class="kv ${cls}"><div class="kvLabel">${escapeHtml(label)}</div><div class="kvValue">${escapeHtml(value)}</div></div>`;
+}
+function renderSummary(){
+  $('taskState').textContent = current ? friendlyStatus(current.status) : '-';
+  $('taskId').textContent = current?.task_id || '-';
+  $('flowId').textContent = current?.parent_flow_id || '-';
+  $('materialCount').textContent = current?.material_package?.materials?.length ?? '-';
+  $('llmMode').textContent = current?.llm_result?.mode || '-';
+}
+function eventFor(step){
+  const events = current?.events || [];
+  return [...events].reverse().find(item => item.step === step);
+}
+function nodeStatusForEvent(step){
+  if (!current) return 'pending';
+  const event = eventFor(step);
+  if (!event) return current.status === 'running' ? 'running' : 'pending';
+  if (event.status === 'ok') return 'completed';
+  if (event.status === 'running') return 'running';
+  if (event.status === 'failed') return 'failed';
+  return 'pending';
+}
+function finalStatus(){
+  if (!current) return 'pending';
+  if (current.status === 'completed') return 'completed';
+  if (current.status === 'failed' || current.status === 'llm_failed' || current.status === 'unable_to_handle') return 'failed';
+  return 'running';
+}
+function derivedStatus(step, fallback = 'pending'){
+  const direct = nodeStatusForEvent(step);
+  if (direct !== 'pending') return direct;
+  return fallback;
+}
+function hasEvent(step){
+  return Boolean(eventFor(step));
+}
+function exitType(){
+  if (!current) return null;
+  if (current.exit_type) return current.exit_type;
+  if (current.status === 'failed' || current.status === 'llm_failed' || current.status === 'unable_to_handle') return 'unable_to_handle';
+  const parsed = current.llm_result?.parsed_json || parseDisplayJson(current.llm_result?.content || '');
+  if (parsed?.human_review_required === true) return 'pending_human_confirmation';
+  if (current.status === 'completed') return 'direct_delivery';
+  return null;
+}
+function exitLabel(type){
+  const labels = {
+    direct_delivery: '直接交付',
+    unable_to_handle: '无法办理',
+    pending_human_confirmation: '待真人确认'
+  };
+  return labels[type] || '待判定';
+}
+function exitStatus(){
+  if (!current) return 'pending';
+  if (current.status === 'failed' || current.status === 'llm_failed' || current.status === 'unable_to_handle') return 'failed';
+  if (current.status === 'completed') return 'completed';
+  return hasEvent('llm_call') ? 'running' : 'pending';
+}
+function returnStatus(){
+  if (!current) return 'pending';
+  if (current.status === 'failed' || current.status === 'llm_failed' || current.status === 'unable_to_handle') return 'failed';
+  return current.status === 'completed' ? 'completed' : 'pending';
+}
+function renderFlows(){
+  const hasTask = Boolean(current);
+  const exit = exitType();
+  const contentNode = current?.upstream_content_task_id
+    ? {title:'内容产出节点', sub:`${current.upstream_content_task_id} 已交接文字初稿`, status:'completed'}
+    : {title:'内容产出节点', sub:hasTask ? '本次为多媒体单节点，文字成果未由本引擎承办' : '等待流程判断是否需要文字子任务', status:hasTask ? 'skipped' : 'pending'};
+  const platformNodes = [
+    {title:'L4/业务入口', sub:hasTask ? '原始需求已进入链路' : '等待业务需求', status:hasTask ? 'completed' : 'pending'},
+    {title:'意图分析引擎', sub:hasTask ? '识别为图片/视频/音频或图文一体任务' : '等待识别任务类型', status:hasTask ? 'completed' : 'pending'},
+    {title:'流程执行引擎', sub:current?.parent_flow_id || '拆分文字子任务与多媒体子任务', status:hasTask ? 'completed' : 'pending'},
+    contentNode,
+    {title:'多媒体生成引擎', sub:current?.task_id || '等待接收子任务', status:finalStatus()},
+    {title:'真人确认', sub:exit === 'pending_human_confirmation' ? '由流程执行引擎组织确认' : (hasTask ? '本引擎不自行办理真人确认' : '等待出口判定'), status:exit === 'pending_human_confirmation' ? 'running' : (hasTask ? 'skipped' : 'pending')},
+    {title:'结果返回', sub:current ? `${friendlyStatus(current.status)} · ${exitLabel(exit)}` : '等待返回员工界面', status:returnStatus()}
+  ];
+  const materialCount = current?.material_package?.materials?.length || 0;
+  const contextCount = current?.references?.length || 0;
+  const internalNodes = [
+    {title:'1. 核对子任务六项', sub:'真人、任务类型、能力接口位、产出类型、需求、追踪信息', status:derivedStatus('validate_subtask', nodeStatusForEvent('receive_subtask'))},
+    {title:'2. 判定成果类型/生产套路', sub:`${current?.capability_id || '等待能力位'} · 爆款模式/制作标准取用口径`, status:derivedStatus('capability_route')},
+    {title:'3. 取素材与风格参考', sub:current?.material_package ? `知识库/数据素材 ${materialCount} 条，渲染 ${contextCount} 个 context` : '等待知识库与数据模块返回素材', status:derivedStatus('render_xml_context', nodeStatusForEvent('kb_task_materials'))},
+    {title:'4. 调用能力接口位', sub:`${current?.llm_result?.mode || '等待调度'}；本版生成方案/提示词，真实图片/视频待挂接`, status:nodeStatusForEvent('llm_call')},
+    {title:'5. 组装、核查、加标识', sub:'方案字段、引用、合规提示已核查；真实媒体文件标识待生成接口接入', status:derivedStatus('assemble_check_label', current?.status === 'completed' ? 'completed' : (current?.status === 'llm_failed' || current?.status === 'unable_to_handle' ? 'failed' : 'pending'))},
+    {title:'6. 三种出口判定', sub:`直接交付 / 无法办理 / 待真人确认；当前：${exitLabel(exit)}`, status:derivedStatus('exit_decision', exitStatus())},
+    {title:'结果交回流程执行引擎', sub:exit === 'pending_human_confirmation' ? '交回流程执行引擎组织真人确认' : (exit === 'unable_to_handle' ? '告知无法办理并返回原因' : '沿原链路返回员工界面'), status:derivedStatus('return_result', returnStatus())}
+  ];
+  $('platformFlow').innerHTML = renderFlowNodes(platformNodes);
+  $('internalFlow').innerHTML = renderFlowNodes(internalNodes);
+  $('internalFlowState').textContent = current ? friendlyStatus(current.status) : '等待子任务';
+  $('internalFlowState').className = `status ${current ? statusClass(current.status) : 'warn'}`;
+}
+function renderFlowNodes(nodes){
+  return nodes.map((node, index) => {
+    const connector = index < nodes.length - 1 ? '<div class="connector">&gt;</div>' : '';
+    return `<div class="flowNode ${node.status}"><div class="flowNodeTitle">${escapeHtml(node.title)}</div><div class="flowNodeSub">${escapeHtml(node.sub)}</div></div>${connector}`;
+  }).join('');
+}
+function renderDetails(){
+  const mats = current?.material_package?.materials || [];
+  $('materials').innerHTML = mats.length ? mats.map(item => `
+    <div class="card">
+      <h3>${escapeHtml(item.title)}</h3>
+      <div class="chips">
+        <span class="chip">${escapeHtml(item.material_id)}</span>
+        <span class="chip green">${escapeHtml(item.type)}</span>
+        <span class="chip">${escapeHtml(item.match_score)}</span>
+      </div>
+      <p class="hint">${escapeHtml(item.summary)}</p>
+      <p class="hint"><b>出处：</b>${escapeHtml(item.citation)}<br><b>来源：</b>${escapeHtml(item.source)} · ${escapeHtml(item.version)}</p>
+    </div>`).join('') : '<div class="hint">暂无素材。</div>';
+  $('xmlBox').textContent = current?.xml_context || '暂无。';
+  $('messagesBox').textContent = current ? JSON.stringify(current.messages || [], null, 2) : '暂无。';
+  $('llmBox').textContent = current ? JSON.stringify(current.llm_result || null, null, 2) : '暂无。';
+  $('refsBox').textContent = current ? JSON.stringify(current.references || [], null, 2) : '暂无。';
+  $('eventsBox').textContent = current ? (current.events || []).map(e => `${e.time} [${e.status}] ${e.step} · ${e.detail}`).join('\n') : '暂无。';
+  $('jsonBox').textContent = current ? JSON.stringify(current, null, 2) : '暂无。';
+}
+function formatDisplayValue(value){
+  if (value === null || value === undefined || value === '') return '-';
+  if (Array.isArray(value)) {
+    if (!value.length) return '-';
+    return value.map((item, index) => {
+      const text = formatDisplayValue(item);
+      return typeof item === 'object' && item !== null ? `${index + 1}. ${text.replace(/\n/g, '\n   ')}` : `${index + 1}. ${text}`;
+    }).join('\n');
+  }
+  if (typeof value === 'object') {
+    const labels = {style:'风格', composition:'构图', color_scheme:'配色', layout:'版式', tone:'调性', used_contexts:'使用 context', context_details:'context 用途'};
+    return Object.entries(value).map(([key, item]) => {
+      const label = labels[key] || key;
+      const text = formatDisplayValue(item);
+      return `${label}：${text.replace(/\n/g, '\n  ')}`;
+    }).join('\n');
+  }
+  return String(value);
+}
+function resultField(label, value, extraClass = ''){
+  return `<div class="resultField ${extraClass}"><div class="resultLabel">${escapeHtml(label)}</div><div class="resultText">${escapeHtml(formatDisplayValue(value))}</div></div>`;
+}
+function parseDisplayJson(raw){
+  if(!raw)return null;
+  let text=String(raw).trim();
+  const fence=text.match(/```(?:json)?\s*([\s\S]*?)(?:```|$)/i);
+  if(fence)text=fence[1].trim();
+  if(text.includes('{'))text=text.slice(text.indexOf('{'));
+  const strictText=text.includes('}')?text.slice(0,text.lastIndexOf('}')+1):text;
+  for(const candidate of [strictText,repairJsonText(strictText)]){
+    try{return JSON.parse(candidate)}catch{}
+  }
+  const partial={};
+  ['title','capability_id','output_type','production_brief','visual_brief','positive_prompt','negative_prompt'].forEach(key=>{
+    const value=extractJsonStringField(text,key);
+    if(value)partial[key]=value;
+  });
+  const notes=extractJsonArrayStrings(text,'compliance_notes');
+  if(notes.length)partial.compliance_notes=notes;
+  return Object.keys(partial).length?partial:null;
+}
+function repairJsonText(text){
+  let repaired=String(text||'').trim().replace(/,+$/,'');
+  const stack=[];
+  let inString=false;
+  let escaped=false;
+  for(const ch of repaired){
+    if(escaped){escaped=false;continue}
+    if(ch==='\\'){escaped=true;continue}
+    if(ch==='"'){inString=!inString;continue}
+    if(inString)continue;
+    if(ch==='{')stack.push('}');
+    if(ch==='[')stack.push(']');
+    if((ch==='}'||ch===']')&&stack[stack.length-1]===ch)stack.pop();
+  }
+  return repaired+stack.reverse().join('');
+}
+function extractJsonStringField(text,key){
+  const pattern=new RegExp(`"${key}"\\s*:\\s*"((?:\\\\.|[^"\\\\])*)"`, 's');
+  const match=String(text||'').match(pattern);
+  if(!match)return '';
+  try{return JSON.parse(`"${match[1]}"`)}catch{return match[1]}
+}
+function extractJsonArrayStrings(text,key){
+  const pattern=new RegExp(`"${key}"\\s*:\\s*\\[([\\s\\S]*?)(?:\\]|$)`, 's');
+  const match=String(text||'').match(pattern);
+  if(!match)return [];
+  return [...match[1].matchAll(/"((?:\\.|[^"\\])*)"/g)].map(item=>{try{return JSON.parse(`"${item[1]}"`)}catch{return item[1]}});
+}
+function renderResultDisplay(){
+  const box = $('resultDisplay');
+  const badge = $('resultBadge');
+  if (!current) {
+    badge.textContent = '等待生成';
+    box.className = 'resultEmpty';
+    box.textContent = '收到子任务并运行后，这里会优先展示排版后的提示词；后续接入图片或视频生成服务后，也会在这里展示媒体结果。';
+    return;
+  }
+  const raw = current.llm_result?.content || '';
+  const parsed = current.llm_result?.parsed_json || parseDisplayJson(raw);
+  const imageUrl = current.artifact_url || current.image_url || parsed?.image_url || parsed?.artifact_url;
+  const videoUrl = current.video_url || parsed?.video_url;
+  box.className = 'resultGrid';
+  if (videoUrl) {
+    badge.textContent = '视频结果';
+    box.innerHTML = `<div class="resultField wide mediaPreview"><div class="resultLabel">视频预览</div><video controls src="${escapeHtml(videoUrl)}"></video></div>`;
+    return;
+  }
+  if (imageUrl) {
+    badge.textContent = '图片结果';
+    box.innerHTML = `<div class="resultField wide mediaPreview"><div class="resultLabel">图片预览</div><img src="${escapeHtml(imageUrl)}" alt="生成图片"></div>`;
+    return;
+  }
+  if (current.status === 'unable_to_handle' || current.status === 'llm_failed' || current.llm_result?.mode === 'error' || current.llm_result?.mode === 'reserved_interface') {
+    badge.textContent = current.status === 'unable_to_handle' ? '无法办理/接口预留' : 'LLM 调用失败';
+    box.innerHTML = [
+      resultField('已完成部分', current.llm_result?.mode === 'reserved_interface' ? '子任务接收、字段校验、能力接口位识别、预留接口位返回' : '子任务接收、字段校验、知识库取材、XML 上下文渲染、LLM Messages 组装', 'wide'),
+      resultField('原因说明', current.error || current.llm_result?.error || current.llm_result?.reason || '未知错误', 'wide')
+    ].join('');
+    return;
+  }
+  badge.textContent = current.llm_result?.mode === 'real_llm' ? '文本 LLM 方案' : 'Mock 方案';
+  if (parsed && typeof parsed === 'object') {
+    box.innerHTML = [
+      resultField('标题', parsed.title || '未命名方案', 'wide'),
+      resultField('方案内容', parsed.production_brief || parsed.visual_brief || parsed.brief || '', 'wide'),
+      resultField('生成/处理提示词', parsed.positive_prompt || parsed.prompt || ''),
+      resultField('反向提示词', parsed.negative_prompt || ''),
+      resultField('合规/审核提示', Array.isArray(parsed.compliance_notes) ? parsed.compliance_notes.join('\n') : (parsed.compliance_notes || ''), 'wide')
+    ].join('');
+  } else {
+    box.innerHTML = resultField('LLM 原始返回', raw || 'LLM 暂无可展示文本。', 'wide');
+  }
+}
+
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.tab').forEach(item => item.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(item => item.classList.remove('active'));
+    btn.classList.add('active');
+    $('panel-' + btn.dataset.tab).classList.add('active');
+  };
+});
+$('saveConfigBtn').onclick = () => saveConfig().catch(err => toast(err.message));
+$('testLLMBtn').onclick = () => testLLM();
+$('loadLatestBtn').onclick = () => loadLatestTask({silent:false}).catch(err => toast(err.message));
+$('runBtn').onclick = () => runManual();
+$('resetBtn').onclick = () => reset().catch(err => toast(err.message));
+$('capability').onchange = () => {
+  const nextTaskType = CAPABILITY_TASK_TYPES[$('capability').value];
+  if (nextTaskType && [...$('taskType').options].some(option => option.value === nextTaskType)) {
+    $('taskType').value = nextTaskType;
+  }
+};
+
+renderEmpty();
+loadConfig().catch(() => {
+  $('backendStatus').textContent = '后端未启动';
+  $('backendStatus').className = 'status bad';
+  toast('请运行 start_backend.bat');
+});
+loadLatestTask({silent:true}).catch(() => {});
+setInterval(() => loadLatestTask({silent:true}).catch(() => {}), 2500);
+</script>
+</body>
+</html>

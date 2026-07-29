@@ -1,0 +1,30 @@
+service,mode,table,primary_key,purpose,key_fields,source_of_truth
+Casdoor,all,users,provider managed,账号身份与登录,user_id|org_id|roles,Casdoor
+account_gateway,all,audit_logs,id,网关通用审计,actor_id|action_type|policy_decision|policy_id|context_snapshot,账号网关
+account_gateway,all,credentials,id,加密凭证托管,name|owner_user_id|expires_at,账号网关
+account_gateway,all,breakglass_state,id,应急账号状态,enabled|expires_at,账号网关
+account_gateway,all,digital_employees,id,数字员工身份,parent_user_id|tenant_id|status|token_version,账号网关
+account_gateway,all,tenants,id,租户,tenant_users,账号网关
+account_gateway,all,approvals,id,审批状态,subject|object|approval_type|status,账号网关/流程模块
+account_gateway,local,positions,id,兼容岗位表,department_id|tenant_id|tags,仅 local
+account_gateway,local,person_position_assignments,id,兼容人岗关系,person_id|user_id|position_id|status,仅 local
+account_gateway,local,person_manager_edges,id,兼容上下级关系,person_id|manager_person_id|domain_id|status,仅 local
+account_gateway,local,position_standard_resources,id,兼容岗位标准权限,position_id|resource_type|resource_id|action,仅 local
+account_gateway,local,delegations,id,兼容数据转授,from_person_id|to_person_id|resource_id|action,仅 local
+account_gateway,local,data_records,id,兼容数据登记,owner_person_id|owner_user_id|status|allowed_actions,仅 local
+account_gateway,local,runtime_policies,policy_id,审批产生的运行期策略,subject|object|action|effect|tenant_id,仅 local
+permission_gateway,remote,persons,id,实名账号档案镜像,id=actor_id=user_id|tenant_id|status,权限服务
+permission_gateway,remote,departments,id,部门,parent_id|tenant_id|status,权限服务
+permission_gateway,remote,positions,id,岗位席位,department_id|tenant_id|tags_json,权限服务
+permission_gateway,remote,person_position_assignments,id,账号岗位任职,person_id=actor_id|position_id|effective_from|effective_to,权限服务
+permission_gateway,remote,domains,id,DSM 管理域,tenant_id|dsm_actor_id,权限服务
+permission_gateway,remote,person_manager_edges,id,唯一上级和管理树,person_id|manager_person_id|domain_id,权限服务
+permission_gateway,remote,position_standard_permissions,id,岗位标准权限,position_id|action|data_label|resource_id|valid_to,权限服务
+permission_gateway,remote,data_delegations,id,数据转授,from_person_id|to_person_id|resource_id|action|valid_to,权限服务
+permission_gateway,remote,institution_policies,id,制度允许或拒绝,subject_type|subject_id|effect|priority|valid_to,权限服务
+permission_gateway,remote,service_call_rules,id,服务调用关系,source_service|target_service|action,权限服务
+permission_gateway,remote,data_registry,id,数据登记,owner_person_id|data_label|state|allowed_actions_json,权限服务
+permission_gateway,remote,data_actions,action,合法动作目录,risk_level|enabled,权限服务
+permission_gateway,remote,resources,id,资源目录,resource_type|owner_person_id|level|status,权限服务
+permission_gateway,remote,resource_publications,id,资源发布升层,resource_id|target_level|status,权限服务
+permission_gateway,remote,permission_decisions,id,追加式权限决策审计,decision_id|trace_id|actor_id|result|reason_code,权限服务

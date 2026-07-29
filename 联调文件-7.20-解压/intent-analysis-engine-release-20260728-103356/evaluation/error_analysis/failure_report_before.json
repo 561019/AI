@@ -1,0 +1,1247 @@
+{
+  "source_report": "evaluation\\benchmark\\validation_report_before.json",
+  "split": "validation",
+  "total_failed": 33,
+  "by_error_type": {
+    "L2_SEMANTIC_MISS": 2,
+    "NEED_L3_OR_CLARIFICATION": 31
+  },
+  "failures": [
+    {
+      "id": "BENCH-VALIDATION-003",
+      "text": "生成客户投诉改进方案",
+      "intent_category": "short_instruction",
+      "expected_tasks": [
+        {
+          "task_type": "IMPROVEMENT_PLAN_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "IMPROVEMENT_PLAN_GENERATE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "COMPLAINT_INFORMATION_ORGANIZE"
+        },
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        },
+        {
+          "task_type": "IMPROVEMENT_PLAN_GENERATE"
+        }
+      ],
+      "actual_task_types": [
+        "COMPLAINT_INFORMATION_ORGANIZE",
+        "DATA_ANALYSIS_PROBLEM",
+        "IMPROVEMENT_PLAN_GENERATE"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "medium",
+      "reason": "Expected task was found but extra tasks were produced.",
+      "suggested_action": "Do not add positive L1 rule. Review decomposition or benchmark label before changing rules."
+    },
+    {
+      "id": "BENCH-VALIDATION-008",
+      "text": "会议背景里提到库存管理压力较大，当前明确要求是统计本季度库存记录，按区域排序，并预测下季度趋势。",
+      "intent_category": "long_text_requirement",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_AGGREGATION_SUMMARY"
+        },
+        {
+          "task_type": "DATA_SORT"
+        },
+        {
+          "task_type": "DATA_ANALYSIS_FORECAST"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_AGGREGATION_SUMMARY",
+        "DATA_SORT",
+        "DATA_ANALYSIS_FORECAST"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_AGGREGATION_SUMMARY"
+        },
+        {
+          "task_type": "DATA_SORT"
+        },
+        {
+          "task_type": "DATA_ANALYSIS_FORECAST"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_AGGREGATION_SUMMARY",
+        "DATA_SORT",
+        "DATA_ANALYSIS_FORECAST"
+      ],
+      "missing_inputs": {
+        "expected": [
+          "summary_field"
+        ],
+        "actual": [
+          "classification_field",
+          "summary_field"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    },
+    {
+      "id": "BENCH-VALIDATION-009",
+      "text": "我们暂时不做自动提醒，先从业务系统获取库存记录，筛选异常记录，形成给管理层看的材料。",
+      "intent_category": "long_text_requirement",
+      "expected_tasks": [
+        {
+          "task_type": "EXTERNAL_DATA_FETCH"
+        },
+        {
+          "task_type": "DATA_FILTER"
+        },
+        {
+          "task_type": "DOCUMENT_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "EXTERNAL_DATA_FETCH",
+        "DATA_FILTER",
+        "DOCUMENT_GENERATE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "MONITORING_REMINDER"
+        },
+        {
+          "task_type": "EXTERNAL_DATA_FETCH"
+        },
+        {
+          "task_type": "DATA_FILTER"
+        },
+        {
+          "task_type": "DOCUMENT_GENERATE"
+        }
+      ],
+      "actual_task_types": [
+        "MONITORING_REMINDER",
+        "EXTERNAL_DATA_FETCH",
+        "DATA_FILTER",
+        "DOCUMENT_GENERATE"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "trigger_condition"
+        ]
+      },
+      "forbidden_tasks": [
+        "MONITORING_REMINDER"
+      ],
+      "forbidden_violations": [
+        "MONITORING_REMINDER"
+      ],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-VALIDATION-010",
+      "text": "这段是项目背景说明，不构成任务。真正要处理的是解析上传附件中的库存记录，提取字段结构，并汇总关键金额。",
+      "intent_category": "long_text_requirement",
+      "expected_tasks": [
+        {
+          "task_type": "DOCUMENT_TABLE_PARSE"
+        },
+        {
+          "task_type": "FILE_STRUCTURE_EXTRACT"
+        },
+        {
+          "task_type": "DATA_AGGREGATION_SUMMARY"
+        }
+      ],
+      "expected_task_types": [
+        "DOCUMENT_TABLE_PARSE",
+        "FILE_STRUCTURE_EXTRACT",
+        "DATA_AGGREGATION_SUMMARY"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DOCUMENT_TABLE_PARSE"
+        },
+        {
+          "task_type": "FILE_STRUCTURE_EXTRACT"
+        },
+        {
+          "task_type": "DATA_AGGREGATION_SUMMARY"
+        }
+      ],
+      "actual_task_types": [
+        "DOCUMENT_TABLE_PARSE",
+        "FILE_STRUCTURE_EXTRACT",
+        "DATA_AGGREGATION_SUMMARY"
+      ],
+      "missing_inputs": {
+        "expected": [
+          "statistical_range"
+        ],
+        "actual": [
+          "classification_field",
+          "statistical_range"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    },
+    {
+      "id": "BENCH-VALIDATION-012",
+      "text": "本次材料只用于内部评审，请查询去年库存记录，做同比分析，再生成正式报告。",
+      "intent_category": "long_text_requirement",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        },
+        {
+          "task_type": "DATA_ANALYSIS_YOY"
+        },
+        {
+          "task_type": "DOCUMENT_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_QUERY_FETCH",
+        "DATA_ANALYSIS_YOY",
+        "DOCUMENT_GENERATE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        },
+        {
+          "task_type": "DATA_ANALYSIS_YOY"
+        },
+        {
+          "task_type": "DOCUMENT_GENERATE"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_QUERY_FETCH",
+        "DATA_ANALYSIS_YOY",
+        "DOCUMENT_GENERATE"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "summary_field"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Task type is already correct; failure is caused by clarification or missing-input mismatch.",
+      "suggested_action": "Do not add semantic examples. Review input validation or benchmark labels."
+    },
+    {
+      "id": "BENCH-VALIDATION-013",
+      "text": "销售情况给我看一眼",
+      "intent_category": "colloquial_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_QUERY_FETCH"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "data_source",
+          "operation"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "L2_SEMANTIC_MISS",
+      "confidence": "high",
+      "reason": "Synonym, colloquial, omitted, or context-dependent expression did not match expected task type.",
+      "suggested_action": "Add semantic examples/business synonyms or context resolver coverage; avoid broad L1 keywords."
+    },
+    {
+      "id": "BENCH-VALIDATION-017",
+      "text": "订单金额帮我排个榜",
+      "intent_category": "colloquial_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_SORT"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_SORT"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_YOY"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_ANALYSIS_YOY"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "statistical_range"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "L2_SEMANTIC_MISS",
+      "confidence": "high",
+      "reason": "Synonym, colloquial, omitted, or context-dependent expression did not match expected task type.",
+      "suggested_action": "Add semantic examples/business synonyms or context resolver coverage; avoid broad L1 keywords."
+    },
+    {
+      "id": "BENCH-VALIDATION-018",
+      "text": "这个制度是咋回事",
+      "intent_category": "colloquial_expression",
+      "expected_tasks": [
+        {
+          "task_type": "QUESTION_ANSWER"
+        }
+      ],
+      "expected_task_types": [
+        "QUESTION_ANSWER"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "QUESTION_ANSWER"
+        }
+      ],
+      "actual_task_types": [
+        "QUESTION_ANSWER"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "question"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Task type is already correct; failure is caused by clarification or missing-input mismatch.",
+      "suggested_action": "Do not add semantic examples. Review input validation or benchmark labels."
+    },
+    {
+      "id": "BENCH-VALIDATION-020",
+      "text": "换成利润看看",
+      "intent_category": "omitted_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_FORECAST"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_ANALYSIS_FORECAST"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-VALIDATION-022",
+      "text": "再提取字段",
+      "intent_category": "omitted_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DOCUMENT_TABLE_PARSE"
+        }
+      ],
+      "expected_task_types": [
+        "DOCUMENT_TABLE_PARSE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "FILE_STRUCTURE_EXTRACT"
+        }
+      ],
+      "actual_task_types": [
+        "FILE_STRUCTURE_EXTRACT"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "file"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-VALIDATION-023",
+      "text": "继续看结构",
+      "intent_category": "omitted_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DOCUMENT_TABLE_PARSE"
+        }
+      ],
+      "expected_task_types": [
+        "DOCUMENT_TABLE_PARSE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "FILE_STRUCTURE_EXTRACT"
+        }
+      ],
+      "actual_task_types": [
+        "FILE_STRUCTURE_EXTRACT"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "file"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-VALIDATION-024",
+      "text": "字段也列一下",
+      "intent_category": "omitted_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DOCUMENT_TABLE_PARSE"
+        }
+      ],
+      "expected_task_types": [
+        "DOCUMENT_TABLE_PARSE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "FILE_STRUCTURE_EXTRACT"
+        }
+      ],
+      "actual_task_types": [
+        "FILE_STRUCTURE_EXTRACT"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "file"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-VALIDATION-026",
+      "text": "查询合同台账，按到期时间排序，到期前提醒我",
+      "intent_category": "multi_task_request",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        },
+        {
+          "task_type": "DATA_SORT"
+        },
+        {
+          "task_type": "MONITORING_REMINDER"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_QUERY_FETCH",
+        "DATA_SORT",
+        "MONITORING_REMINDER"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        },
+        {
+          "task_type": "DATA_SORT"
+        },
+        {
+          "task_type": "MONITORING_REMINDER"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_QUERY_FETCH",
+        "DATA_SORT",
+        "MONITORING_REMINDER"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "data_source"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Task type is already correct; failure is caused by clarification or missing-input mismatch.",
+      "suggested_action": "Do not add semantic examples. Review input validation or benchmark labels."
+    },
+    {
+      "id": "BENCH-VALIDATION-027",
+      "text": "统计本月投诉数量，分析投诉原因，生成改进计划",
+      "intent_category": "multi_task_request",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_AGGREGATION_SUMMARY"
+        },
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        },
+        {
+          "task_type": "IMPROVEMENT_PLAN_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_AGGREGATION_SUMMARY",
+        "DATA_ANALYSIS_PROBLEM",
+        "IMPROVEMENT_PLAN_GENERATE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "COMPLAINT_INFORMATION_ORGANIZE"
+        },
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        },
+        {
+          "task_type": "IMPROVEMENT_PLAN_GENERATE"
+        }
+      ],
+      "actual_task_types": [
+        "COMPLAINT_INFORMATION_ORGANIZE",
+        "DATA_ANALYSIS_PROBLEM",
+        "IMPROVEMENT_PLAN_GENERATE"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "analysis_object",
+          "topic"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "medium",
+      "reason": "Failure is not a safe L1/L2 expansion candidate.",
+      "suggested_action": "Review with L3/clarification or data labeling; do not add rule by default."
+    },
+    {
+      "id": "BENCH-VALIDATION-028",
+      "text": "获取销售数据，生成透视表，并预测下月趋势",
+      "intent_category": "multi_task_request",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        },
+        {
+          "task_type": "DATA_ANALYSIS_PIVOT"
+        },
+        {
+          "task_type": "DATA_ANALYSIS_FORECAST"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_QUERY_FETCH",
+        "DATA_ANALYSIS_PIVOT",
+        "DATA_ANALYSIS_FORECAST"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_QUERY_FETCH"
+        },
+        {
+          "task_type": "DATA_ANALYSIS_PIVOT"
+        },
+        {
+          "task_type": "DATA_ANALYSIS_FORECAST"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_QUERY_FETCH",
+        "DATA_ANALYSIS_PIVOT",
+        "DATA_ANALYSIS_FORECAST"
+      ],
+      "missing_inputs": {
+        "expected": [
+          "statistical_range"
+        ],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    },
+    {
+      "id": "BENCH-VALIDATION-031",
+      "text": "不要生成报告，只分析经营报告",
+      "intent_category": "negation_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DOCUMENT_GENERATE"
+        },
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "actual_task_types": [
+        "DOCUMENT_GENERATE",
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [
+        "DOCUMENT_GENERATE"
+      ],
+      "forbidden_violations": [
+        "DOCUMENT_GENERATE"
+      ],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-VALIDATION-032",
+      "text": "本次不需要提醒功能，请处理经营报告",
+      "intent_category": "negation_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DOCUMENT_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "DOCUMENT_GENERATE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "MONITORING_REMINDER"
+        }
+      ],
+      "actual_task_types": [
+        "MONITORING_REMINDER"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "monitoring_object",
+          "trigger_condition"
+        ]
+      },
+      "forbidden_tasks": [
+        "MONITORING_REMINDER"
+      ],
+      "forbidden_violations": [
+        "MONITORING_REMINDER"
+      ],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-VALIDATION-033",
+      "text": "先不要发起流程，帮我看一下经营报告",
+      "intent_category": "negation_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DOCUMENT_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "DOCUMENT_GENERATE"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "WORKFLOW_START"
+        },
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "actual_task_types": [
+        "WORKFLOW_START",
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "process_name"
+        ]
+      },
+      "forbidden_tasks": [
+        "WORKFLOW_START",
+        "PROCESS_HANDLE"
+      ],
+      "forbidden_violations": [
+        "WORKFLOW_START"
+      ],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-VALIDATION-034",
+      "text": "不要生成报告，只分析销售提成",
+      "intent_category": "negation_expression",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "DOCUMENT_GENERATE"
+        },
+        {
+          "task_type": "RULE_CALCULATION_COMMISSION"
+        }
+      ],
+      "actual_task_types": [
+        "DOCUMENT_GENERATE",
+        "RULE_CALCULATION_COMMISSION"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "calculation_policy",
+          "sales_data_source",
+          "statistical_range"
+        ]
+      },
+      "forbidden_tasks": [
+        "DOCUMENT_GENERATE"
+      ],
+      "forbidden_violations": [
+        "DOCUMENT_GENERATE"
+      ],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-VALIDATION-035",
+      "text": "本次不需要提醒功能，请处理销售提成",
+      "intent_category": "negation_expression",
+      "expected_tasks": [
+        {
+          "task_type": "RULE_CALCULATION_COMMISSION"
+        }
+      ],
+      "expected_task_types": [
+        "RULE_CALCULATION_COMMISSION"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "MONITORING_REMINDER"
+        }
+      ],
+      "actual_task_types": [
+        "MONITORING_REMINDER"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "monitoring_object",
+          "trigger_condition"
+        ]
+      },
+      "forbidden_tasks": [
+        "MONITORING_REMINDER"
+      ],
+      "forbidden_violations": [
+        "MONITORING_REMINDER"
+      ],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-VALIDATION-036",
+      "text": "先不要发起流程，帮我看一下销售提成",
+      "intent_category": "negation_expression",
+      "expected_tasks": [
+        {
+          "task_type": "RULE_CALCULATION_COMMISSION"
+        }
+      ],
+      "expected_task_types": [
+        "RULE_CALCULATION_COMMISSION"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "WORKFLOW_START"
+        },
+        {
+          "task_type": "RULE_CALCULATION_COMMISSION"
+        }
+      ],
+      "actual_task_types": [
+        "WORKFLOW_START",
+        "RULE_CALCULATION_COMMISSION"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "calculation_policy",
+          "process_name",
+          "sales_data_source",
+          "statistical_range"
+        ]
+      },
+      "forbidden_tasks": [
+        "WORKFLOW_START",
+        "PROCESS_HANDLE"
+      ],
+      "forbidden_violations": [
+        "WORKFLOW_START"
+      ],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-VALIDATION-037",
+      "text": "以后希望自动提醒回款逾期，但本次不考虑。",
+      "intent_category": "future_scope",
+      "expected_tasks": [],
+      "expected_task_types": [],
+      "actual_tasks": [],
+      "actual_task_types": [],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [
+        "MONITORING_REMINDER",
+        "提醒"
+      ],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-VALIDATION-038",
+      "text": "未来规划里会做回款逾期监控，目前不包含这部分，当前只需要筛选逾期客户。",
+      "intent_category": "future_scope",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_FILTER"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_FILTER"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "MONITORING_REMINDER"
+        },
+        {
+          "task_type": "DATA_FILTER"
+        }
+      ],
+      "actual_task_types": [
+        "MONITORING_REMINDER",
+        "DATA_FILTER"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [
+        "MONITORING_REMINDER"
+      ],
+      "forbidden_violations": [
+        "MONITORING_REMINDER"
+      ],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-VALIDATION-039",
+      "text": "后续可能考虑主动提醒回款逾期，本次不做提醒，只要筛选逾期客户。",
+      "intent_category": "future_scope",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_FILTER"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_FILTER"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "MONITORING_REMINDER"
+        },
+        {
+          "task_type": "DATA_FILTER"
+        }
+      ],
+      "actual_task_types": [
+        "MONITORING_REMINDER",
+        "DATA_FILTER"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [
+        "MONITORING_REMINDER",
+        "主动提醒"
+      ],
+      "forbidden_violations": [
+        "MONITORING_REMINDER"
+      ],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-VALIDATION-040",
+      "text": "以后希望自动提醒销售波动，但本次不考虑。",
+      "intent_category": "future_scope",
+      "expected_tasks": [],
+      "expected_task_types": [],
+      "actual_tasks": [],
+      "actual_task_types": [],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [
+        "MONITORING_REMINDER",
+        "提醒"
+      ],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-VALIDATION-041",
+      "text": "未来规划里会做销售波动监控，目前不包含这部分，当前只需要分析销售波动原因。",
+      "intent_category": "future_scope",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "MONITORING_REMINDER"
+        },
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "actual_task_types": [
+        "MONITORING_REMINDER",
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "monitoring_object",
+          "trigger_condition"
+        ]
+      },
+      "forbidden_tasks": [
+        "MONITORING_REMINDER"
+      ],
+      "forbidden_violations": [
+        "MONITORING_REMINDER"
+      ],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-VALIDATION-042",
+      "text": "后续可能考虑主动提醒销售波动，本次不做提醒，只要分析销售波动原因。",
+      "intent_category": "future_scope",
+      "expected_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "expected_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "actual_tasks": [
+        {
+          "task_type": "MONITORING_REMINDER"
+        },
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "actual_task_types": [
+        "MONITORING_REMINDER",
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "monitoring_object",
+          "trigger_condition"
+        ]
+      },
+      "forbidden_tasks": [
+        "MONITORING_REMINDER",
+        "主动提醒"
+      ],
+      "forbidden_violations": [
+        "MONITORING_REMINDER"
+      ],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure is in a protected negation/future-scope category or produced a forbidden task. Do not expand L1/L2 positive recognition for this case.",
+      "suggested_action": "Improve exclusion/negation filtering or keep as clarification/L3; do not add positive rule."
+    },
+    {
+      "id": "BENCH-VALIDATION-046",
+      "text": "语气再正式点",
+      "intent_category": "context_dependency",
+      "expected_tasks": [
+        {
+          "task_type": "CONTENT_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "CONTENT_GENERATE"
+      ],
+      "actual_tasks": [],
+      "actual_task_types": [],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-VALIDATION-047",
+      "text": "继续处理：语气再正式点",
+      "intent_category": "context_dependency",
+      "expected_tasks": [
+        {
+          "task_type": "CONTENT_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "CONTENT_GENERATE"
+      ],
+      "actual_tasks": [],
+      "actual_task_types": [],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-VALIDATION-048",
+      "text": "上一轮那个语气再正式点",
+      "intent_category": "context_dependency",
+      "expected_tasks": [
+        {
+          "task_type": "CONTENT_GENERATE"
+        }
+      ],
+      "expected_task_types": [
+        "CONTENT_GENERATE"
+      ],
+      "actual_tasks": [],
+      "actual_task_types": [],
+      "missing_inputs": {
+        "expected": [],
+        "actual": []
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Failure depends on explicit context; broad L1/L2 expansion could create standalone false positives.",
+      "suggested_action": "Improve context resolution or route to L3/clarification; do not add broad semantic example."
+    },
+    {
+      "id": "BENCH-VALIDATION-055",
+      "text": "按方案来",
+      "intent_category": "ambiguous_request",
+      "expected_tasks": [],
+      "expected_task_types": [],
+      "actual_tasks": [
+        {
+          "task_type": "IMPROVEMENT_PLAN_GENERATE"
+        }
+      ],
+      "actual_task_types": [
+        "IMPROVEMENT_PLAN_GENERATE"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "topic"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    },
+    {
+      "id": "BENCH-VALIDATION-056",
+      "text": "处理这些材料",
+      "intent_category": "ambiguous_request",
+      "expected_tasks": [],
+      "expected_task_types": [],
+      "actual_tasks": [
+        {
+          "task_type": "DOCUMENT_GENERATE"
+        }
+      ],
+      "actual_task_types": [
+        "DOCUMENT_GENERATE"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "topic"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    },
+    {
+      "id": "BENCH-VALIDATION-057",
+      "text": "看看有没有问题",
+      "intent_category": "ambiguous_request",
+      "expected_tasks": [],
+      "expected_task_types": [],
+      "actual_tasks": [
+        {
+          "task_type": "DATA_ANALYSIS_PROBLEM"
+        }
+      ],
+      "actual_task_types": [
+        "DATA_ANALYSIS_PROBLEM"
+      ],
+      "missing_inputs": {
+        "expected": [],
+        "actual": [
+          "analysis_object"
+        ]
+      },
+      "forbidden_tasks": [],
+      "forbidden_violations": [],
+      "error_type": "NEED_L3_OR_CLARIFICATION",
+      "confidence": "high",
+      "reason": "Case is ambiguous, information-insufficient, or expected to require clarification.",
+      "suggested_action": "Do not add L1/L2 positive rule. Route to clarification or L3 fallback."
+    }
+  ]
+}

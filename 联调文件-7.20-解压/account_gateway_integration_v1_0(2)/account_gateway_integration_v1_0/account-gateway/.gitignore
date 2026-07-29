@@ -1,0 +1,47 @@
+# Binaries
+/bin
+/vendor
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Database files (SQLite audit DB, etc.)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# E2E test data
+/.e2e-data/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local notepad / evidence (internal dev tracking, not source)
+/.omo/
+
+# Tmp build artifacts
+*.out
+*.test
+/dist/
+account-gateway
+web/node_modules/
+web/dist/
