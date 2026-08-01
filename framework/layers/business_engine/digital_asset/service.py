@@ -50,7 +50,36 @@ def _handle_persistent_asset_command(envelope: dict[str, Any], capability: str) 
     actor = envelope.get("actor") or {}
 
     if capability in {"knowledge_source.register", "knowledge_source.result.register"}:
-        source_id = str(command.get("knowledgeBaseId") or payload.get("knowledge_source_id") or f"ks_{uuid4().hex[:16]}")
+        source_id = str(payload.get("knowledge_source_id") or command.get("knowledgeBaseId") or f"ks_{uuid4().hex[:16]}")
+        knowledge_base_id = str(payload.get("knowledge_base_id") or command.get("knowledgeBaseId") or source_id)
+        uploaded_files = payload.get("uploaded_files") if isinstance(payload.get("uploaded_files"), list) else []
+        asset_scope = payload.get("asset_scope") or "personal_knowledge"
+
+        # Reuse a completed index for the same account, knowledge base and file
+        # fingerprint. This keeps a repeated upload from reparsing the file.
+        reusable = _find_reusable_index(envelope, actor, knowledge_base_id, asset_scope, uploaded_files)
+        if reusable:
+            existing_source = _find_source(envelope, actor, reusable.get("knowledge_source_id"))
+            return {
+                "state": "reused",
+                "knowledge_source": existing_source or {
+                    "knowledge_source_id": reusable.get("knowledge_source_id"),
+                    "knowledge_base_id": reusable.get("knowledge_base_id") or knowledge_base_id,
+                    "asset_scope": asset_scope,
+                    "owner_account_id": actor.get("user_id"),
+                },
+                "storage": {"state": "reused", "dataset": "knowledge_sources"},
+                "asset_storage": {"state": "reused", "asset_id": reusable.get("knowledge_source_id")},
+                "knowledge_index_result": {
+                    "state": "reused",
+                    "reused": True,
+                    "knowledge_source_id": reusable.get("knowledge_source_id"),
+                    "knowledge_base_id": reusable.get("knowledge_base_id") or knowledge_base_id,
+                    "chunk_count": reusable.get("chunk_count", 0),
+                    "file_count": len(uploaded_files),
+                    "file_summaries": reusable.get("file_summaries") or [],
+                },
+            }
         record = {
             "knowledge_source_id": source_id,
             "record_id": source_id,
@@ -58,10 +87,14 @@ def _handle_persistent_asset_command(envelope: dict[str, Any], capability: str) 
             "owner_account_id": actor.get("user_id") or command.get("accountId") or "anonymous",
             "project_id": command.get("projectId") or payload.get("project_id"),
             "conversation_id": command.get("conversationId") or payload.get("conversation_id"),
-            "source_type": "conversation",
+            "knowledge_base_id": knowledge_base_id,
+            "knowledge_base_name": command_payload.get("name") or payload.get("knowledge_base_name") or payload.get("name"),
+            "asset_scope": asset_scope,
+            "source_type": payload.get("source_type") or ("uploaded_file" if uploaded_files else "conversation"),
             "scope": command_payload.get("scope") or payload.get("scope") or "personal",
             "operation": command.get("operation") or capability,
             "request": command_payload.get("request") or payload.get("request"),
+            "uploaded_file_ids": [item.get("file_id") for item in uploaded_files if isinstance(item, dict) and item.get("file_id")],
             "source_payload": command_payload or payload,
             "state": "registered",
             "updated_at": now(),
@@ -74,13 +107,22 @@ def _handle_persistent_asset_command(envelope: dict[str, Any], capability: str) 
         asset_storage = _upsert_asset(envelope, {
             "asset_id": source_id,
             "asset_type": "knowledge_base",
-            "name": command_payload.get("name") or payload.get("name") or source_id,
+            "name": record.get("knowledge_base_name") or source_id,
             "scope": record["scope"],
             "state": "active",
             "source_ref": {"dataset": "knowledge_sources", "record_id": source_id},
             "operation": command.get("operation") or capability,
         })
-        return {"state": "registered", "knowledge_source": record, "storage": storage, "asset_storage": asset_storage}
+        index_result = None
+        if uploaded_files:
+            index_result = _knowledge_base_index_call(envelope, record, uploaded_files)
+        return {
+            "state": "indexed" if index_result else "registered",
+            "knowledge_source": record,
+            "storage": storage,
+            "asset_storage": asset_storage,
+            "knowledge_index_result": index_result,
+        }
 
     if capability == "asset.query":
         filters = payload.get("filters") if isinstance(payload.get("filters"), dict) else {}
@@ -145,6 +187,93 @@ def _data_call(envelope: dict[str, Any], capability: str, payload: dict[str, Any
         inner,
         caller={"layer": "business_engine", "module": MODULE_CODE},
     )
-    if status != 200 or response.get("status") != "success":
+    if status not in {200, 202} or not isinstance(response, dict) or response.get("status") != "success":
         raise RuntimeError(str(response))
     return ((response.get("data") or {}).get("storage_result") or {})
+
+
+def _knowledge_base_index_call(envelope: dict[str, Any], source_record: dict[str, Any], uploaded_files: list[dict[str, Any]]) -> dict[str, Any]:
+    payload = {
+        "knowledge_source_id": source_record["knowledge_source_id"],
+        "knowledge_base_id": source_record.get("knowledge_base_id") or source_record["knowledge_source_id"],
+        "knowledge_base_name": source_record.get("knowledge_base_name"),
+        "asset_scope": source_record.get("asset_scope") or "personal_knowledge",
+        "knowledge_source": source_record,
+        "uploaded_files": uploaded_files,
+    }
+    inner = make_internal_envelope(
+        envelope.get("trace_id"),
+        envelope.get("actor") or {"tenant_id": "web-workbench", "user_id": "system", "authenticated": True},
+        str((envelope.get("payload") or {}).get("platform_task_id") or envelope.get("request_id") or uuid4()),
+        "vector.index.upsert",
+        "foundation",
+        "foundation-gateway",
+        payload,
+        source_layer="business_engine",
+        source_module=MODULE_CODE,
+        context=envelope.get("context") if isinstance(envelope.get("context"), dict) else {},
+    )
+    status, response = post_json(
+        "http://127.0.0.1:8300/api/v1/foundation/instructions",
+        inner,
+        timeout=180,
+        caller={"layer": "business_engine", "module": MODULE_CODE},
+    )
+    if status not in {200, 202} or not isinstance(response, dict) or response.get("status") != "success":
+        raise RuntimeError(str(response))
+    return response.get("data") or {}
+
+
+def _find_reusable_index(
+    envelope: dict[str, Any],
+    actor: dict[str, Any],
+    knowledge_base_id: str,
+    asset_scope: str,
+    uploaded_files: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    if not uploaded_files:
+        return None
+    result = _data_call(envelope, "foundation_data.query", {
+        "dataset": "knowledge_indexes",
+        "filters": {
+            "owner_account_id": actor.get("user_id"),
+            "knowledge_base_id": knowledge_base_id,
+            "asset_scope": asset_scope,
+            "state": "indexed",
+        },
+        "limit": 500,
+    })
+    indexes = result.get("items") if isinstance(result.get("items"), list) else []
+    for index in indexes:
+        summaries = index.get("file_summaries") if isinstance(index.get("file_summaries"), list) else []
+        if all(_file_matches_summary(item, summaries) for item in uploaded_files if isinstance(item, dict)):
+            return index
+    return None
+
+
+def _find_source(envelope: dict[str, Any], actor: dict[str, Any], source_id: Any) -> dict[str, Any] | None:
+    if not source_id:
+        return None
+    result = _data_call(envelope, "foundation_data.query", {
+        "dataset": "knowledge_sources",
+        "filters": {
+            "owner_account_id": actor.get("user_id"),
+            "knowledge_source_id": str(source_id),
+        },
+        "limit": 1,
+    })
+    items = result.get("items") if isinstance(result.get("items"), list) else []
+    return items[0] if items else None
+
+
+def _file_matches_summary(file_item: dict[str, Any], summaries: list[dict[str, Any]]) -> bool:
+    file_id = str(file_item.get("file_id") or file_item.get("object_id") or "")
+    sha256 = str(file_item.get("sha256") or "")
+    for summary in summaries:
+        if not isinstance(summary, dict):
+            continue
+        if sha256 and str(summary.get("sha256") or "") == sha256:
+            return True
+        if file_id and str(summary.get("file_id") or "") == file_id:
+            return True
+    return False

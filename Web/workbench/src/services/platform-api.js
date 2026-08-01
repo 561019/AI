@@ -34,6 +34,7 @@ export function createInstructionEnvelope({
   conversationId,
   conversationTitle,
   uploadedDocuments = [],
+  conversationContext = [],
 }) {
   const trace = newId('trace')
   const request = uniqueId('request')
@@ -61,7 +62,18 @@ export function createInstructionEnvelope({
     },
     request_type: 'execute',
     action: 'intent.analyze',
-    payload: { utterance, uploaded_documents: uploadedDocuments },
+    payload: {
+      utterance,
+      uploaded_documents: uploadedDocuments,
+      // The gateway independently reloads this window from persistence. This
+      // client copy keeps the current turn usable while a write is not yet queryable.
+      conversation_context: Array.isArray(conversationContext)
+        ? conversationContext.slice(-12).map((item) => ({
+          role: String(item?.role || 'unknown'),
+          content: String(item?.text || item?.content || '').slice(0, 2000),
+        })).filter((item) => item.content.trim())
+        : [],
+    },
     expected_response: { mode: 'async' },
     idempotency_key: `web-${request}`,
   }
@@ -80,6 +92,26 @@ export const platformApi = {
       ? items.filter((item) => Object.entries(filters).every(([key, value]) => String(item?.[key] ?? '') === String(value)))
       : items
     return { ...result, items: filtered, count: filtered.length }
+  },
+
+  async queryKnowledgeChunks({ knowledgeSourceId, fileId, ownerAccountId, limit = 100 } = {}) {
+    const filters = {}
+    if (knowledgeSourceId) filters.knowledge_source_id = knowledgeSourceId
+    if (fileId) filters.file_id = fileId
+    if (ownerAccountId) filters.owner_account_id = ownerAccountId
+    return this.queryRecords('knowledge_chunks', { filters, limit })
+  },
+
+  reindexKnowledgeFile(fileId, { actor } = {}) {
+    return request('/api/v1/uploads/reindex', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        file_id: fileId,
+        tenant_id: tenantId,
+        actor: actor ?? { tenant_id: tenantId, user_id: '', authenticated: true },
+      }),
+    })
   },
 
   submitInstruction(envelope) {
@@ -102,18 +134,21 @@ export const platformApi = {
     })
   },
 
-  async uploadDocuments(files, { actor, projectId, conversationId, source = 'file' }) {
+  async uploadDocuments(files, { actor, projectId, conversationId, source = 'file', assetScope = '', knowledgeBaseId = '', knowledgeBaseName = '' }) {
     const trace = newId('upload')
     const form = new FormData()
     form.append('tenant_id', tenantId)
     form.append('account_id', actor?.userId ?? actor?.user_id ?? '')
     form.append('authenticated', 'true')
-    form.append('project_id', projectId)
-    form.append('conversation_id', conversationId)
-    form.append('scenario_id', conversationId)
+    if (projectId) form.append('project_id', projectId)
+    if (conversationId) form.append('conversation_id', conversationId)
+    form.append('scenario_id', conversationId || knowledgeBaseId || source || 'manual-upload')
     form.append('trace_id', trace)
     form.append('source_module', 'web-workbench')
     form.append('source', source)
+    if (assetScope) form.append('asset_scope', assetScope)
+    if (knowledgeBaseId) form.append('knowledge_base_id', knowledgeBaseId)
+    if (knowledgeBaseName) form.append('knowledge_base_name', knowledgeBaseName)
     ;[...files].forEach((file) => form.append('files', file, file.name))
     return request('/api/v1/uploads', { method: 'POST', body: form })
   },

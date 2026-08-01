@@ -1,0 +1,144 @@
+{
+  "schema_version": "v1",
+  "trace_id": "case9-diagnosis-001",
+  "analysis_type": "diagnostic",
+  "target": {
+    "metric": "repurchase_rate",
+    "change": "-3.46",
+    "unit": "percentage_points",
+    "description": "六月前十名经销商本季度复购率环比降3.46个百分点，需查明原因"
+  },
+  "entities": [
+    {
+      "entity_id": "D001",
+      "entity_name": "经销商01",
+      "metrics": {
+        "Q1_repurchase_rate": "50.0",
+        "Q2_repurchase_rate": "38.0",
+        "Q1_active_customers": "500",
+        "Q2_active_customers": "500",
+        "Q1_repeat_customers": "250",
+        "Q2_repeat_customers": "190"
+      },
+      "contribution": "-12.0"
+    },
+    {
+      "entity_id": "D002",
+      "entity_name": "经销商02",
+      "metrics": {
+        "Q1_repurchase_rate": "48.1",
+        "Q2_repurchase_rate": "39.05",
+        "Q1_active_customers": "420",
+        "Q2_active_customers": "420",
+        "Q1_repeat_customers": "202",
+        "Q2_repeat_customers": "164"
+      },
+      "contribution": "-9.05"
+    },
+    {
+      "entity_id": "D003",
+      "entity_name": "经销商03",
+      "metrics": {
+        "Q1_repurchase_rate": "43.95",
+        "Q2_repurchase_rate": "43.16",
+        "Q1_active_customers": "380",
+        "Q2_active_customers": "380",
+        "Q1_repeat_customers": "167",
+        "Q2_repeat_customers": "164"
+      },
+      "contribution": "-0.79"
+    },
+    {
+      "entity_id": "D004",
+      "entity_name": "经销商04",
+      "metrics": {
+        "Q1_repurchase_rate": "42.86",
+        "Q2_repurchase_rate": "41.71",
+        "Q1_active_customers": "350",
+        "Q2_active_customers": "350",
+        "Q1_repeat_customers": "150",
+        "Q2_repeat_customers": "146"
+      },
+      "contribution": "-1.15"
+    },
+    {
+      "entity_id": "D005",
+      "entity_name": "经销商05",
+      "metrics": {
+        "Q1_repurchase_rate": "44.06",
+        "Q2_repurchase_rate": "43.44",
+        "Q1_active_customers": "320",
+        "Q2_active_customers": "320",
+        "Q1_repeat_customers": "141",
+        "Q2_repeat_customers": "139"
+      },
+      "contribution": "-0.62"
+    },
+    {
+      "entity_id": "D006",
+      "entity_name": "经销商06",
+      "metrics": {
+        "Q1_repurchase_rate": "43.0",
+        "Q2_repurchase_rate": "42.33",
+        "Q1_active_customers": "300",
+        "Q2_active_customers": "300",
+        "Q1_repeat_customers": "129",
+        "Q2_repeat_customers": "127"
+      },
+      "contribution": "-0.67"
+    },
+    {
+      "entity_id": "D007",
+      "entity_name": "经销商07",
+      "metrics": {
+        "Q1_repurchase_rate": "42.86",
+        "Q2_repurchase_rate": "42.5",
+        "Q1_active_customers": "280",
+        "Q2_active_customers": "280",
+        "Q1_repeat_customers": "120",
+        "Q2_repeat_customers": "119"
+      },
+      "contribution": "-0.36"
+    },
+    {
+      "entity_id": "D008",
+      "entity_name": "经销商08",
+      "metrics": {
+        "Q1_repurchase_rate": "45.0",
+        "Q2_repurchase_rate": "44.62",
+        "Q1_active_customers": "260",
+        "Q2_active_customers": "260",
+        "Q1_repeat_customers": "117",
+        "Q2_repeat_customers": "116"
+      },
+      "contribution": "-0.38"
+    },
+    {
+      "entity_id": "D009",
+      "entity_name": "经销商09",
+      "metrics": {
+        "Q1_repurchase_rate": "40.83",
+        "Q2_repurchase_rate": "40.42",
+        "Q1_active_customers": "240",
+        "Q2_active_customers": "240",
+        "Q1_repeat_customers": "98",
+        "Q2_repeat_customers": "97"
+      },
+      "contribution": "-0.41"
+    },
+    {
+      "entity_id": "D010",
+      "entity_name": "经销商10",
+      "metrics": {
+        "Q1_repurchase_rate": "43.18",
+        "Q2_repurchase_rate": "42.73",
+        "Q1_active_customers": "220",
+        "Q2_active_customers": "220",
+        "Q1_repeat_customers": "95",
+        "Q2_repeat_customers": "94"
+      },
+      "contribution": "-0.45"
+    }
+  ],
+  "top_n": 2
+}

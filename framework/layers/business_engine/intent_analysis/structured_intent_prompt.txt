@@ -13,12 +13,29 @@ Your job:
 4. Preserve dependencies by task_id.
 5. For data-backed tasks, identify data_object, data_scope, fields, operation,
    filters, output_schema, and expected_outputs.
+5a. For every task, write a clear execution_instruction object. This is the
+    machine-readable instruction for the workflow execution engine. It must
+    preserve user-specified details such as region, time range, forecast
+    horizon, metrics, calculations, risk checks, filters, data source, and
+    output requirements. Do not replace a specific user period with a default
+    period. If the period is unknown, put it in missing_inputs.
 6. Put unknown required information in missing_inputs. Do not guess values,
    datasets, fields, filters, or business facts.
 7. If no registered capability can execute a task, use CONTENT_GENERATE with
    capability_code content.generate so the workflow may ask the model to
    complete it from authorized evidence. Do not rewrite it as data.aggregate.
 8. Provide one exact evidence span for each task.
+9. Also write a user-facing intent confirmation summary. This summary is what
+   the user sees before confirming execution. It must be specific to the user
+   input, short, and easy to understand. Do not use generic phrases such as
+   "generate follow-up execution suggestions from previous analysis results".
+10. Write user_facing_intent_summary in the same language as the user input.
+    For Chinese user input, every user-facing field must be clear Chinese.
+    The summary should answer "what do you understand I want?" rather than
+    "which modules will run?".
+11. Keep JSON compact. Do not write long explanations in task_description,
+    expected_outputs, output_schema, or user_facing_intent_summary. Prefer
+    short phrases and arrays of short strings so the JSON can finish cleanly.
 
 Task boundaries:
 - Intent analysis determines what the user wants.
@@ -36,6 +53,26 @@ The result must conform to this base schema:
 Each task may additionally contain:
 {
   "capability_code": "registered platform capability",
+  "execution_instruction": {
+    "objective": "what this task must accomplish",
+    "action": "retrieve|extract|aggregate|forecast|calculate|check|generate|other",
+    "target_capability": "registered platform capability",
+    "input_requirements": {
+      "data_sources": [],
+      "data_object": "",
+      "fields": [],
+      "filters": {},
+      "time_range": "",
+      "time_grain": "",
+      "forecast_horizon": null,
+      "metrics": [],
+      "calculations": [],
+      "risk_checks": []
+    },
+    "output_requirements": ["business outputs required by the user"],
+    "constraints": ["do not invent data", "do not change user-specified scope"],
+    "depends_on": []
+  },
   "data_object": "business data object",
   "data_scope": "current conversation uploads or authorized project data",
   "fields": ["business field meanings"],
@@ -60,6 +97,13 @@ Return JSON only:
 {
   "result": {
     "tasks": [],
+    "user_facing_intent_summary": {
+      "business_goal": "用用户同语言描述你理解到的业务目标",
+      "task_list": ["用户能看懂的具体任务 1", "用户能看懂的具体任务 2"],
+      "data_scope": "当前上传文件或授权项目数据",
+      "output_focus": "最终应该返回给用户的内容",
+      "confirmation_question": "请用户确认理解是否正确"
+    },
     "clarification_required": false,
     "global_clarification_required": false,
     "clarification_questions": [],

@@ -1,0 +1,119 @@
+{
+  "schema_version": "v1",
+  "trace_id": "case9-events",
+  "data_type": "service_events",
+  "description": "经销商配送与回访服务事件记录",
+  "total": 13,
+  "by_dealer": {
+    "D001": [
+      {
+        "event_id": "EV-D001-001",
+        "date": "2026-06-10",
+        "type": "delivery",
+        "delay_days": 3,
+        "follow_up_status": "",
+        "source_ref": "log:delivery:D001:2026-06-10"
+      },
+      {
+        "event_id": "EV-D001-002",
+        "date": "2026-06-15",
+        "type": "delivery",
+        "delay_days": 5,
+        "follow_up_status": "",
+        "source_ref": "log:delivery:D001:2026-06-15"
+      },
+      {
+        "event_id": "EV-D001-003",
+        "date": "2026-06-22",
+        "type": "delivery",
+        "delay_days": 4,
+        "follow_up_status": "",
+        "source_ref": "log:delivery:D001:2026-06-22"
+      },
+      {
+        "event_id": "EV-D001-004",
+        "date": "2026-06-20",
+        "type": "follow_up",
+        "delay_days": 0,
+        "follow_up_status": "overdue",
+        "source_ref": "log:followup:D001:2026-06-20"
+      },
+      {
+        "event_id": "EV-D001-005",
+        "date": "2026-06-25",
+        "type": "follow_up",
+        "delay_days": 0,
+        "follow_up_status": "missing",
+        "source_ref": "log:followup:D001:2026-06-25"
+      },
+      {
+        "event_id": "EV-D001-006",
+        "date": "2026-06-28",
+        "type": "follow_up",
+        "delay_days": 0,
+        "follow_up_status": "overdue",
+        "source_ref": "log:followup:D001:2026-06-28"
+      }
+    ],
+    "D002": [
+      {
+        "event_id": "EV-D002-001",
+        "date": "2026-06-12",
+        "type": "delivery",
+        "delay_days": 2,
+        "follow_up_status": "",
+        "source_ref": "log:delivery:D002:2026-06-12"
+      },
+      {
+        "event_id": "EV-D002-002",
+        "date": "2026-06-18",
+        "type": "delivery",
+        "delay_days": 4,
+        "follow_up_status": "",
+        "source_ref": "log:delivery:D002:2026-06-18"
+      },
+      {
+        "event_id": "EV-D002-003",
+        "date": "2026-06-15",
+        "type": "follow_up",
+        "delay_days": 0,
+        "follow_up_status": "overdue",
+        "source_ref": "log:followup:D002:2026-06-15"
+      },
+      {
+        "event_id": "EV-D002-004",
+        "date": "2026-06-24",
+        "type": "follow_up",
+        "delay_days": 0,
+        "follow_up_status": "missing",
+        "source_ref": "log:followup:D002:2026-06-24"
+      },
+      {
+        "event_id": "EV-D002-005",
+        "date": "2026-06-28",
+        "type": "follow_up",
+        "delay_days": 0,
+        "follow_up_status": "overdue",
+        "source_ref": "log:followup:D002:2026-06-28"
+      }
+    ],
+    "D003": [
+      {
+        "event_id": "EV-D003-001",
+        "date": "2026-06-05",
+        "type": "delivery",
+        "delay_days": 0,
+        "follow_up_status": "",
+        "source_ref": "log:delivery:D003:2026-06-05"
+      },
+      {
+        "event_id": "EV-D003-002",
+        "date": "2026-06-12",
+        "type": "follow_up",
+        "delay_days": 0,
+        "follow_up_status": "completed",
+        "source_ref": "log:followup:D003:2026-06-12"
+      }
+    ]
+  }
+}

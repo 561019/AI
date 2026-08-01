@@ -1,0 +1,14 @@
+tenant_id,dealer_id,event_id,event_date,event_type,delay_days,follow_up_status,status,source_ref
+tenant-demo,D001,EV-D001-001,2026-06-10,delivery,3,,confirmed,log:delivery:D001:2026-06-10
+tenant-demo,D001,EV-D001-002,2026-06-15,delivery,5,,confirmed,log:delivery:D001:2026-06-15
+tenant-demo,D001,EV-D001-003,2026-06-22,delivery,4,,confirmed,log:delivery:D001:2026-06-22
+tenant-demo,D001,EV-D001-004,2026-06-20,follow_up,0,overdue,confirmed,log:followup:D001:2026-06-20
+tenant-demo,D001,EV-D001-005,2026-06-25,follow_up,0,missing,confirmed,log:followup:D001:2026-06-25
+tenant-demo,D001,EV-D001-006,2026-06-28,follow_up,0,overdue,confirmed,log:followup:D001:2026-06-28
+tenant-demo,D002,EV-D002-001,2026-06-12,delivery,2,,confirmed,log:delivery:D002:2026-06-12
+tenant-demo,D002,EV-D002-002,2026-06-18,delivery,4,,confirmed,log:delivery:D002:2026-06-18
+tenant-demo,D002,EV-D002-003,2026-06-15,follow_up,0,overdue,confirmed,log:followup:D002:2026-06-15
+tenant-demo,D002,EV-D002-004,2026-06-24,follow_up,0,missing,confirmed,log:followup:D002:2026-06-24
+tenant-demo,D002,EV-D002-005,2026-06-28,follow_up,0,overdue,confirmed,log:followup:D002:2026-06-28
+tenant-demo,D003,EV-D003-001,2026-06-05,delivery,0,,confirmed,log:delivery:D003:2026-06-05
+tenant-demo,D003,EV-D003-002,2026-06-12,follow_up,0,completed,confirmed,log:followup:D003:2026-06-12

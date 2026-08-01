@@ -62,13 +62,13 @@ def dispatch(payload: dict[str, Any]) -> dict[str, Any]:
         provider = json.loads(response.read().decode("utf-8"))
 
     content = provider["choices"][0]["message"]["content"].strip()
-    if content.startswith("```"):
-        content = content.split("\n", 1)[1].rsplit("```", 1)[0].strip()
     usage = provider.get("usage", {})
     fallback_used = False
     try:
-        output = json.loads(content)
+        output = _parse_model_json(content)
     except json.JSONDecodeError as exc:
+        if not bool(policy.get("allow_fallback", True)):
+            raise ValueError(f"MODEL_JSON_PARSE_FAILED: {exc}") from exc
         output = _mock(payload)["output"]
         if isinstance(output, dict):
             output.setdefault("_model_parse_error", str(exc))
@@ -100,6 +100,50 @@ def dispatch(payload: dict[str, Any]) -> dict[str, Any]:
         duration_ms=(perf_counter() - started) * 1000,
     )
     return result
+
+
+def _parse_model_json(content: str) -> dict[str, Any]:
+    text = str(content or "").strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        extracted = _extract_first_json_object(text)
+        if not extracted:
+            raise
+        payload = json.loads(extracted)
+    if not isinstance(payload, dict):
+        raise json.JSONDecodeError("model output must be a JSON object", text, 0)
+    return payload
+
+
+def _extract_first_json_object(text: str) -> str | None:
+    start = text.find("{")
+    if start < 0:
+        return None
+    depth = 0
+    in_string = False
+    escaped = False
+    for index in range(start, len(text)):
+        char = text[index]
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start:index + 1]
+    return None
 
 
 def _ensure_json_prompt(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:

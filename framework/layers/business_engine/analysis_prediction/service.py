@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sys
 from datetime import date
 from decimal import Decimal
@@ -126,12 +127,19 @@ def _run_price_forecast(
     from analysis_prediction_engine.services.price_forecast import forecast_prices
 
     records = _forecast_records_from_payload(payload)
+    forecast_horizon = payload.get("forecast_horizon")
+    if forecast_horizon in (None, "", 0):
+        forecast_horizon = _forecast_horizon_from_target_period(payload, records)
+    if forecast_horizon in (None, "", 0):
+        forecast_horizon = _forecast_horizon_from_goal(payload)
+    if forecast_horizon in (None, "", 0):
+        raise ValueError("预测任务缺少明确预测周期，不能默认按下季度执行。请由意图分析或流程执行传入 forecast_horizon。")
     request_payload = {
         "schema_version": "v1",
         "trace_id": str(envelope.get("trace_id") or payload.get("trace_id") or "untraced"),
         "analysis_type": "price_forecast",
         "records": records,
-        "forecast_horizon": int(payload.get("forecast_horizon") or _forecast_horizon_from_goal(payload) or 3),
+        "forecast_horizon": int(forecast_horizon),
     }
     request = PriceForecastRequest.model_validate(request_payload)
     response = _json_safe(forecast_prices(request))
@@ -391,16 +399,58 @@ def _forecast_metric_name(payload: dict[str, Any]) -> str:
     return str(candidates[0]) if candidates else "demand_or_business_metric"
 
 
-def _forecast_horizon_from_goal(payload: dict[str, Any]) -> int:
+def _forecast_horizon_from_goal(payload: dict[str, Any]) -> int | None:
     goal = str(payload.get("analysis_goal") or payload.get("user_goal") or "")
+    lowered = goal.lower()
+    if (
+        "下一个月" in goal
+        or "下个月" in goal
+        or "下月" in goal
+        or "下一月" in goal
+        or "未来一个月" in goal
+        or "未来1个月" in goal
+        or "next month" in lowered
+    ):
+        return 1
+    if "下一年" in goal or "未来一年" in goal or "后续一年" in goal or "未来12个月" in goal or "未来十二个月" in goal or "next year" in lowered:
+        return 12
+    if "下半年" in goal or "未来半年" in goal or "后半年" in goal or "half year" in lowered or "six months" in lowered:
+        return 6
+    match = re.search(r"(?:未来|后续|下)\s*(\d{1,2})\s*(?:个)?月", goal)
+    if match:
+        months = int(match.group(1))
+        if 1 <= months <= 24:
+            return months
     if "下季度" in goal or "next quarter" in goal.lower():
         return 3
-    return 3
+    return None
+
+
+def _forecast_horizon_from_target_period(payload: dict[str, Any], records: list[dict[str, Any]]) -> int | None:
+    target = _normalize_period(payload.get("target_period"))
+    if not target and payload.get("target_year") and payload.get("target_month"):
+        try:
+            target = f"{int(payload['target_year']):04d}-{int(payload['target_month']):02d}"
+        except (TypeError, ValueError):
+            target = ""
+    if not target:
+        return None
+    source_periods = [_normalize_period(item.get("date")) for item in records if isinstance(item, dict)]
+    source_periods = [item for item in source_periods if item]
+    if not source_periods:
+        return None
+    latest = max(source_periods)
+    target_year, target_month = (int(part) for part in target.split("-"))
+    latest_year, latest_month = (int(part) for part in latest.split("-"))
+    horizon = (target_year - latest_year) * 12 + (target_month - latest_month)
+    if horizon <= 0:
+        return 1
+    return min(horizon, 24)
 
 
 def _looks_like_forecast_goal(goal: str) -> bool:
     lowered = str(goal or "").lower()
-    return any(word in lowered for word in ("预测", "下季度", "趋势", "forecast", "predict"))
+    return any(word in lowered for word in ("预测", "下一个月", "下个月", "下月", "下季度", "下半年", "半年", "下一年", "未来一年", "一年", "趋势", "forecast", "predict", "next month", "next year"))
 
 
 def _json_safe(value: Any) -> Any:

@@ -1,0 +1,13 @@
+tenant_id,month,region,product_line,demand_qty,order_qty,revenue,returned_qty,data_source,source_ref
+tenant-demo,2025-07,桂中,ALL,7958,7023,944099.16,371,platform,platform:demand:guizhong:2025-07
+tenant-demo,2025-08,桂中,ALL,7997,7031,1245770.94,421,platform,platform:demand:guizhong:2025-08
+tenant-demo,2025-09,桂中,ALL,9103,7869,1242035.37,314,platform,platform:demand:guizhong:2025-09
+tenant-demo,2025-10,桂中,ALL,9326,7953,1411105.21,213,platform,platform:demand:guizhong:2025-10
+tenant-demo,2025-11,桂中,ALL,8615,7759,1320128.83,211,platform,platform:demand:guizhong:2025-11
+tenant-demo,2025-12,桂中,ALL,8929,7694,1177637.93,234,platform,platform:demand:guizhong:2025-12
+tenant-demo,2026-01,桂中,ALL,8760,7625,1002697.23,177,platform,platform:demand:guizhong:2026-01
+tenant-demo,2026-02,桂中,ALL,8664,7968,1386982.6,349,platform,platform:demand:guizhong:2026-02
+tenant-demo,2026-03,桂中,ALL,10891,9340,1591248.44,553,platform,platform:demand:guizhong:2026-03
+tenant-demo,2026-04,桂中,ALL,10737,9924,1696851.75,236,platform,platform:demand:guizhong:2026-04
+tenant-demo,2026-05,桂中,ALL,9972,9301,1627783.4,477,platform,platform:demand:guizhong:2026-05
+tenant-demo,2026-06,桂中,ALL,9789,8586,1353360.93,487,platform,platform:demand:guizhong:2026-06

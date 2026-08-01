@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 from datetime import datetime, timezone
 from typing import Any
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 from uuid import uuid4
 
 from framework.core import create_task, get_latest_task_by_trace, get_task, get_trace_calls, idempotent_get, idempotent_put, record_interface_call, standard_response, update_task, validate_envelope
@@ -35,6 +35,9 @@ def get(handler: Any) -> bool:
         handler.send_html(200, page.read_text(encoding="utf-8")); return True
     if clean_path == "/api/v1/uploads":
         handler.send(200, {"items": _load_upload_index()}); return True
+    if clean_path.startswith("/api/v1/uploads/") and clean_path.endswith("/content"):
+        _download_uploaded_file(handler, clean_path.split("/")[-2])
+        return True
     if clean_path == "/api/v1/platform/overview":
         handler.send(200, build_overview()); return True
     if clean_path.startswith("/api/v1/generated-files/"):
@@ -202,6 +205,56 @@ def _validate_owned_context(trace_id: str, actor: dict[str, Any], project_id: An
     return None
 
 
+def _register_personal_knowledge_upload(
+    trace_id: str,
+    actor: dict[str, Any],
+    scenario_id: str,
+    fields: dict[str, str],
+    saved_items: list[dict[str, Any]],
+) -> dict[str, Any]:
+    knowledge_base_id = str(fields.get("knowledge_base_id") or f"kb_personal_{actor.get('user_id') or 'anonymous'}")
+    # The source identity follows file content, not the transient upload id.
+    # Re-uploading the same file therefore addresses the same knowledge source.
+    file_keys = ",".join(sorted(str(item.get("sha256") or item.get("file_id")) for item in saved_items))
+    source_seed = f"{actor.get('user_id')}:{knowledge_base_id}:{file_keys}"
+    stable_source_id = f"ksrc_{hashlib.sha1(source_seed.encode('utf-8')).hexdigest()[:24]}"
+    task_id = f"knowledge-upload-{uuid4().hex[:12]}"
+    payload = {
+        "knowledge_source_id": fields.get("knowledge_source_id") or stable_source_id,
+        "knowledge_base_id": knowledge_base_id,
+        "knowledge_base_name": fields.get("knowledge_base_name") or "个人知识库",
+        "asset_scope": "personal_knowledge",
+        "scope": "personal",
+        "source_type": "uploaded_file",
+        "scenario_id": scenario_id,
+        "uploaded_files": [item.get("platform_ref") or item for item in saved_items],
+        "request": {
+            "operation": "personal_knowledge_upload",
+            "file_count": len(saved_items),
+        },
+    }
+    envelope = make_internal_envelope(
+        trace_id,
+        actor,
+        task_id,
+        "knowledge_source.register",
+        "business_engine",
+        "engine-gateway",
+        payload,
+        source_layer="business_application",
+        source_module="application-gateway",
+    )
+    status, response = post_json(
+        "http://127.0.0.1:8200/api/v1/engine/instructions",
+        envelope,
+        timeout=180,
+        caller={"layer": "business_application", "module": "application-gateway"},
+    )
+    if status not in {200, 202} or not isinstance(response, dict) or response.get("status") != "success":
+        return {"status": "failed", "http_status": status, "details": response}
+    return {"status": "success", "data": response.get("data") or {}}
+
+
 def post_multipart(handler: Any) -> None:
     if handler.path.split("?", 1)[0] != "/api/v1/uploads":
         handler.send(404, {"error": {"code": "RESOURCE_NOT_FOUND"}})
@@ -221,11 +274,49 @@ def post_multipart(handler: Any) -> None:
         "user_id": fields.get("account_id") or "anonymous",
         "authenticated": fields.get("authenticated", "true").lower() != "false",
     }
-    binding_error = _validate_owned_context(trace_id, actor, fields.get("project_id"), fields.get("conversation_id"))
+    asset_scope = str(fields.get("asset_scope") or "").strip()
+    is_personal_knowledge = asset_scope == "personal_knowledge"
+    resolved_knowledge_base_id = (
+        str(fields.get("knowledge_base_id") or f"kb_personal_{actor['user_id']}")
+        if is_personal_knowledge else fields.get("knowledge_base_id")
+    )
+    resolved_knowledge_base_name = fields.get("knowledge_base_name") or ("个人知识库" if is_personal_knowledge else None)
+    if not actor["user_id"] or actor["user_id"] == "anonymous":
+        handler.send(403, {"trace_id": trace_id, "error": {"code": "ACCOUNT_CONTEXT_REQUIRED", "message": "account_id is required"}})
+        return
+    binding_error = None if is_personal_knowledge else _validate_owned_context(trace_id, actor, fields.get("project_id"), fields.get("conversation_id"))
     if binding_error:
         handler.send(403, {"trace_id": trace_id, "error": binding_error})
         return
+    project_id = None if is_personal_knowledge else fields.get("project_id")
+    conversation_id = None if is_personal_knowledge else fields.get("conversation_id")
     saved_items = [_save_uploaded_file(file, scenario_id, trace_id) for file in files]
+    saved_items = [{
+        **item,
+        "tenant_id": actor["tenant_id"],
+        "owner_account_id": actor["user_id"],
+        "project_id": project_id,
+        "conversation_id": conversation_id,
+        "asset_scope": asset_scope,
+        "knowledge_base_id": resolved_knowledge_base_id,
+        "knowledge_base_name": resolved_knowledge_base_name,
+    } for item in saved_items]
+    for item in saved_items:
+        item["download_url"] = (
+            f"/api/v1/uploads/{quote(str(item['file_id']))}/content"
+            f"?tenant_id={quote(actor['tenant_id'])}&account_id={quote(actor['user_id'])}"
+        )
+    for item in saved_items:
+        if isinstance(item.get("platform_ref"), dict):
+            item["platform_ref"].update({
+                "tenant_id": item.get("tenant_id"),
+                "owner_account_id": item.get("owner_account_id"),
+                "project_id": item.get("project_id"),
+                "conversation_id": item.get("conversation_id"),
+                "asset_scope": item.get("asset_scope"),
+                "knowledge_base_id": item.get("knowledge_base_id"),
+                "knowledge_base_name": item.get("knowledge_base_name"),
+            })
     persistence = _persist_records(
         trace_id, actor, fields.get("conversation_id") or scenario_id,
         [
@@ -236,8 +327,11 @@ def post_multipart(handler: Any) -> None:
                     "object_id": item["object_id"],
                     "tenant_id": actor["tenant_id"],
                     "owner_account_id": actor["user_id"],
-                    "project_id": fields.get("project_id"),
-                    "conversation_id": fields.get("conversation_id"),
+                    "project_id": project_id,
+                    "conversation_id": conversation_id,
+                    "asset_scope": asset_scope,
+                    "knowledge_base_id": resolved_knowledge_base_id,
+                    "knowledge_base_name": resolved_knowledge_base_name,
                     "original_filename": item["original_name"],
                     "object_key": item["stored_name"],
                     "storage_backend": "local-development",
@@ -255,8 +349,11 @@ def post_multipart(handler: Any) -> None:
                     **item,
                     "tenant_id": actor["tenant_id"],
                     "owner_account_id": actor["user_id"],
-                    "project_id": fields.get("project_id"),
-                    "conversation_id": fields.get("conversation_id"),
+                    "project_id": project_id,
+                    "conversation_id": conversation_id,
+                    "asset_scope": asset_scope,
+                    "knowledge_base_id": resolved_knowledge_base_id,
+                    "knowledge_base_name": resolved_knowledge_base_name,
                 } for item in saved_items],
             },
         ],
@@ -264,6 +361,54 @@ def post_multipart(handler: Any) -> None:
     if persistence.get("status") != "success":
         handler.send(503, {"error": {"code": "UPLOAD_METADATA_PERSISTENCE_FAILED", "details": persistence}})
         return
+    knowledge_indexing = None
+    if is_personal_knowledge:
+        knowledge_indexing = _register_personal_knowledge_upload(trace_id, actor, scenario_id, fields, saved_items)
+        if knowledge_indexing.get("status") != "success":
+            handler.send(502, {
+                "status": "failed",
+                "trace_id": trace_id,
+                "error": {
+                    "code": "KNOWLEDGE_UPLOAD_INDEXING_FAILED",
+                    "message": "知识库文件已保存，但知识库模块解析入库失败",
+                    "details": knowledge_indexing,
+                },
+            })
+            return
+        index_data = knowledge_indexing.get("data") or {}
+        knowledge_source = index_data.get("knowledge_source") or {}
+        index_result = index_data.get("knowledge_index_result") or {}
+        file_results = {
+            str(item.get("file_id")): item
+            for item in (index_result.get("file_results") or [])
+            if isinstance(item, dict) and item.get("file_id")
+        }
+        for item in saved_items:
+            file_result = file_results.get(str(item.get("file_id"))) or index_result
+            item["knowledge_source_id"] = file_result.get("knowledge_source_id") or index_result.get("knowledge_source_id") or knowledge_source.get("knowledge_source_id")
+            item["knowledge_base_id"] = file_result.get("knowledge_base_id") or index_result.get("knowledge_base_id") or item.get("knowledge_base_id")
+            item["knowledge_index_state"] = file_result.get("state") or index_result.get("state")
+            item["knowledge_chunk_count"] = file_result.get("chunk_count") if "chunk_count" in file_result else index_result.get("chunk_count")
+            if isinstance(item.get("platform_ref"), dict):
+                item["platform_ref"].update({
+                    "knowledge_source_id": item.get("knowledge_source_id"),
+                    "knowledge_base_id": item.get("knowledge_base_id"),
+                    "knowledge_index_state": item.get("knowledge_index_state"),
+                    "knowledge_chunk_count": item.get("knowledge_chunk_count"),
+                })
+        metadata_refresh = _persist_records(
+            trace_id,
+            actor,
+            fields.get("conversation_id") or scenario_id,
+            [{
+                "dataset": "uploaded_files",
+                "operation": "upsert",
+                "records": saved_items,
+            }],
+        )
+        if metadata_refresh.get("status") != "success":
+            handler.send(503, {"error": {"code": "KNOWLEDGE_UPLOAD_METADATA_REFRESH_FAILED", "details": metadata_refresh}})
+            return
     index = _load_upload_index()
     index.extend(saved_items)
     _save_upload_index(index)
@@ -279,11 +424,17 @@ def post_multipart(handler: Any) -> None:
             "next_suggested_capabilities": [
                 "document.package.build",
                 "document.table.extract",
+                "knowledge.query" if is_personal_knowledge else None,
                 "data.persist",
                 "workflow.execute",
             ],
         },
     }
+    response["platform_payload"]["next_suggested_capabilities"] = [
+        item for item in response["platform_payload"]["next_suggested_capabilities"] if item
+    ]
+    if knowledge_indexing:
+        response["knowledge_indexing"] = knowledge_indexing.get("data")
     if fields.get("trace_id"):
         record_interface_call(
             trace_id=fields["trace_id"],
@@ -313,6 +464,9 @@ def post_multipart(handler: Any) -> None:
 
 
 def post(handler: Any, body: dict[str, Any]) -> None:
+    if handler.path == "/api/v1/uploads/reindex":
+        _reindex_personal_knowledge_file(handler, body)
+        return
     if handler.path == "/api/v1/generated-files":
         _create_generated_file(handler, body)
         return
@@ -350,7 +504,15 @@ def post(handler: Any, body: dict[str, Any]) -> None:
         handler.send(503, standard_response(body, "failed", error={"code": "DATA_PERSISTENCE_FAILED", "message": "用户请求未能写入数据模块", "details": persistence})); return
     task_id = create_task(body["trace_id"], body["request_id"])
     forwarded = json.loads(json.dumps(body)); forwarded["source"] = {"layer": "business_application", "module": "application-gateway"}; forwarded["payload"]["platform_task_id"] = task_id
-    forwarded["payload"]["conversation_context"] = _load_recent_conversation_context(body, limit=12)
+    persisted_context = _load_recent_conversation_context(body, limit=12)
+    client_context = body.get("payload", {}).get("conversation_context")
+    # Prefer persisted data, but retain the browser's bounded window while a
+    # just-written message is not yet visible to the data query.
+    forwarded["payload"]["conversation_context"] = (
+        persisted_context
+        if persisted_context
+        else client_context if isinstance(client_context, list) else []
+    )
     status, forwarded_response = post_json("http://127.0.0.1:8200/api/v1/engine/instructions", forwarded, timeout=70, caller={"layer": "business_application", "module": "application-gateway"})
     if status not in {200, 202}:
         error = _friendly_dependency_error(forwarded_response)
@@ -436,6 +598,14 @@ def _confirm(handler: Any, confirmation_id: str, decision: dict[str, Any]) -> No
             "idempotent_replay": True,
         })
         return
+    if task["state"] == "running":
+        handler.send(202, {
+            "status": "running",
+            "task_id": task_id,
+            "trace_id": task["trace_id"],
+            "data": task.get("result_ref") or {},
+        })
+        return
     if task["state"] != "waiting_human": handler.send(409, {"error": {"code": "INVALID_TASK_STATE", "message": task["state"]}}); return
     if choice == "reject":
         update_task(task_id, state="failed", progress=100, error={"code": "HUMAN_REJECTED", "message": "用户已驳回意图"})
@@ -463,7 +633,7 @@ def _confirm(handler: Any, confirmation_id: str, decision: dict[str, Any]) -> No
     workflow_context = {"project_id": decision.get("project_id"), "conversation_id": decision.get("conversation_id"), "locale": "zh-CN"}
     envelope = make_internal_envelope(task["trace_id"], actor, task_id, "workflow.execute", "business_engine", "engine-gateway", {"execution_kind": "intent_driven", "confirmation_id": confirmation_id, "intent_task": intent_task, "uploaded_documents": uploaded_documents, "simulate_permission_denied": bool(decision.get("simulate_permission_denied", False))}, source_layer="business_application", source_module="application-gateway", context=workflow_context)
     update_task(task_id, state="running", progress=50)
-    status, response = post_json("http://127.0.0.1:8200/api/v1/engine/instructions", envelope, timeout=70, caller={"layer": "business_application", "module": "application-gateway"})
+    status, response = post_json("http://127.0.0.1:8200/api/v1/engine/instructions", envelope, timeout=260, caller={"layer": "business_application", "module": "application-gateway"})
     result = response.get("data") if isinstance(response, dict) else None
     if status not in {200, 202} or not result:
         failure = {"code": "WORKFLOW_EXECUTION_FAILED", "details": response}
@@ -483,6 +653,69 @@ def _confirm(handler: Any, confirmation_id: str, decision: dict[str, Any]) -> No
     handler.send(200, {"status": "succeeded", "task_id": task_id, "trace_id": task["trace_id"], "data": result})
 
 
+def _reindex_personal_knowledge_file(handler: Any, body: dict[str, Any]) -> None:
+    file_id = str(body.get("file_id") or "")
+    actor_payload = body.get("actor") if isinstance(body.get("actor"), dict) else {}
+    actor = {
+        "tenant_id": actor_payload.get("tenant_id") or body.get("tenant_id") or "web-workbench",
+        "user_id": actor_payload.get("user_id") or body.get("account_id") or "anonymous",
+        "authenticated": bool(actor_payload.get("authenticated", True)),
+    }
+    item = next((candidate for candidate in _load_upload_index() if str(candidate.get("file_id")) == file_id), None)
+    if not item:
+        handler.send(404, {"error": {"code": "UPLOADED_FILE_NOT_FOUND"}})
+        return
+    if str(item.get("tenant_id") or "web-workbench") != str(actor["tenant_id"]) or str(item.get("owner_account_id") or "") != str(actor["user_id"]):
+        handler.send(403, {"error": {"code": "UPLOADED_FILE_ACCESS_DENIED"}})
+        return
+    if item.get("asset_scope") != "personal_knowledge":
+        handler.send(422, {"error": {"code": "PERSONAL_KNOWLEDGE_SCOPE_REQUIRED"}})
+        return
+    trace_id = str(body.get("trace_id") or f"knowledge-reindex-{uuid4().hex[:12]}")
+    fields = {
+        "knowledge_base_id": item.get("knowledge_base_id") or f"kb_personal_{actor['user_id']}",
+        "knowledge_base_name": item.get("knowledge_base_name") or "个人知识库",
+        "knowledge_source_id": item.get("knowledge_source_id"),
+    }
+    result = _register_personal_knowledge_upload(trace_id, actor, item.get("scenario_id") or file_id, fields, [item])
+    if result.get("status") != "success":
+        handler.send(502, {"status": "failed", "trace_id": trace_id, "error": {"code": "KNOWLEDGE_REINDEX_FAILED", "details": result}})
+        return
+    data = result.get("data") or {}
+    source = data.get("knowledge_source") or {}
+    index_result = data.get("knowledge_index_result") or {}
+    item.update({
+        "knowledge_source_id": index_result.get("knowledge_source_id") or source.get("knowledge_source_id"),
+        "knowledge_base_id": index_result.get("knowledge_base_id") or fields["knowledge_base_id"],
+        "knowledge_base_name": fields["knowledge_base_name"],
+        "knowledge_index_state": index_result.get("state"),
+        "knowledge_chunk_count": index_result.get("chunk_count"),
+    })
+    if isinstance(item.get("platform_ref"), dict):
+        item["platform_ref"].update({
+            "knowledge_source_id": item.get("knowledge_source_id"),
+            "knowledge_base_id": item.get("knowledge_base_id"),
+            "knowledge_base_name": item.get("knowledge_base_name"),
+            "knowledge_index_state": item.get("knowledge_index_state"),
+            "knowledge_chunk_count": item.get("knowledge_chunk_count"),
+        })
+    metadata = _persist_records(trace_id, actor, item.get("scenario_id") or file_id, [{
+        "dataset": "uploaded_files",
+        "operation": "upsert",
+        "records": [item],
+    }])
+    if metadata.get("status") != "success":
+        handler.send(503, {"status": "failed", "trace_id": trace_id, "error": {"code": "KNOWLEDGE_REINDEX_METADATA_FAILED", "details": metadata}})
+        return
+    items = _load_upload_index()
+    for index, candidate in enumerate(items):
+        if str(candidate.get("file_id")) == file_id:
+            items[index] = item
+            break
+    _save_upload_index(items)
+    handler.send(200, {"status": "succeeded", "trace_id": trace_id, "item": item, "knowledge_indexing": data})
+
+
 def _load_upload_index() -> list[dict[str, Any]]:
     if not UPLOAD_INDEX.exists():
         return []
@@ -491,6 +724,35 @@ def _load_upload_index() -> list[dict[str, Any]]:
         return data if isinstance(data, list) else []
     except json.JSONDecodeError:
         return []
+
+
+def _download_uploaded_file(handler: Any, file_id: str) -> None:
+    query = parse_qs(urlparse(handler.path).query)
+    tenant_id = (query.get("tenant_id") or ["web-workbench"])[0]
+    account_id = (query.get("account_id") or [""])[0]
+    item = next((candidate for candidate in _load_upload_index() if str(candidate.get("file_id")) == str(file_id)), None)
+    if not item:
+        handler.send(404, {"error": {"code": "UPLOADED_FILE_NOT_FOUND"}})
+        return
+    if str(item.get("tenant_id") or "") != str(tenant_id) or str(item.get("owner_account_id") or "") != str(account_id):
+        handler.send(403, {"error": {"code": "UPLOADED_FILE_ACCESS_DENIED"}})
+        return
+    path = Path(str(item.get("saved_path") or ""))
+    try:
+        path.resolve().relative_to(UPLOAD_ROOT.resolve())
+    except ValueError:
+        handler.send(403, {"error": {"code": "UPLOADED_FILE_PATH_FORBIDDEN"}})
+        return
+    if not path.is_file():
+        handler.send(404, {"error": {"code": "UPLOADED_FILE_OBJECT_MISSING"}})
+        return
+    raw = path.read_bytes()
+    handler.send_response(200)
+    handler.send_header("Content-Type", item.get("content_type") or "application/octet-stream")
+    handler.send_header("Content-Length", str(len(raw)))
+    handler.send_header("Content-Disposition", f'inline; filename="{_safe_filename(item.get("original_name") or file_id)}"')
+    handler.end_headers()
+    handler.wfile.write(raw)
 
 
 def _save_upload_index(items: list[dict[str, Any]]) -> None:
@@ -742,7 +1004,8 @@ def _execute_application_command(handler: Any, command: dict[str, Any]) -> None:
             "user_id": command.get("accountId") or "anonymous",
             "authenticated": True,
         }
-        binding_error = _validate_owned_context(
+        account_scoped = str(command.get("scope") or payload.get("scope") or "") == "personal"
+        binding_error = None if account_scoped else _validate_owned_context(
             str(command.get("trace_id") or command.get("traceId") or uuid4()), actor,
             command.get("projectId") or payload.get("project_id"),
             command.get("conversationId") or payload.get("conversation_id"),
@@ -1037,6 +1300,30 @@ def _compact_persisted_result(value: Any, *, depth: int = 0) -> Any:
     return value
 
 
+def _extract_user_visible_text(result: Any) -> str:
+    if not isinstance(result, dict):
+        return str(result or "").strip()
+    data = result.get("data") if isinstance(result.get("data"), dict) else result
+    capability_result = data.get("capability_result") if isinstance(data.get("capability_result"), dict) else {}
+    user_result = capability_result.get("user_result") if isinstance(capability_result.get("user_result"), dict) else {}
+    for value in (
+        user_result.get("summary"),
+        user_result.get("answer"),
+        capability_result.get("summary_cn"),
+        capability_result.get("summary"),
+        capability_result.get("answer"),
+        capability_result.get("user_answer"),
+        data.get("summary_cn"),
+        data.get("summary"),
+    ):
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    content = capability_result.get("content")
+    if isinstance(content, str) and content.strip():
+        return content.strip()
+    return ""
+
+
 def _persist_task_and_assistant_message(envelope: dict[str, Any], task_id: str, task: dict[str, Any] | None, content_type: str) -> None:
     if not task:
         return
@@ -1075,6 +1362,7 @@ def _persist_confirmation_result(original_task: dict[str, Any], completed_task: 
     tenant_id = str(actor.get("tenant_id") or "default")
     timestamp = datetime.now(timezone.utc).isoformat()
     compact_result = _compact_persisted_result(result)
+    content_text = _extract_user_visible_text(result)
     compact_task = {**completed_task, "result_ref": _compact_persisted_result(completed_task.get("result_ref"))}
     _persist_records(original_task.get("trace_id"), actor, completed_task.get("task_id"), [
         {"dataset": "task_snapshots", "operation": "upsert", "records": [{**compact_task, "record_id": completed_task.get("task_id"), "tenant_id": tenant_id, "owner_account_id": account_id, "conversation_id": conversation_id, "project_id": project_id}]},
@@ -1087,6 +1375,7 @@ def _persist_confirmation_result(original_task: dict[str, Any], completed_task: 
             "role": "assistant",
             "content_type": "execution_result",
             "content": compact_result,
+            "content_text": content_text,
             "task_id": completed_task.get("task_id"),
             "trace_id": original_task.get("trace_id"),
             "created_at": timestamp,

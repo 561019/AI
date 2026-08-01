@@ -25,6 +25,8 @@ class AdapterSpec:
 
 
 MODULE_UPSTREAMS: dict[str, tuple[str, str]] = {
+    "rule-adapter": ("RULE_ADAPTER_UPSTREAM_URL", "http://127.0.0.1:8012"),
+    "content-adapter": ("CONTENT_ADAPTER_UPSTREAM_URL", "http://127.0.0.1:8013"),
     "document-table-parsing": ("DOCUMENT_TABLE_PARSING_UPSTREAM_URL", "http://127.0.0.1:8071"),
     "data-operation": ("DATA_OPERATION_UPSTREAM_URL", "http://127.0.0.1:8061"),
     "analysis-prediction": ("ANALYSIS_PREDICTION_UPSTREAM_URL", "http://127.0.0.1:8060"),
@@ -42,7 +44,7 @@ MODULE_UPSTREAMS: dict[str, tuple[str, str]] = {
     "evolution-mechanism": ("EVOLUTION_MECHANISM_UPSTREAM_URL", "http://127.0.0.1:8069"),
     "control-mechanism": ("CONTROL_MECHANISM_UPSTREAM_URL", "http://127.0.0.1:8079"),
     "knowledge-base": ("KNOWLEDGE_BASE_UPSTREAM_URL", "http://127.0.0.1:8070"),
-    "execution-sandbox": ("EXECUTION_SANDBOX_UPSTREAM_URL", "http://127.0.0.1:8068"),
+    "execution-sandbox": ("EXECUTION_SANDBOX_UPSTREAM_URL", "http://127.0.0.1:8765"),
     "memory-management": ("MEMORY_MANAGEMENT_UPSTREAM_URL", "http://127.0.0.1:8081"),
     "device-system-interface": ("DEVICE_SYSTEM_INTERFACE_UPSTREAM_URL", "http://127.0.0.1:8082"),
     "security-compliance": ("SECURITY_COMPLIANCE_UPSTREAM_URL", "http://127.0.0.1:8066"),
@@ -51,6 +53,8 @@ MODULE_UPSTREAMS: dict[str, tuple[str, str]] = {
 
 
 MODULE_DEFAULT_PATHS: dict[str, tuple[str, PayloadMode]] = {
+    "rule-adapter": ("/api/v1/delivered-rules/calculate", "platform_envelope"),
+    "content-adapter": ("/api/v1/delivered-content/generate", "platform_envelope"),
     "document-table-parsing": ("/api/v1/document-parsing/tasks", "l2_internal_message"),
     "data-operation": ("/api/l2/tasks", "l2_internal_message"),
     "analysis-prediction": ("/v1/analysis-jobs/evaluate", "platform_envelope"),
@@ -65,7 +69,7 @@ MODULE_DEFAULT_PATHS: dict[str, tuple[str, PayloadMode]] = {
     "foundation-data": ("/api/v1/foundation-data/tasks", "l2_internal_message"),
     "security-compliance": ("/api/v1/security-compliance/check", "platform_envelope"),
     "human-collaboration": ("/api/v1/human/tasks", "l2_internal_message"),
-    "execution-sandbox": ("/api/v1/sandbox/tasks", "l2_internal_message"),
+    "execution-sandbox": ("/api/v1/layer-interface/messages", "l2_internal_message"),
     "evolution-mechanism": ("/api/v1/evolution/actions", "l2_internal_message"),
     "control-mechanism": ("/api/v1/control/actions", "l2_internal_message"),
     "knowledge-base": ("/api/v1/knowledge/tasks", "l2_internal_message"),
@@ -107,7 +111,11 @@ def _build_specs() -> dict[str, AdapterSpec]:
                     default_base_url=default_base_url,
                     payload_mode=payload_mode,  # type: ignore[arg-type]
                     action=capability,
-                    auth_token_env="ACCOUNT_GATEWAY_ADMIN_TOKEN" if module.code == "account-gateway" else None,
+                    auth_token_env=(
+                        "ACCOUNT_GATEWAY_ADMIN_TOKEN" if module.code == "account-gateway"
+                        else "SANDBOX_PLATFORM_API_TOKEN" if module.code == "execution-sandbox"
+                        else None
+                    ),
                     description_cn=f"{module.name_cn}：{capability}",
                 ),
             )

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import {
   Activity,
   ArrowUpCircle,
@@ -14,14 +14,17 @@ import {
   ChevronRight,
   CircleAlert,
   CircleDotDashed,
+  Copy,
   ClipboardList,
   Clock3,
   Command,
   Cpu,
   Database,
   Download,
+  Edit3,
   FileOutput,
   FileText,
+  Forward,
   FolderKanban,
   History,
   Image as ImageIcon,
@@ -45,7 +48,9 @@ import {
   ShieldCheck,
   ShieldPlus,
   Sparkles,
+  Star,
   Settings2,
+  Trash2,
   Upload,
   UserRound,
   Users,
@@ -67,6 +72,24 @@ import { KnowledgeGovernanceOperations, knowledgeGovernanceApplicationApi } from
 import { AuthOperations, authApplicationApi } from './services/auth-api'
 import { createInstructionEnvelope, platformApi } from './services/platform-api'
 import { workspaceApplicationApi } from './services/workspace-api'
+import { useToast } from './composables/useToast'
+import { useWorkbenchUiStore } from './stores/ui'
+import MainLayout from './layouts/MainLayout.vue'
+import LeftSidebar from './components/LeftSidebar.vue'
+import RightSessionPanel from './components/RightSessionPanel.vue'
+import RightCapabilityPanel from './components/RightCapabilityPanel.vue'
+import RightKnowledgePanel from './components/RightKnowledgePanel.vue'
+import RightFilesPanel from './components/RightFilesPanel.vue'
+import FilePreview from './components/FilePreview.vue'
+import ChatComposer from './components/ChatComposer.vue'
+import ChatMessageList from './components/ChatMessageList.vue'
+import CommandComposer from './components/CommandComposer.vue'
+import WorkbenchTopbar from './components/WorkbenchTopbar.vue'
+import DeleteConfirmDialog from './components/DeleteConfirmDialog.vue'
+import RenameConversationDialog from './components/RenameConversationDialog.vue'
+import ForwardMessageDialog from './components/ForwardMessageDialog.vue'
+import ToastNotification from './components/ToastNotification.vue'
+import AccountCenterView from './views/workbench/AccountCenterView.vue'
 
 const accountRecords = ref([])
 const authState = reactive({
@@ -83,27 +106,57 @@ const authState = reactive({
   loading: false,
   restoring: true,
 })
-const currentAccountId = ref(null)
-const currentProjectId = ref('project-customer')
-const currentConversationId = ref('customer-expert')
-const conversationMenuId = ref(null)
-const expandedProjectIds = ref(new Set(['project-customer']))
-const accountCenterActive = ref(false)
-const accountMenuOpen = ref(false)
-const rightTab = ref('session')
-const inputText = ref('')
-const chatStreamRef = ref(null)
-const fileInput = ref(null)
-const imageInput = ref(null)
-const cameraInput = ref(null)
-const voiceRecording = ref(false)
-const toast = ref('')
+const {
+  currentAccountId,
+  currentProjectId,
+  currentConversationId,
+  conversationMenuId,
+  expandedProjectIds,
+  accountCenterActive,
+  accountMenuOpen,
+  rightTab,
+  inputText,
+  messageActionMenuId,
+  editingMessageId,
+  deleteMessageDialogOpen,
+  forwardMessageDialogOpen,
+  messagePendingAction,
+  chatStreamRef,
+  fileInput,
+  imageInput,
+  cameraInput,
+  voiceRecording,
+  knowledgeScope,
+  projectSearch,
+  projectDialogOpen,
+  conversationDialogOpen,
+  newProjectName,
+  newConversationTitle,
+  commandInput,
+  projectCommandInput,
+} = useWorkbenchUiStore()
+const { toast, showToast } = useToast()
+const isGenerating = ref(false)
+const activeGeneration = ref(null)
+const filePreview = ref(null)
+const rightPanelSearch = ref('')
+const knowledgeStreamRef = ref(null)
+const knowledgeFileInput = ref(null)
+const knowledgeImageInput = ref(null)
+const knowledgeCameraInput = ref(null)
+const knowledgeEditingMessageId = ref(null)
+const knowledgeMessageActionMenuId = ref(null)
+let generationSequence = 0
+const projectDeleteDialogOpen = ref(false)
+const conversationDeleteDialogOpen = ref(false)
+const pendingProjectDelete = ref(null)
+const pendingConversationDelete = ref(null)
+const conversationRenameDialogOpen = ref(false)
+const pendingConversationRename = ref(null)
+const conversationRenameInput = ref('')
 const sessionMessages = reactive({})
 const notificationReadIds = ref([])
 const notificationRecords = ref(structuredClone(notifications))
-const knowledgeScope = ref('personal')
-const fileSearch = ref('')
-const projectSearch = ref('')
 const disabledResourceIds = ref([])
 const personalKnowledge = ref([...personalKnowledgeBases])
 const groupKnowledgeRecords = ref(structuredClone(groupKnowledgeBases))
@@ -141,12 +194,6 @@ const agentManagement = reactive({
   createSpec: '',
   createAssets: [],
 })
-const projectDialogOpen = ref(false)
-const conversationDialogOpen = ref(false)
-const newProjectName = ref('')
-const newConversationTitle = ref('')
-const commandInput = ref('')
-const projectCommandInput = ref('')
 const projectCommandMessages = reactive({})
 const commandMessages = ref([
   { id: 'command-1', role: 'assistant', text: '我是综合指挥中心。你可以直接告诉我需要统筹、核对、催办或进入哪个 Project，我会按当前账号权限组织后续操作。', source: '账号级范围 · 全部 Project 摘要' },
@@ -212,11 +259,14 @@ const hasPermission = (permission) => !permission || (currentAccount.value.permi
 const hasFeatureAccess = (permission) => hasPermission(permission) || (roleFeaturePermissions[currentAccount.value.role] ?? []).includes(permission)
 const filteredWorkspaceProjects = computed(() => {
   const keyword = projectSearch.value.trim().toLowerCase()
-  if (!keyword) return workspaceProjects.value
-  return workspaceProjects.value.filter((project) => [project.name, project.description, ...project.conversations.map((conversation) => conversation.title)].join(' ').toLowerCase().includes(keyword))
+  const projects = keyword
+    ? workspaceProjects.value.filter((project) => [project.name, project.description, ...project.conversations.map((conversation) => conversation.title)].join(' ').toLowerCase().includes(keyword))
+    : workspaceProjects.value
+  return [...projects].sort((left, right) => {
+    const pinned = Number(Boolean(right.pinned || right.fixed)) - Number(Boolean(left.pinned || left.fixed))
+    return pinned || projectLatestTimestamp(right) - projectLatestTimestamp(left)
+  })
 })
-const fixedWorkspaceProjects = computed(() => filteredWorkspaceProjects.value.filter((project) => project.fixed))
-const customWorkspaceProjects = computed(() => filteredWorkspaceProjects.value.filter((project) => !project.fixed))
 const visibleConversations = computed(() => uniqueConversations(currentProject.value?.conversations ?? []).filter((item) => hasPermission(item.permission)))
 const groupedVisibleConversations = computed(() => {
   const groups = new Map()
@@ -239,6 +289,22 @@ const currentMessages = computed(() => {
   if (!currentConversation.value) return []
   return [...currentConversation.value.messages, ...(sessionMessages[currentConversation.value.id] ?? [])]
 })
+const latestUserMessageId = computed(() => [...currentMessages.value].reverse().find((message) => message.role === 'user')?.id ?? null)
+const latestAssistantMessageId = computed(() => [...currentMessages.value].reverse().find((message) => message.role === 'assistant')?.id ?? null)
+const knowledgeLatestUserMessageId = computed(() => [...knowledgeManagement.messages].reverse().find((message) => message.role === 'user')?.id ?? null)
+const knowledgeLatestAssistantMessageId = computed(() => [...knowledgeManagement.messages].reverse().find((message) => message.role === 'assistant')?.id ?? null)
+const conversationScrollKey = computed(() => {
+  const messages = currentMessages.value
+  const last = messages[messages.length - 1]
+  return [
+    currentConversationId.value || '',
+    messages.length,
+    last?.id || '',
+    last?.text?.length || 0,
+    last?.task?.status || '',
+    last?.receipt ? 'receipt' : '',
+  ].join('|')
+})
 const isProjectCenter = computed(() => !accountCenterActive.value && !currentConversation.value)
 const currentContextUsage = computed(() => currentConversation.value ? getContextUsage(currentConversation.value) : 0)
 const canReadTeamReports = computed(() => hasPermission('report.read.team'))
@@ -259,6 +325,26 @@ const visibleRightTabs = computed(() => [
   { id: 'files', label: '文件', icon: FileOutput, visible: canViewFiles.value },
 ].filter((item) => item.visible))
 const visibleGroupKnowledge = computed(() => groupKnowledgeRecords.value.filter((item) => hasPermission(item.contentPermission)))
+const matchesRightPanelSearch = (item, fields = []) => {
+  const keyword = rightPanelSearch.value.trim().toLowerCase()
+  if (!keyword) return true
+  return fields.some((field) => String(item[field] ?? '').toLowerCase().includes(keyword))
+}
+const filteredAgentRecords = computed(() => agentRecords.value.filter((item) => matchesRightPanelSearch(item, ['name', 'detail', 'level'])))
+const filteredSkillRecords = computed(() => skillRecords.value.filter((item) => matchesRightPanelSearch(item, ['name', 'detail', 'level', 'version'])))
+const filteredPersonalKnowledge = computed(() => personalKnowledge.value.filter((item) => matchesRightPanelSearch(item, ['name', 'meta', 'updated'])))
+const personalKnowledgeFiles = computed(() => personalKnowledge.value
+  .filter((item) => !item.ownerAccountId || String(item.ownerAccountId) === String(currentAccount.value?.id || ''))
+  .flatMap((item) => (item.files || []).map((file) => ({
+    ...file,
+    knowledgeBaseId: item.id,
+    knowledgeBaseName: item.name,
+    ownerAccountId: item.ownerAccountId || currentAccount.value?.id,
+    source: `个人知识库 · ${item.name}`,
+  })))
+  .filter((item) => matchesRightPanelSearch(item, ['name', 'meta', 'source', 'knowledgeBaseName'])))
+const filteredVisibleGroupKnowledge = computed(() => visibleGroupKnowledge.value.filter((item) => matchesRightPanelSearch(item, ['name', 'meta', 'owner', 'updated'])))
+const filteredProjectKnowledgeFiles = computed(() => (currentProject.value?.knowledge ?? []).filter((item) => matchesRightPanelSearch(item, ['name', 'meta'])))
 const selectedGrantKnowledge = computed(() => groupKnowledgeRecords.value.find((item) => item.id === knowledgeGrantTargetId.value))
 const knowledgeContentViewers = computed(() => accountRecords.value.filter((account) => account.permissions.includes('knowledge.group.view')))
 const selectedPersonalKnowledge = computed(() => personalKnowledge.value.find((item) => item.id === selectedPersonalKnowledgeId.value))
@@ -267,27 +353,26 @@ const managedKnowledgeBase = computed(() => {
   return records.find((item) => item.id === knowledgeManagement.knowledgeBaseId)
 })
 const generatedFiles = computed(() => {
-  if (!currentConversation.value) return []
-  return [
-    { id: 'output-1', name: `${currentConversation.value.title}_行动简报.pdf`, meta: 'AI 产出 · v1.0 · 今天 10:26', type: 'PDF' },
-    { id: 'output-2', name: `${currentConversation.value.title}_执行清单.xlsx`, meta: 'AI 产出 · v1.0 · 今天 10:26', type: 'XLSX' },
-  ]
+  const files = currentConversation.value?.generatedFiles ?? currentConversation.value?.generated_files ?? []
+  return files
+    .filter(Boolean)
+    .map((file, index) => ({
+      ...file,
+      id: file.id || file.file_id || `${currentConversation.value.id}-generated-${index}`,
+    }))
 })
 const uploadedConversationFiles = computed(() => {
-  const keyword = fileSearch.value.trim().toLowerCase()
   const files = currentConversation.value?.files ?? []
-  return keyword ? files.filter((item) => item.name.toLowerCase().includes(keyword)) : files
+  return files.filter((item) => !isPersonalKnowledgeUpload(item) && matchesRightPanelSearch(item, ['name', 'meta']))
 })
 const producedConversationFiles = computed(() => {
-  const keyword = fileSearch.value.trim().toLowerCase()
-  return keyword ? generatedFiles.value.filter((item) => item.name.toLowerCase().includes(keyword)) : generatedFiles.value
+  return generatedFiles.value.filter((item) => matchesRightPanelSearch(item, ['name', 'meta', 'type']))
 })
 const projectFiles = computed(() => {
-  const keyword = fileSearch.value.trim().toLowerCase()
   const knowledgeFiles = (currentProject.value?.knowledge ?? []).map((file) => ({ ...file, id: `project-${file.name}`, source: 'Project 文件' }))
   const conversationFiles = visibleConversations.value.flatMap((conversation) => (conversation.files ?? []).map((file) => ({ ...file, id: `${conversation.id}-${file.name}`, source: `来源对话 · ${conversation.title}`, conversationId: conversation.id })))
-  const files = [...knowledgeFiles, ...conversationFiles]
-  return keyword ? files.filter((file) => file.name.toLowerCase().includes(keyword)) : files
+  const files = [...knowledgeFiles, ...conversationFiles.filter((file) => !isPersonalKnowledgeUpload(file))]
+  return files.filter((item) => matchesRightPanelSearch(item, ['name', 'meta', 'source']))
 })
 const projectFlowRecords = computed(() => visibleConversations.value.map((conversation, index) => ({
   conversationId: conversation.id,
@@ -320,6 +405,9 @@ const visibleProjectMetrics = computed(() => {
   return currentProject.value?.metrics ?? []
 })
 const contextLabel = computed(() => {
+  if (filePreview.value?.knowledgeBaseId || filePreview.value?.knowledgeBaseName || filePreview.value?.assetScope === 'personal_knowledge') {
+    return `个人知识库 · ${filePreview.value.name || '文件预览'}`
+  }
   if (knowledgeManagement.active) return `知识库对话管理 · ${knowledgeManagement.action === 'grant' ? selectedGrantKnowledge.value?.governanceCode ?? '管理责任' : managedKnowledgeBase.value?.name ?? '从当前对话新建'}`
   const label = agentManagement.capabilityType === 'skill' ? 'Skill' : 'Agent'
   if (agentManagement.active && agentManagement.action === 'create' && !managedCapability.value) return `新建自创 ${label}`
@@ -351,6 +439,49 @@ function conversationAliases(conversation) {
     .map((value) => String(value))
 }
 
+function conversationTimestamp(conversation) {
+  const candidates = [
+    conversation?.lastActivityAt,
+    conversation?.updated_at,
+    conversation?.updatedAt,
+    conversation?.updated,
+    conversation?.created_at,
+    conversation?.createdAt,
+  ]
+  for (const value of candidates) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value
+    if (!value) continue
+    const text = String(value)
+    if (text.includes('刚刚') || text.includes('鍒氬垰')) return Date.now()
+    if (text.includes('分钟') || text.includes('鍒嗛挓')) return Date.now() - 60 * 1000
+    if (text.includes('小时') || text.includes('灏忔椂')) return Date.now() - 60 * 60 * 1000
+    if (text.includes('今天') || text.includes('浠婂ぉ')) return Date.now() - 2 * 60 * 60 * 1000
+    if (text.includes('昨天') || text.includes('鏄ㄥぉ')) return Date.now() - 24 * 60 * 60 * 1000
+    const parsed = Date.parse(text)
+    if (!Number.isNaN(parsed)) return parsed
+  }
+  return 0
+}
+
+function projectLatestTimestamp(project) {
+  return Math.max(0, ...(project?.conversations || []).map(conversationTimestamp))
+}
+
+function latestConversationTarget(projects) {
+  let target = null
+  ;(projects || []).forEach((project) => {
+    ;(project.conversations || [])
+      .filter((conversation) => !conversation.deleted && conversation.status !== 'archived' && hasPermission(conversation.permission))
+      .forEach((conversation) => {
+        const timestamp = conversationTimestamp(conversation)
+        if (!target || timestamp > target.timestamp) {
+          target = { projectId: project.id, conversationId: conversation.id, timestamp }
+        }
+      })
+  })
+  return target
+}
+
 function normalizedConversationTitle(conversation) {
   return String(conversation?.title || '').replace(/\s+/g, ' ').trim()
 }
@@ -371,7 +502,10 @@ function groupConversationsForProject(project) {
   const groups = new Map()
   uniqueConversations(project.conversations)
     .filter((conversation) => hasPermission(conversation.permission) && !conversation.deleted && conversation.status !== 'archived')
-    .sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)))
+    .sort((a, b) => {
+      const pinned = Number(Boolean(b.pinned)) - Number(Boolean(a.pinned))
+      return pinned || conversationTimestamp(b) - conversationTimestamp(a)
+    })
     .forEach((conversation) => {
       const label = conversationTimeGroup(conversation)
       if (!groups.has(label)) groups.set(label, [])
@@ -392,6 +526,10 @@ function toggleConversationMenu(conversationId) {
   conversationMenuId.value = conversationMenuId.value === conversationId ? null : conversationId
 }
 
+function closeConversationMenu() {
+  conversationMenuId.value = null
+}
+
 function conversationStatusKind(conversation) {
   if (conversation.badge?.includes('风险')) return 'danger'
   if (conversation.badge || getContextUsage(conversation) >= 75) return 'pending'
@@ -408,16 +546,34 @@ function pinConversation(conversation) {
   showToast(conversation.pinned ? '会话已置顶' : '已取消置顶')
 }
 
-function renameConversation(conversation) {
-  const nextTitle = window.prompt('重命名会话', conversation.title)
-  if (!nextTitle?.trim()) return
+function renameConversation(conversation, nextTitle) {
+  if (!conversation || !nextTitle?.trim()) return
   conversation.title = nextTitle.trim()
   conversation.autoTitle = false
   showToast('会话名称已更新')
 }
 
+function requestRenameConversation(conversation) {
+  pendingConversationRename.value = conversation
+  conversationRenameInput.value = conversation.title
+  conversationRenameDialogOpen.value = true
+}
+
+function confirmRenameConversation() {
+  const conversation = pendingConversationRename.value
+  conversationRenameDialogOpen.value = false
+  pendingConversationRename.value = null
+  if (conversation) renameConversation(conversation, conversationRenameInput.value)
+  conversationRenameInput.value = ''
+}
+
+function cancelRenameConversation() {
+  conversationRenameDialogOpen.value = false
+  pendingConversationRename.value = null
+  conversationRenameInput.value = ''
+}
+
 async function deleteConversation(conversation) {
-  if (!window.confirm(`确定删除会话“${conversation.title}”吗？`)) return
   const project = workspaceProjects.value.find((item) => item.id === currentProjectId.value)
   if (!project) return
   const previousConversations = [...project.conversations]
@@ -425,12 +581,13 @@ async function deleteConversation(conversation) {
   if (currentConversationId.value === conversation.id) currentConversationId.value = project.conversations[0]?.id ?? null
   try {
     const backendProjectId = await ensureProjectRegistered(project)
+    const backendConversationId = await ensureConversationRegistered(conversation, project)
     const conversationId = conversation.storageConversationId || conversation.conversation_id || conversation.record_id || conversation.id
     const receipt = workspaceApplicationApi.acceptCommand({
       operation: 'archive_conversation',
       accountId: currentAccount.value.id,
       projectId: backendProjectId,
-      conversationId,
+      conversationId: backendConversationId,
       payload: {
         conversation_id: conversationId,
         project_id: backendProjectId,
@@ -446,6 +603,11 @@ async function deleteConversation(conversation) {
     if (!currentConversationId.value) currentConversationId.value = conversation.id
     showToast(accountError(error))
   }
+}
+
+function requestDeleteConversation(conversation) {
+  pendingConversationDelete.value = conversation
+  conversationDeleteDialogOpen.value = true
 }
 
 function autoNameConversation(conversation, text) {
@@ -483,13 +645,6 @@ function notificationKind(item) {
 
 function notificationIsUnread(item) {
   return !notificationReadIds.value.includes(item.id)
-}
-
-function showToast(message) {
-  toast.value = message
-  window.setTimeout(() => {
-    if (toast.value === message) toast.value = ''
-  }, 2200)
 }
 
 function switchAuthMode(mode) {
@@ -628,24 +783,117 @@ function formatFileMeta(file) {
   return `${formatFileType(file.content_type, file.original_name || file.name || file.original_filename)} · ${formatStorageTime(file.uploaded_at || file.created_at)} · ${formatFileSize(file.size_bytes)}`
 }
 
+function uploadedRecordToFile(file, overrides = {}) {
+  const basePlatformRef = file.platform_ref || file.platformRef
+  const ownerAccountId = file.owner_account_id || file.ownerAccountId || overrides.ownerAccountId
+  const fileId = file.file_id || file.fileId || file.object_id
+  const fallbackDownloadUrl = fileId && ownerAccountId
+    ? `/api/v1/uploads/${encodeURIComponent(fileId)}/content?tenant_id=${encodeURIComponent(platformApi.tenantId)}&account_id=${encodeURIComponent(ownerAccountId)}`
+    : ''
+  const platformRef = basePlatformRef && typeof basePlatformRef === 'object'
+    ? {
+        ...basePlatformRef,
+        owner_account_id: file.owner_account_id || file.ownerAccountId || overrides.ownerAccountId,
+        project_id: file.project_id || file.projectId || overrides.projectId,
+        conversation_id: file.conversation_id || file.conversationId || overrides.conversationId,
+        asset_scope: file.asset_scope || file.assetScope || overrides.assetScope,
+        knowledge_base_id: file.knowledge_base_id || file.knowledgeBaseId || overrides.knowledgeBaseId,
+        knowledge_base_name: file.knowledge_base_name || file.knowledgeBaseName || overrides.knowledgeBaseName,
+      }
+    : basePlatformRef
+  return {
+    id: file.file_id || file.object_id || file.record_id || file.stored_name || file.original_name || file.name,
+    name: file.original_name || file.name || file.original_filename,
+    meta: formatFileMeta(file),
+    platform_ref: platformRef,
+    platformRef,
+    ownerAccountId,
+    projectId: file.project_id || file.projectId,
+    conversationId: file.conversation_id || file.conversationId,
+    knowledgeBaseId: file.knowledge_base_id || file.knowledgeBaseId || platformRef?.knowledge_base_id,
+    knowledgeBaseName: file.knowledge_base_name || file.knowledgeBaseName || platformRef?.knowledge_base_name,
+    knowledgeSourceId: file.knowledge_source_id || file.knowledgeSourceId || platformRef?.knowledge_source_id,
+    knowledgeChunkCount: file.knowledge_chunk_count ?? file.knowledgeChunkCount ?? platformRef?.knowledge_chunk_count,
+    assetScope: file.asset_scope || file.assetScope,
+    uploadedAt: file.uploaded_at || file.created_at || file.uploadedAt,
+    download_url: file.download_url || fallbackDownloadUrl,
+    downloadUrl: file.download_url || file.downloadUrl || fallbackDownloadUrl,
+    ...overrides,
+  }
+}
+
+function isPersonalKnowledgeUpload(file) {
+  return (file?.asset_scope || file?.assetScope) === 'personal_knowledge'
+}
+
 function sleep(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
 
 function extractUploadedDocuments(conversation) {
-  return (conversation?.files || [])
+  const documents = [
+    ...(conversation?.files || []),
+    ...personalKnowledgeFiles.value,
+  ]
+  const seen = new Set()
+  return documents
     .map((file) => file.platform_ref || file.platformRef)
     .filter(Boolean)
+    .filter((ref) => {
+      const key = ref.file_id || ref.object_id || JSON.stringify(ref)
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
 }
 
-async function waitForTaskResult(taskId) {
+async function waitForTaskResult(taskId, shouldContinue = () => true) {
   let latest = null
-  for (let index = 0; index < 8; index += 1) {
+  for (let index = 0; index < 180; index += 1) {
+    if (!shouldContinue()) return null
     latest = await platformApi.getTask(taskId)
+    if (!shouldContinue()) return null
     if (['waiting_human', 'succeeded', 'completed_with_errors', 'failed'].includes(latest.state)) return latest
-    await sleep(650)
+    await sleep(1000)
   }
   return latest
+}
+
+function workflowResponseFromTask(task, fallback = {}) {
+  const data = task?.result_ref?.data || task?.result_ref || fallback.data || {}
+  return {
+    status: task?.state || fallback.status,
+    task_id: task?.task_id || fallback.task_id,
+    trace_id: task?.trace_id || fallback.trace_id,
+    data,
+    error: task?.error || fallback.error,
+  }
+}
+
+function finishGeneration(generationKey) {
+  if (activeGeneration.value?.key !== generationKey) return
+  activeGeneration.value = null
+  isGenerating.value = false
+}
+
+function pauseGeneration() {
+  const generation = activeGeneration.value
+  if (!generation) return
+  isGenerating.value = false
+  activeGeneration.value = null
+  if (generation.pendingMessageId) {
+    updateSessionMessage(generation.conversationId, generation.pendingMessageId, {
+      text: '已暂停生成。本次回答不会继续显示。',
+      source: '生成已暂停',
+      task: {
+        title: 'AI 生成已暂停',
+        label: '已暂停',
+        status: 'paused',
+        items: ['已停止等待本轮任务结果，可继续发送新的问题。'],
+      },
+    })
+  }
+  showToast('已暂停 AI 生成')
 }
 
 const capabilityLabels = {
@@ -699,6 +947,7 @@ function formatNumber(value) {
 
 function workflowResultLines(result) {
   const userResult = workflowUserResult(result)
+  if (userResult?.display_mode === 'chat_answer') return []
   if (Array.isArray(userResult?.findings)) return userResult.findings.map((finding) => finding.title).filter(Boolean)
   const data = workflowPayload(result)
   const capabilityResult = data.capability_result || {}
@@ -754,12 +1003,13 @@ function formatWorkflowConversationResponse(result) {
 }
 
 function formatPersistedConversationContent(message) {
+  if (typeof message?.content_text === 'string' && message.content_text.trim()) return message.content_text.trim()
   const content = parsePersistedContent(message?.content)
   if (typeof content === 'string') return content
   const data = workflowPayload(content)
   const intent = Array.isArray(data.tasks) ? data.tasks[0] : null
   if (message?.content_type === 'intent_analysis' && intent) {
-    return `我已识别为“${intent.description || '待确认任务'}”，建议调用“${capabilityLabel(intent.capability_code)}”。请确认后执行。`
+    return `我已理解为：${safeIntentBusinessGoal(intent, intent.parameters || {})}。请确认是否正确；如果不对，可以先调整意图。`
   }
   if (message?.content_type === 'execution_result' || data.workflow_instance || data.capability_result) {
     return formatWorkflowConversationResponse(data)
@@ -811,7 +1061,7 @@ function formatTaskResponse(task, uploadedDocumentCount = 0) {
     return `我已完成意图识别${fileText}。请确认下方理解是否正确；如果不对，可以先调整意图。`
   }
   if (firstTask) {
-    return `已完成任务识别：${firstTask.description || '未命名任务'}。`
+    return `已完成任务识别：${safeIntentBusinessGoal(firstTask, firstTask.parameters || {})}。`
   }
   if (task.state === 'succeeded' || task.state === 'completed_with_errors') return formatWorkflowConversationResponse(data)
   if (task.error) return `处理未完成：${task.error.message || '部分模块未完成，处理留痕已保存。'}`
@@ -821,6 +1071,35 @@ function formatTaskResponse(task, uploadedDocumentCount = 0) {
 
 function uploadedDocumentLabel(document) {
   return document?.original_name || document?.name || document?.original_filename || document?.file_name || document?.file_id || '上传文件'
+}
+
+function looksLikeRuntimeContextText(value) {
+  const text = String(value || '')
+  return [
+    'AUTHORIZED_DATA_SCOPE',
+    'CONVERSATION_CONTEXT',
+    'PROJECT_CONTEXT',
+    'HISTORICAL_PROJECT_CONTEXT',
+    'USER_INPUT',
+    '意图分析边界',
+    '运行上下文',
+    '不是用户原话',
+    '只能用于补全指代',
+  ].some((token) => text.includes(token))
+}
+
+function safeIntentText(value, fallback = '处理当前对话中的业务请求') {
+  const text = String(value || '').trim()
+  if (!text || looksLikeRuntimeContextText(text)) return fallback
+  if (isGenericIntentLine(text)) return fallback
+  if (text.length > 240) return `${text.slice(0, 240)}…`
+  return text
+}
+
+function safeIntentBusinessGoal(intent, parameters = {}) {
+  const utterance = safeIntentText(parameters.utterance, '')
+  if (utterance) return utterance
+  return safeIntentText(intent?.description, utterance || '处理当前对话中的业务请求')
 }
 
 function intentOutputLabel(parameters) {
@@ -868,12 +1147,59 @@ function missingInputsLabel(inputs = []) {
   return [...new Set(labels)].join('、')
 }
 
+function isGenericIntentLine(value) {
+  const text = String(value || '').trim()
+  return [
+    '基于前面统计分析结果生成后续执行意见',
+    '处理当前对话中的业务请求',
+    '根据现有资料生成内容',
+    '汇总当前资料并输出结论',
+    '执行识别到的业务能力',
+  ].some((item) => text === item || text.includes(item))
+}
+
+function fallbackTaskLinesFromGoal(businessGoal, uploadedDocuments = []) {
+  const goal = String(businessGoal || '').trim()
+  const lines = []
+  lines.push(uploadedDocuments.length ? '优先使用当前对话上传的文件' : '使用当前账号和项目授权的数据')
+  if (goal.includes('优质客户') || goal.includes('客户反馈')) {
+    lines.push('根据客户反馈识别优质客户候选')
+  } else if (['最高', '最多', '最大'].some((word) => goal.includes(word)) && ['月', '月份', '需求', '订单', '销量', '金额'].some((word) => goal.includes(word))) {
+    lines.push('找出符合条件的最高月份和对应数值')
+  } else if (['预测', '趋势', '下季度'].some((word) => goal.includes(word))) {
+    lines.push('预测趋势或下周期业务指标')
+  } else if (['盈亏平衡', '预算', '价格', '成本', '规则', '风险'].some((word) => goal.includes(word))) {
+    lines.push('核对预算、价格、成本和风险规则')
+  } else {
+    lines.push(goal ? `回答用户问题：${goal}` : '处理当前业务问题')
+  }
+  lines.push('整理成可以直接阅读的回答')
+  return [...new Set(lines)]
+}
+
 function includesAny(text, words) {
   return words.some((word) => text.includes(word))
 }
 
+function projectApprovalIntentSummary(utterance, uploadedDocuments = []) {
+  if (!includesAny(utterance, ['立项审批', '项目登记', '审批待办', '监控事项'])) return null
+  return {
+    business_goal: '判断当前推广项目是否建议进入立项审批，并生成后续执行事项',
+    data_scope: uploadedDocuments.length ? `当前对话上传的 ${uploadedDocuments.length} 个文件` : '当前对话和项目资料',
+    task_list: [
+      '判断是否建议进入立项审批',
+      '生成项目登记任务',
+      '生成需要真人确认的审批待办',
+      '登记后续执行监控事项',
+    ],
+    output_focus: '是否建议进入立项审批、需要真人确认的事项、项目登记和监控事项',
+  }
+}
+
 function fallbackIntentSummary(parameters, uploadedDocuments = []) {
   const utterance = String(parameters.utterance || '')
+  const projectSummary = projectApprovalIntentSummary(utterance, uploadedDocuments)
+  if (projectSummary) return projectSummary
   const checks = []
   if (includesAny(utterance, ['采购', '验收'])) checks.push('采购金额', '合同编号', '发票信息', '验收状态')
   if (includesAny(utterance, ['金额差异', '差异', '尾款', '付款', '回款'])) checks.push('金额差异')
@@ -903,28 +1229,42 @@ function fallbackIntentSummary(parameters, uploadedDocuments = []) {
 function buildIntentCard(task, uploadedDocuments = []) {
   const result = task?.result_ref || {}
   const data = result.data || result
+  const intentCard = data.intent_card && typeof data.intent_card === 'object' ? data.intent_card : null
   const items = Array.isArray(data.tasks) ? data.tasks : []
   const intent = items[0]
   const confirmationId = task?.confirmation_ref?.id
   if (!intent || !confirmationId) return null
   const parameters = intent.parameters || {}
-  const summary = parameters.intent_summary && typeof parameters.intent_summary === 'object'
+  const backendSummary = intentCard?.confirmation?.user_visible_text && typeof intentCard.confirmation.user_visible_text === 'object'
+    ? intentCard.confirmation.user_visible_text
+    : null
+  const summary = backendSummary || (parameters.intent_summary && typeof parameters.intent_summary === 'object'
     ? parameters.intent_summary
-    : fallbackIntentSummary(parameters, uploadedDocuments)
+    : fallbackIntentSummary(parameters, uploadedDocuments))
+  const userFacingSummary = summary
   const fileNames = uploadedDocuments.map(uploadedDocumentLabel).filter(Boolean).slice(0, 3)
-  const dataScope = summary?.data_scope || (uploadedDocuments.length
+  const dataScope = userFacingSummary?.data_scope || (uploadedDocuments.length
     ? `当前对话上传的 ${uploadedDocuments.length} 个文件${fileNames.length ? `：${fileNames.join('、')}${uploadedDocuments.length > fileNames.length ? '等' : ''}` : ''}`
     : '当前对话和项目资料')
-  const businessGoal = summary?.business_goal || intent.description || '处理当前对话中的业务请求'
-  const outputFocus = summary?.output_focus || intentOutputLabel(parameters)
-  const taskList = Array.isArray(summary?.task_list)
-    ? summary.task_list
-    : Array.isArray(summary?.planned_steps)
-      ? summary.planned_steps
+  const businessGoal = safeIntentText(userFacingSummary?.business_goal, safeIntentBusinessGoal(intent, parameters))
+  const outputFocus = userFacingSummary?.output_focus || intentOutputLabel(parameters)
+  const backendTaskList = Array.isArray(intentCard?.tasks)
+    ? intentCard.tasks
+      .map((item) => item?.task_name || item?.task_purpose || item?.capability_requirement?.required_ability || '')
+      .filter(Boolean)
+    : []
+  const taskList = backendTaskList.length
+    ? backendTaskList
+    : Array.isArray(userFacingSummary?.task_list)
+    ? userFacingSummary.task_list
+    : Array.isArray(userFacingSummary?.planned_steps)
+      ? userFacingSummary.planned_steps
       : []
-  const taskLines = taskList.length
-    ? taskList.map((item, index) => `${index + 1}. ${item}`)
-    : [`1. ${intent.description || businessGoal}`]
+  const cleanedTaskList = taskList
+    .map((item) => safeIntentText(item, ''))
+    .filter((item) => item && !isGenericIntentLine(item) && item !== businessGoal)
+  const finalTaskList = cleanedTaskList.length ? cleanedTaskList : fallbackTaskLinesFromGoal(businessGoal, uploadedDocuments)
+  const taskLines = finalTaskList.map((item, index) => `${index + 1}. ${item}`)
   return {
     title: '请确认任务清单是否正确',
     label: '等待确认',
@@ -944,17 +1284,38 @@ function buildIntentCard(task, uploadedDocuments = []) {
     ],
   }
 }
-async function submitIntentAnalysis(text, { conversationId, project, uploadedDocuments = null, pendingLabel = '处理中' } = {}) {
+async function submitIntentAnalysis(text, { conversationId, project, uploadedDocuments = null, generationKey = null, pendingLabel = '处理中' } = {}) {
   const conversation = project?.conversations?.find((item) => String(item.id) === String(conversationId))
   const documents = uploadedDocuments ?? extractUploadedDocuments(conversation)
+  const generationIsActive = () => generationKey === null || (
+    isGenerating.value && activeGeneration.value?.key === generationKey
+  )
   if (skipAuthForDesign) {
-    appendMessage(conversationId, {
+    const pendingMessage = {
       id: `${Date.now()}-assistant-design`,
       role: 'assistant',
+      text: 'AI 正在生成回答…',
+      source: '前端设计模式 · 生成中',
+      receipt: true,
+      task: {
+        title: '正在生成回答',
+        label: '生成中',
+        status: 'running',
+        items: ['正在组织本轮回复内容。'],
+      },
+    }
+    appendMessage(conversationId, pendingMessage)
+    if (generationKey !== null && activeGeneration.value?.key === generationKey) {
+      activeGeneration.value.pendingMessageId = pendingMessage.id
+    }
+    await sleep(1200)
+    if (!generationIsActive()) return
+    updateSessionMessage(conversationId, pendingMessage.id, {
       text: '前端设计模式：已收到你的消息。当前模式不连接后端，适合修改页面布局和交互样式。',
       source: '前端设计模式',
-      receipt: true,
+      task: null,
     })
+    finishGeneration(generationKey)
     return
   }
   const pendingMessage = {
@@ -974,8 +1335,13 @@ async function submitIntentAnalysis(text, { conversationId, project, uploadedDoc
     },
   }
   appendMessage(conversationId, pendingMessage)
+  if (generationKey !== null && activeGeneration.value?.key === generationKey) {
+    activeGeneration.value.pendingMessageId = pendingMessage.id
+  }
   try {
+    if (!generationIsActive()) return
     const backendProjectId = await ensureProjectRegistered(project)
+    if (!generationIsActive()) return
     const envelope = createInstructionEnvelope({
       utterance: text,
       actor: { user_id: currentAccount.value.id, userId: currentAccount.value.id, authenticated: true },
@@ -984,13 +1350,20 @@ async function submitIntentAnalysis(text, { conversationId, project, uploadedDoc
       conversationId,
       conversationTitle: conversation?.title || '当前对话',
       uploadedDocuments: documents,
+      conversationContext: currentMessages.value,
     })
     const result = await platformApi.submitInstruction(envelope)
+    if (!generationIsActive()) return
     updateSessionMessage(conversationId, pendingMessage.id, {
       source: `L4/L2 链路 · ${result.trace_id || envelope.trace_id}${result.task_id ? ` · ${result.task_id}` : ''}`,
     })
     if (result.task_id) {
-      void waitForTaskResult(result.task_id).then((task) => {
+      void waitForTaskResult(result.task_id, generationIsActive).then((task) => {
+        if (!generationIsActive()) return
+        if (!task) {
+          finishGeneration(generationKey)
+          return
+        }
         const currentMessage = updateSessionMessage(conversationId, pendingMessage.id, {
           text: formatTaskResponse(task, documents.length),
           source: `L4/L2 链路 · ${result.trace_id || envelope.trace_id} · ${result.task_id}`,
@@ -998,7 +1371,9 @@ async function submitIntentAnalysis(text, { conversationId, project, uploadedDoc
         if (currentMessage) {
           currentMessage.task = buildIntentCard(task, documents) || currentMessage.task
         }
+        finishGeneration(generationKey)
       }).catch((error) => {
+        if (!generationIsActive()) return
         updateSessionMessage(conversationId, pendingMessage.id, {
           text: accountError(error),
           task: {
@@ -1008,15 +1383,20 @@ async function submitIntentAnalysis(text, { conversationId, project, uploadedDoc
             items: ['请查看后端任务与接口调用记录'],
           },
         })
+        finishGeneration(generationKey)
       })
+    } else {
+      finishGeneration(generationKey)
     }
   } catch (error) {
+    if (!generationIsActive()) return
     appendMessage(conversationId, {
       id: `${Date.now()}-assistant-error`,
       role: 'assistant',
       text: accountError(error),
       source: '平台提交失败',
     })
+    finishGeneration(generationKey)
   }
 }
 
@@ -1047,6 +1427,34 @@ async function ensureProjectRegistered(project = currentProject.value) {
   return storageId
 }
 
+async function ensureConversationRegistered(conversation = currentConversation.value, project = currentProject.value) {
+  if (!conversation || !project || !currentAccount.value.id) return conversation?.id
+  const backendProjectId = await ensureProjectRegistered(project)
+  const storageConversationId = conversation.storageConversationId || conversation.conversation_id || conversation.record_id || conversation.id
+  if (conversation.backendRegistered && conversation.storageProjectId === backendProjectId) return storageConversationId
+  const receipt = workspaceApplicationApi.acceptCommand({
+    operation: 'create_conversation',
+    accountId: currentAccount.value.id,
+    projectId: backendProjectId,
+    conversationId: storageConversationId,
+    payload: {
+      conversation_id: storageConversationId,
+      title: conversation.title || '当前对话',
+      project_id: backendProjectId,
+      project_name: project.name,
+      owner_account_id: currentAccount.value.id,
+      has_history: Boolean(conversation.hasHistory || conversation.messages?.length),
+      context_usage: conversation.contextUsage || 0,
+    },
+  })
+  const result = await receipt.requestPromise
+  const stored = result.data?.conversation || {}
+  conversation.storageConversationId = stored.conversation_id || storageConversationId
+  conversation.storageProjectId = backendProjectId
+  conversation.backendRegistered = true
+  return conversation.storageConversationId
+}
+
 function normalizeConversation(record, messageItems = [], fileItems = []) {
   const id = record.conversation_id || record.id || record.record_id
   const conversationMessages = messageItems
@@ -1072,23 +1480,64 @@ function normalizeConversation(record, messageItems = [], fileItems = []) {
     messages: conversationMessages.map((message) => normalizePersistedMessage(message, id, { pendingIntentMessageIds })),
     files: fileItems
       .filter((file) => String(file.conversation_id) === String(id))
-      .map((file) => ({
-        id: file.file_id || file.object_id || file.record_id || file.original_name,
-        name: file.original_name || file.name || file.original_filename,
-        meta: formatFileMeta(file),
-        platform_ref: file.platform_ref,
-        platformRef: file.platform_ref,
-      })),
+      .filter((file) => !isPersonalKnowledgeUpload(file))
+      .map((file) => uploadedRecordToFile(file)),
   }
+}
+
+function refreshKnowledgeBaseMeta(knowledgeBase) {
+  const count = knowledgeBase.files?.length ?? 0
+  knowledgeBase.meta = `个人知识库 · ${count} 个文件`
+  knowledgeBase.updated = count ? formatStorageTime(knowledgeBase.files[0]?.uploadedAt) : knowledgeBase.updated || '刚刚'
+}
+
+function buildPersonalKnowledgeFromUploads(uploadItems, account) {
+  const groups = new Map()
+  ;(uploadItems || [])
+    .filter((file) => isPersonalKnowledgeUpload(file))
+    .filter((file) => String(file.owner_account_id || file.ownerAccountId || '') === String(account.id))
+    .forEach((file) => {
+      const knowledgeBaseId = file.knowledge_base_id || file.knowledgeBaseId || `pkb-${account.id}`
+      const storedKnowledgeBaseName = file.knowledge_base_name || file.knowledgeBaseName || ''
+      const knowledgeBaseName = storedKnowledgeBaseName.trim().endsWith('沉淀库') ? '我的个人知识库' : (storedKnowledgeBaseName || '我的个人知识库')
+      if (!groups.has(knowledgeBaseId)) {
+        groups.set(knowledgeBaseId, {
+          id: knowledgeBaseId,
+          name: knowledgeBaseName,
+          meta: '个人知识库 · 0 个文件',
+          updated: file.uploaded_at || file.created_at || '刚刚',
+          ownerAccountId: account.id,
+          files: [],
+        })
+      }
+      groups.get(knowledgeBaseId).files.unshift(uploadedRecordToFile(file, {
+        assetScope: 'personal_knowledge',
+        knowledgeBaseId,
+        knowledgeBaseName,
+        ownerAccountId: account.id,
+      }))
+    })
+  const records = [...groups.values()]
+  records.forEach(refreshKnowledgeBaseMeta)
+  return records
 }
 
 async function loadAccountWorkspace(account) {
   const ownershipFilter = { owner_account_id: account.id }
-  const [projectResult, conversationResult, messageResult, uploadResult] = await Promise.all([
+  const queryOptionalRecords = async (dataset, options) => {
+    try {
+      return await platformApi.queryRecords(dataset, options)
+    } catch {
+      return { items: [], count: 0 }
+    }
+  }
+  const [projectResult, conversationResult, messageResult, uploadResult, knowledgeSourceResult, knowledgeIndexResult] = await Promise.all([
     platformApi.queryRecords('projects', { filters: ownershipFilter }),
     platformApi.queryRecords('conversations', { filters: ownershipFilter }),
     platformApi.queryRecords('conversation_messages', { filters: ownershipFilter, limit: 300 }),
     platformApi.queryRecords('uploaded_files', { filters: ownershipFilter }),
+    queryOptionalRecords('knowledge_sources', { filters: { ...ownershipFilter, asset_scope: 'personal_knowledge' } }),
+    queryOptionalRecords('knowledge_indexes', { filters: ownershipFilter }),
   ])
   const fixedProjects = projectSeed.filter((project) => project.fixed).map((project) => createFixedProject(account, project))
   const fixedStorageIds = new Set(fixedProjects.map((project) => String(projectStorageId(project))))
@@ -1110,19 +1559,32 @@ async function loadAccountWorkspace(account) {
   )
   const activeOwnedConversations = ownedConversations.filter((conversation) => conversation.status !== 'archived')
   const ownedMessages = (messageResult.items || []).filter((message) => String(message.owner_account_id || '') === String(account.id))
-  const ownedUploads = (uploadResult.items || []).filter((file) => String(file.owner_account_id || '') === String(account.id))
+  const knowledgeSourcesByFileId = new Map()
+  ;(knowledgeSourceResult.items || []).forEach((source) => {
+    ;(source.uploaded_file_ids || []).forEach((fileId) => knowledgeSourcesByFileId.set(String(fileId), source))
+  })
+  const knowledgeIndexesBySourceId = new Map((knowledgeIndexResult.items || []).map((index) => [String(index.knowledge_source_id || ''), index]))
+  const ownedUploads = (uploadResult.items || [])
+    .filter((file) => String(file.owner_account_id || '') === String(account.id))
+    .map((file) => {
+      const source = knowledgeSourcesByFileId.get(String(file.file_id || ''))
+      const index = knowledgeIndexesBySourceId.get(String(file.knowledge_source_id || source?.knowledge_source_id || ''))
+      return {
+        ...file,
+        knowledge_source_id: file.knowledge_source_id || source?.knowledge_source_id,
+        knowledge_base_id: file.knowledge_base_id || source?.knowledge_base_id,
+        knowledge_base_name: file.knowledge_base_name || source?.knowledge_base_name,
+        knowledge_chunk_count: file.knowledge_chunk_count ?? index?.chunk_count,
+      }
+    })
   ownedProjects.forEach((project) => {
-    const seededConversations = project.fixed
-      ? structuredClone(project.conversations || []).filter((conversation) => !conversationAliases(conversation).some((alias) => archivedConversationIds.has(alias)))
-      : []
     const persistedConversations = activeOwnedConversations
       .filter((conversation) => String(conversation.project_id) === String(projectStorageId(project)))
       .map((conversation) => ({ ...normalizeConversation(conversation, ownedMessages, ownedUploads), project_id: project.id, storageProjectId: conversation.project_id }))
-    const seededIds = new Set(seededConversations.map((conversation) => String(conversation.id)))
-    project.conversations = uniqueConversations([
-      ...seededConversations,
-      ...persistedConversations.filter((conversation) => !seededIds.has(String(conversation.id))),
-    ])
+    project.conversations = uniqueConversations(persistedConversations).sort((a, b) => {
+      const pinned = Number(Boolean(b.pinned)) - Number(Boolean(a.pinned))
+      return pinned || conversationTimestamp(b) - conversationTimestamp(a)
+    })
     project.metrics = [
       { label: '对话', value: String(project.conversations.length) },
       { label: '进行中任务', value: String(project.conversations.filter((item) => item.badge).length) },
@@ -1133,7 +1595,7 @@ async function loadAccountWorkspace(account) {
   notificationRecords.value = []
   agentRecords.value = structuredClone(agentCatalog)
   skillRecords.value = structuredClone(skillCatalog).map((item) => ({ ...item, version: item.version ?? 'v1.0', calls: item.calls ?? '0 次', adoption: item.adoption ?? '--', consistency: item.consistency ?? '96.5%' }))
-  personalKnowledge.value = []
+  personalKnowledge.value = buildPersonalKnowledgeFromUploads(ownedUploads, account)
   groupKnowledgeRecords.value = structuredClone(groupKnowledgeBases)
   disabledResourceIds.value = []
   selectedAgentId.value = agentRecords.value[0]?.id ?? null
@@ -1141,7 +1603,7 @@ async function loadAccountWorkspace(account) {
   selectedPersonalKnowledgeId.value = personalKnowledge.value[0]?.id ?? null
   knowledgeGrantTargetId.value = groupKnowledgeRecords.value[0]?.id ?? null
   notificationReadIds.value = []
-  expandedProjectIds.value = new Set(ownedProjects.slice(0, 1).map((project) => project.id))
+  expandedProjectIds.value = new Set()
 }
 
 async function enterWorkbench(account, operation, payload = undefined, sessionId = undefined) {
@@ -1151,8 +1613,11 @@ async function enterWorkbench(account, operation, payload = undefined, sessionId
   accountMenuOpen.value = false
   agentManagement.active = false
   knowledgeManagement.active = false
-  currentProjectId.value = workspaceProjects.value[0]?.id ?? null
-  currentConversationId.value = workspaceProjects.value[0]?.conversations[0]?.id ?? null
+  const latestTarget = latestConversationTarget(workspaceProjects.value)
+  currentProjectId.value = latestTarget?.projectId ?? workspaceProjects.value[0]?.id ?? null
+  const selectedProject = workspaceProjects.value.find((project) => project.id === currentProjectId.value)
+  currentConversationId.value = latestTarget?.conversationId ?? selectedProject?.conversations?.[0]?.id ?? null
+  if (currentProjectId.value) expandedProjectIds.value = new Set([...expandedProjectIds.value, currentProjectId.value])
   accountCenterActive.value = !currentProjectId.value
   rightTab.value = 'session'
   authState.loggedIn = true
@@ -1209,7 +1674,7 @@ async function enterDesignWorkbench() {
   selectedPersonalKnowledgeId.value = personalKnowledge.value[0]?.id ?? null
   knowledgeGrantTargetId.value = groupKnowledgeRecords.value[0]?.id ?? null
   notificationReadIds.value = []
-  expandedProjectIds.value = new Set(workspaceProjects.value.slice(0, 2).map((project) => project.id))
+  expandedProjectIds.value = new Set()
   currentProjectId.value = workspaceProjects.value[0]?.id ?? null
   currentConversationId.value = workspaceProjects.value[0]?.conversations?.[0]?.id ?? null
   accountCenterActive.value = !currentProjectId.value
@@ -1408,15 +1873,18 @@ async function restoreSession() {
   }
 }
 
-function selectAccount(accountId) {
+async function selectAccount(accountId) {
   currentAccountId.value = accountId
-  loadAccountWorkspace(currentAccount.value)
+  await loadAccountWorkspace(currentAccount.value)
   accountMenuOpen.value = false
   accountCenterActive.value = false
   agentManagement.active = false
   knowledgeManagement.active = false
-  currentProjectId.value = 'project-report'
-  currentConversationId.value = null
+  const latestTarget = latestConversationTarget(workspaceProjects.value)
+  currentProjectId.value = latestTarget?.projectId ?? workspaceProjects.value[0]?.id ?? null
+  const selectedProject = workspaceProjects.value.find((project) => project.id === currentProjectId.value)
+  currentConversationId.value = latestTarget?.conversationId ?? selectedProject?.conversations?.[0]?.id ?? null
+  if (currentProjectId.value) expandedProjectIds.value = new Set([...expandedProjectIds.value, currentProjectId.value])
   rightTab.value = 'knowledge'
   showToast(`已切换账号：${currentAccount.value.name}`)
 }
@@ -1444,6 +1912,66 @@ function toggleProject(projectId) {
   expandedProjectIds.value = next
 }
 
+function pinProject(project) {
+  if (project.fixed) return
+  project.pinned = !project.pinned
+  showToast(project.pinned ? `已置顶 Project：${project.name}` : `已取消置顶：${project.name}`)
+}
+
+function renameProject(project) {
+  if (project.fixed) return
+  const nextName = window.prompt('重命名 Project', project.name)
+  if (!nextName?.trim()) return
+  project.name = nextName.trim()
+  project.short = project.name.length > 6 ? project.name.slice(0, 6) : project.name
+  showToast('Project 名称已更新')
+}
+
+function deleteProject(project) {
+  if (project.fixed) return
+  workspaceProjects.value = workspaceProjects.value.filter((item) => item.id !== project.id)
+  const nextExpanded = new Set(expandedProjectIds.value)
+  nextExpanded.delete(project.id)
+  expandedProjectIds.value = nextExpanded
+  project.conversations.forEach((conversation) => delete sessionMessages[conversation.id])
+  if (currentProjectId.value === project.id) {
+    const nextProject = workspaceProjects.value[0]
+    if (nextProject) selectProject(nextProject.id)
+    else selectAccountCenter()
+  }
+  showToast(`已删除 Project：${project.name}`)
+}
+
+function requestDeleteProject(project) {
+  if (project.fixed) return
+  pendingProjectDelete.value = project
+  projectDeleteDialogOpen.value = true
+}
+
+function confirmProjectDelete() {
+  const project = pendingProjectDelete.value
+  projectDeleteDialogOpen.value = false
+  pendingProjectDelete.value = null
+  if (project) deleteProject(project)
+}
+
+function cancelProjectDelete() {
+  projectDeleteDialogOpen.value = false
+  pendingProjectDelete.value = null
+}
+
+async function confirmConversationDelete() {
+  const conversation = pendingConversationDelete.value
+  conversationDeleteDialogOpen.value = false
+  pendingConversationDelete.value = null
+  if (conversation) await deleteConversation(conversation)
+}
+
+function cancelConversationDelete() {
+  conversationDeleteDialogOpen.value = false
+  pendingConversationDelete.value = null
+}
+
 function selectConversation(projectId, conversationId) {
   currentProjectId.value = projectId
   expandedProjectIds.value = new Set([...expandedProjectIds.value, projectId])
@@ -1461,9 +1989,16 @@ function selectConversation(projectId, conversationId) {
 
 async function scrollCurrentConversationToLatest() {
   await nextTick()
+  const scrollToBottom = () => {
+    const stream = chatStreamRef.value || document.querySelector('.chat-stream')
+    if (!stream) return
+    stream.scrollTop = stream.scrollHeight
+    stream.querySelector('.message:last-child')?.scrollIntoView({ block: 'end' })
+  }
+  scrollToBottom()
   window.requestAnimationFrame(() => {
-    const stream = chatStreamRef.value
-    if (stream) stream.scrollTop = stream.scrollHeight
+    scrollToBottom()
+    window.requestAnimationFrame(scrollToBottom)
   })
 }
 
@@ -1500,6 +2035,182 @@ function updateSessionMessage(conversationId, messageId, patch) {
   return message
 }
 
+function isBackendUnavailable(error) {
+  const message = String(error?.message || error?.cause?.message || error?.code || '')
+  return /ECONNREFUSED|Failed to fetch|fetch failed|NetworkError/i.test(message)
+}
+
+function findConversationMessage(conversationId, messageId) {
+  const sessionMessage = sessionMessages[conversationId]?.find((item) => item.id === messageId)
+  if (sessionMessage) return { message: sessionMessage, collection: sessionMessages[conversationId] }
+  const conversation = workspaceProjects.value
+    .flatMap((project) => project.conversations || [])
+    .find((item) => String(item.id) === String(conversationId))
+  const message = conversation?.messages?.find((item) => item.id === messageId)
+  return message ? { message, collection: conversation.messages } : null
+}
+
+function toggleMessageActionMenu(messageId) {
+  messageActionMenuId.value = messageActionMenuId.value === messageId ? null : messageId
+}
+
+function copyMessage(message) {
+  if (!message?.text) return
+  const copyTask = navigator.clipboard?.writeText(message.text)
+  if (!copyTask) {
+    showToast('当前浏览器不支持自动复制')
+  } else {
+    copyTask.then(() => showToast('消息已复制到剪贴板')).catch(() => showToast('复制失败，请手动选择文本'))
+  }
+  messageActionMenuId.value = null
+}
+
+function copyKnowledgeMessage(message) {
+  copyMessage(message)
+  knowledgeMessageActionMenuId.value = null
+}
+
+function toggleKnowledgeMessageActionMenu(messageId) {
+  knowledgeMessageActionMenuId.value = knowledgeMessageActionMenuId.value === messageId ? null : messageId
+}
+
+function editKnowledgeMessage(message) {
+  if (!message || message.id !== knowledgeLatestUserMessageId.value) {
+    showToast('只能编辑知识库对话里最后一条用户消息')
+    return
+  }
+  knowledgeManagement.input = message.text
+  knowledgeEditingMessageId.value = message.id
+  knowledgeMessageActionMenuId.value = null
+  nextTick(() => document.querySelector('.knowledge-management-composer textarea')?.focus())
+}
+
+function cancelKnowledgeMessageEdit() {
+  knowledgeEditingMessageId.value = null
+  knowledgeManagement.input = ''
+}
+
+function requestDeleteKnowledgeMessage(message) {
+  messagePendingAction.value = { ...message, scope: 'knowledge-management' }
+  deleteMessageDialogOpen.value = true
+  knowledgeMessageActionMenuId.value = null
+}
+
+function requestForwardKnowledgeMessage(message) {
+  messagePendingAction.value = { ...message, scope: 'knowledge-management' }
+  forwardMessageDialogOpen.value = true
+  knowledgeMessageActionMenuId.value = null
+}
+
+function editMessage(message) {
+  if (!message || message.id !== latestUserMessageId.value) {
+    showToast('只能编辑当前会话最后一条用户消息')
+    return
+  }
+  inputText.value = message.text
+  editingMessageId.value = message.id
+  messageActionMenuId.value = null
+  nextTick(() => document.querySelector('.composer-input textarea')?.focus())
+}
+
+function cancelMessageEdit() {
+  editingMessageId.value = null
+  inputText.value = ''
+}
+
+function requestDeleteMessage(message) {
+  messagePendingAction.value = message
+  deleteMessageDialogOpen.value = true
+  messageActionMenuId.value = null
+}
+
+function confirmDeleteMessage() {
+  const pending = messagePendingAction.value
+  if (pending?.scope === 'knowledge-management') {
+    const messageIndex = knowledgeManagement.messages.findIndex((message) => message.id === pending.id)
+    if (messageIndex !== -1) knowledgeManagement.messages.splice(messageIndex, 1)
+    if (knowledgeEditingMessageId.value === pending.id) cancelKnowledgeMessageEdit()
+    showToast('知识库对话消息已删除')
+    deleteMessageDialogOpen.value = false
+    messagePendingAction.value = null
+    return
+  }
+  if (!pending || !currentConversation.value) return
+  const conversationId = currentConversation.value.id
+  const persistedMessages = currentConversation.value.messages ?? []
+  const transientMessages = sessionMessages[conversationId] ?? []
+  const orderedMessages = [...persistedMessages, ...transientMessages]
+  const messageIndex = orderedMessages.findIndex((message) => message.id === pending.id)
+  const messageIds = messageIndex === -1 ? [] : [pending.id]
+
+  if (pending.role === 'user' && messageIndex !== -1) {
+    for (let index = messageIndex + 1; index < orderedMessages.length; index += 1) {
+      const message = orderedMessages[index]
+      if (message.role === 'user') break
+      if (message.role === 'assistant') messageIds.push(message.id)
+    }
+  }
+
+  if (activeGeneration.value?.conversationId === conversationId && messageIds.includes(activeGeneration.value.pendingMessageId)) {
+    pauseGeneration()
+  }
+
+  messageIds.forEach((messageId) => {
+    const found = findConversationMessage(conversationId, messageId)
+    if (found) found.collection.splice(found.collection.indexOf(found.message), 1)
+  })
+
+  if (messageIds.length) {
+    showToast(messageIds.length > 1 ? '消息及对应的 AI 回答已删除' : '消息已删除')
+  }
+  deleteMessageDialogOpen.value = false
+  messagePendingAction.value = null
+}
+
+function cancelDeleteMessage() {
+  deleteMessageDialogOpen.value = false
+  messagePendingAction.value = null
+}
+
+function requestForwardMessage(message) {
+  messagePendingAction.value = message
+  forwardMessageDialogOpen.value = true
+  messageActionMenuId.value = null
+}
+
+function confirmForwardMessage({ targetProjectId, targetConversationId }) {
+  const pending = messagePendingAction.value
+  const project = workspaceProjects.value.find((item) => item.id === targetProjectId)
+  const conversation = project?.conversations?.find((item) => item.id === targetConversationId)
+  if (!pending || !conversation) return
+  if (!conversation.messages) conversation.messages = []
+  conversation.messages.push({
+    id: `${Date.now()}-forwarded`,
+    role: 'user',
+    text: pending.text,
+    forwarded: true,
+    forwardedFrom: currentConversation.value?.title ?? '当前会话',
+  })
+  if (pending.scope === 'knowledge-management' && conversation.messages.length) {
+    conversation.messages[conversation.messages.length - 1].forwardedFrom = '知识库管理对话'
+  }
+  forwardMessageDialogOpen.value = false
+  messagePendingAction.value = null
+  showToast(`消息已转发到 ${conversation.title}`)
+}
+
+function cancelForwardMessage() {
+  forwardMessageDialogOpen.value = false
+  messagePendingAction.value = null
+}
+
+function toggleMessageFavorite(message) {
+  if (!message) return
+  message.favorite = !message.favorite
+  messageActionMenuId.value = null
+  showToast(message.favorite ? '消息已收藏' : '已取消收藏')
+}
+
 function sendMessageLegacy() {
   const text = inputText.value.trim()
   if (!text || !currentConversation.value) return
@@ -1522,19 +2233,37 @@ function sendMessageLegacy() {
 }
 
 async function sendMessage() {
+  if (isGenerating.value) return
   const text = inputText.value.trim()
   if (!text || !currentConversation.value || !currentProject.value) return
   const conversationId = currentConversation.value.id
+  if (editingMessageId.value) {
+    const found = findConversationMessage(conversationId, editingMessageId.value)
+    if (!found) {
+      showToast('编辑失败：消息未找到')
+      cancelMessageEdit()
+      return
+    }
+    found.message.text = text
+    found.message.edited = true
+    cancelMessageEdit()
+    showToast('消息已更新')
+    return
+  }
   appendMessage(conversationId, { id: `${Date.now()}-user`, role: 'user', text })
   autoNameConversation(currentConversation.value, text)
   currentConversation.value.unread = false
   currentConversation.value.contextUsage = Math.min(100, getContextUsage(currentConversation.value) + 4)
   currentConversation.value.hasHistory = true
   inputText.value = ''
+  const generationKey = ++generationSequence
+  isGenerating.value = true
+  activeGeneration.value = { key: generationKey, conversationId, pendingMessageId: null }
   await submitIntentAnalysis(text, {
     conversationId,
     project: currentProject.value,
     uploadedDocuments: extractUploadedDocuments(currentConversation.value),
+    generationKey,
   })
 }
 
@@ -1566,22 +2295,18 @@ async function attachConversationFiles(event, source) {
   const files = [...(event.target.files ?? [])]
   if (!files.length || !currentConversation.value || !currentProject.value) return
   try {
+    showToast(`正在上传 ${files.length} 个${source}，并写入数据模块...`)
     const backendProjectId = await ensureProjectRegistered(currentProject.value)
+    const backendConversationId = await ensureConversationRegistered(currentConversation.value, currentProject.value)
     const result = await platformApi.uploadDocuments(files, {
       actor: { user_id: currentAccount.value.id, userId: currentAccount.value.id, authenticated: true },
       projectId: backendProjectId,
-      conversationId: currentConversation.value.id,
+      conversationId: backendConversationId,
       source,
     })
     if (!currentConversation.value.files) currentConversation.value.files = []
     ;(result.items || []).forEach((file) => {
-      currentConversation.value.files.unshift({
-        id: file.file_id || file.object_id || file.stored_name,
-        name: file.original_name || file.name,
-        meta: formatFileMeta(file),
-        platform_ref: file.platform_ref,
-        platformRef: file.platform_ref,
-      })
+      currentConversation.value.files.unshift(uploadedRecordToFile(file))
     })
     showToast(`已上传 ${files.length} 个${source}并写入数据模块`)
   } catch (error) {
@@ -1589,6 +2314,84 @@ async function attachConversationFiles(event, source) {
   } finally {
     event.target.value = ''
   }
+}
+
+function openKnowledgeAttachmentPicker(kind) {
+  if (!knowledgeManagement.active || (knowledgeManagement.scope !== 'personal' && !currentConversation.value)) {
+    showToast(knowledgeManagement.scope === 'personal' ? '请先进入个人知识库管理页面' : '请先进入知识库对话后再上传文件')
+    return
+  }
+  const fallbackSelector = kind === 'camera'
+    ? '.knowledge-management-composer input[capture]'
+    : kind === 'image'
+      ? '.knowledge-management-composer input[accept="image/*"]:not([capture])'
+      : '.knowledge-management-composer input[type="file"]:not([accept])'
+  const input = kind === 'image'
+    ? knowledgeImageInput.value
+    : kind === 'camera'
+      ? knowledgeCameraInput.value
+      : knowledgeFileInput.value
+  ;(input || document.querySelector(fallbackSelector))?.click()
+}
+
+async function attachKnowledgeManagementFiles(event, source) {
+  const files = [...(event.target.files ?? [])]
+  if (!files.length || !currentAccount.value.id) return
+  const personalKnowledgeBase = knowledgeManagement.scope === 'personal' ? ensurePersonalKnowledgeBaseForUpload() : null
+  if (!personalKnowledgeBase && (!currentConversation.value || !currentProject.value)) return
+  try {
+    showToast(`正在上传 ${files.length} 个${source}，并写入知识库数据...`)
+    const backendProjectId = personalKnowledgeBase ? '' : await ensureProjectRegistered(currentProject.value)
+    const backendConversationId = personalKnowledgeBase
+      ? ''
+      : await ensureConversationRegistered(currentConversation.value, currentProject.value)
+    const result = await platformApi.uploadDocuments(files, {
+      actor: { user_id: currentAccount.value.id, userId: currentAccount.value.id, authenticated: true },
+      projectId: personalKnowledgeBase ? '' : backendProjectId,
+      conversationId: backendConversationId,
+      source: `知识库管理对话-${source}`,
+      assetScope: personalKnowledgeBase ? 'personal_knowledge' : '',
+      knowledgeBaseId: personalKnowledgeBase?.id || '',
+      knowledgeBaseName: personalKnowledgeBase?.name || '',
+    })
+    const uploadedItems = result.items || []
+    if (personalKnowledgeBase) {
+      uploadedItems.forEach((file) => {
+        personalKnowledgeBase.files.unshift(uploadedRecordToFile(file, {
+          assetScope: 'personal_knowledge',
+          knowledgeBaseId: personalKnowledgeBase.id,
+          knowledgeBaseName: personalKnowledgeBase.name,
+          ownerAccountId: currentAccount.value.id,
+          source: `个人知识库 · ${personalKnowledgeBase.name}`,
+        }))
+      })
+      refreshKnowledgeBaseMeta(personalKnowledgeBase)
+      selectedPersonalKnowledgeId.value = personalKnowledgeBase.id
+    } else {
+      if (!currentConversation.value.files) currentConversation.value.files = []
+      uploadedItems.forEach((file) => {
+        currentConversation.value.files.unshift(uploadedRecordToFile(file))
+      })
+    }
+    const names = uploadedItems.map((file) => file.original_name || file.name).filter(Boolean)
+    knowledgeManagement.messages.push({
+      id: `${Date.now()}-knowledge-upload`,
+      role: 'assistant',
+      text: personalKnowledgeBase
+        ? (names.length ? `已上传到个人知识库：${names.join('、')}` : `已上传 ${files.length} 个文件到个人知识库`)
+        : (names.length ? `已上传并写入当前对话：${names.join('、')}` : `已上传 ${files.length} 个文件并写入当前对话`),
+      source: `知识库管理对话 · ${source}`,
+    })
+    showToast(personalKnowledgeBase ? `已上传 ${files.length} 个${source}到个人知识库` : `已上传 ${files.length} 个${source}并写入数据模块`)
+  } catch (error) {
+    showToast(accountError(error))
+  } finally {
+    event.target.value = ''
+  }
+}
+
+function toggleKnowledgeVoiceRecording() {
+  toggleVoiceRecording()
 }
 
 function toggleVoiceRecording() {
@@ -1760,6 +2563,11 @@ async function createConversation() {
     selectConversation(currentProject.value.id, id)
     showToast(`已创建对话：${title}`)
   } catch (error) {
+    if (isBackendUnavailable(error)) {
+      createConversationLegacy()
+      showToast('后端暂不可用，已创建本地对话')
+      return
+    }
     showToast(accountError(error))
   }
 }
@@ -1882,26 +2690,32 @@ async function confirmIntent(message) {
   const conversationId = currentConversation.value.id
   try {
     const backendProjectId = await ensureProjectRegistered(currentProject.value)
-    const result = await platformApi.confirmIntent(task.confirmationId, {
+    const backendConversationId = await ensureConversationRegistered(currentConversation.value, currentProject.value)
+    let result = await platformApi.confirmIntent(task.confirmationId, {
       decision: 'confirm',
       actor: { tenant_id: platformApi.tenantId, user_id: currentAccount.value.id, authenticated: true },
       project_id: backendProjectId,
-      conversation_id: conversationId,
+      conversation_id: backendConversationId,
       trace_id: task.traceId,
       uploaded_documents: task.uploadedDocuments || [],
     })
+    if (result.status === 'running') {
+      const polledTask = await waitForTaskResult(result.task_id || task.taskId)
+      if (polledTask && ['succeeded', 'completed_with_errors', 'failed'].includes(polledTask.state)) {
+        result = workflowResponseFromTask(polledTask, result)
+      }
+    }
+    if (result.status === 'failed') {
+      throw new Error(result.error?.code || 'WORKFLOW_EXECUTION_FAILED')
+    }
     const completedWithErrors = result.status === 'completed_with_errors'
     task.status = completedWithErrors ? 'completed_with_errors' : 'confirmed'
+    const resultLines = workflowResultLines(result)
+    const userResult = workflowUserResult(result)
     updateSessionMessage(conversationId, message.id, {
       task: null,
       receipt: false,
     })
-    if (result.idempotent_replay) {
-      showToast('该确认已执行完成')
-      return
-    }
-    const resultLines = workflowResultLines(result)
-    const userResult = workflowUserResult(result)
     appendMessage(conversationId, {
       id: `${Date.now()}-confirm`,
       role: 'assistant',
@@ -1913,6 +2727,28 @@ async function confirmIntent(message) {
     })
     showToast(completedWithErrors ? '处理链路已留痕，部分模块待接入' : '任务已确认并开始执行')
   } catch (error) {
+    const polledTask = task.taskId ? await waitForTaskResult(task.taskId).catch(() => null) : null
+    if (polledTask && ['succeeded', 'completed_with_errors'].includes(polledTask.state)) {
+      const result = workflowResponseFromTask(polledTask)
+      task.status = polledTask.state === 'completed_with_errors' ? 'completed_with_errors' : 'confirmed'
+      const resultLines = workflowResultLines(result)
+      const userResult = workflowUserResult(result)
+      updateSessionMessage(conversationId, message.id, {
+        task: null,
+        receipt: false,
+      })
+      appendMessage(conversationId, {
+        id: `${Date.now()}-confirm`,
+        role: 'assistant',
+        text: workflowUserResponse(result),
+        resultLines,
+        userResult,
+        source: result.task_id ? `任务 ${result.task_id}` : task.traceId ? `链路 ${task.traceId}` : undefined,
+        receipt: true,
+      })
+      showToast('任务已完成，结果已补回当前对话')
+      return
+    }
     task.status = 'pending'
     appendMessage(currentConversation.value.id, {
       id: `${Date.now()}-confirm-error`,
@@ -2281,7 +3117,7 @@ function openKnowledgeGrantDialog(item = null) {
 }
 
 function openKnowledgeManagement(action, item, scope) {
-  if (!currentConversation.value) {
+  if (!currentAccount.value?.id || (scope !== 'personal' && !currentConversation.value)) {
     showToast('请先进入一个对话后再执行知识库操作')
     return
   }
@@ -2293,19 +3129,57 @@ function openKnowledgeManagement(action, item, scope) {
   knowledgeManagement.stage = 'request'
   rightTab.value = 'knowledge'
   const label = action === 'create' ? '请描述希望从当前对话沉淀哪些经验、规则或资料。' : action === 'supplement' ? '请说明要补充哪些材料及其适用范围。' : action === 'maintain' ? '请说明本次要维护的内容、版本或失效项。' : '请核对管理对象编号和待指定的维护责任人；本操作不会展示或授予库内业务内容。'
-  knowledgeManagement.messages = [{ id: `${Date.now()}-knowledge-open`, role: 'assistant', text: label, source: `${action === 'grant' ? `治理编号 · ${item?.governanceCode} · ` : ''}当前对话 · ${currentConversation.value.title}` }]
+  knowledgeManagement.messages = [{ id: `${Date.now()}-knowledge-open`, role: 'assistant', text: label, source: `${action === 'grant' ? `治理编号 · ${item?.governanceCode} · ` : ''}${scope === 'personal' ? '当前账号知识库' : `当前对话 · ${currentConversation.value.title}`}` }]
+}
+
+function ensurePersonalKnowledgeBaseForUpload() {
+  if (knowledgeManagement.scope !== 'personal') return managedKnowledgeBase.value
+  let knowledgeBase = managedKnowledgeBase.value
+  if (!knowledgeBase) {
+    const name = '我的个人知识库'
+    const id = knowledgeManagement.knowledgeBaseId || `pkb-${currentAccount.value.id}`
+    knowledgeBase = {
+      id,
+      name,
+      meta: '个人知识库 · 0 个文件',
+      updated: '刚刚',
+      ownerAccountId: currentAccount.value.id,
+      files: [],
+    }
+    personalKnowledge.value.unshift(knowledgeBase)
+    knowledgeManagement.knowledgeBaseId = id
+    selectedPersonalKnowledgeId.value = id
+  }
+  if (!knowledgeBase.files) knowledgeBase.files = []
+  if (!knowledgeBase.ownerAccountId) knowledgeBase.ownerAccountId = currentAccount.value.id
+  return knowledgeBase
 }
 
 function closeKnowledgeManagement() {
   knowledgeManagement.active = false
   knowledgeManagement.stage = 'idle'
   knowledgeManagement.input = ''
+  knowledgeEditingMessageId.value = null
+  knowledgeMessageActionMenuId.value = null
   rightTab.value = 'knowledge'
 }
 
 function sendKnowledgeManagementMessage() {
   const text = knowledgeManagement.input.trim()
   if (!text) return
+  if (knowledgeEditingMessageId.value) {
+    const message = knowledgeManagement.messages.find((item) => item.id === knowledgeEditingMessageId.value)
+    if (!message) {
+      showToast('编辑失败：知识库对话消息未找到')
+      cancelKnowledgeMessageEdit()
+      return
+    }
+    message.text = text
+    message.edited = true
+    cancelKnowledgeMessageEdit()
+    showToast('知识库对话消息已更新')
+    return
+  }
   knowledgeManagement.messages.push({ id: `${Date.now()}-knowledge-user`, role: 'user', text })
   knowledgeManagement.input = ''
   knowledgeManagement.stage = 'confirm'
@@ -2320,10 +3194,13 @@ async function confirmKnowledgeManagement() {
     const name = `${currentConversation.value.title}沉淀库`
     knowledgeBase = personalKnowledge.value.find((item) => item.name === name)
     if (!knowledgeBase) {
-      knowledgeBase = { id: `pkb-${Date.now()}`, name, meta: '个人知识库 · 由当前对话新建', updated: '刚刚' }
+      knowledgeBase = { id: `pkb-${Date.now()}`, name, meta: '个人知识库 · 0 个文件', updated: '刚刚', ownerAccountId: currentAccount.value.id, files: [] }
       personalKnowledge.value.unshift(knowledgeBase)
       selectedPersonalKnowledgeId.value = knowledgeBase.id
     }
+    if (!knowledgeBase.files) knowledgeBase.files = []
+    if (!knowledgeBase.ownerAccountId) knowledgeBase.ownerAccountId = currentAccount.value.id
+    refreshKnowledgeBaseMeta(knowledgeBase)
   }
   if (!knowledgeBase) return
   const assignee = accountRecords.value.find((account) => account.id === knowledgeGrantAssigneeId.value)
@@ -2333,17 +3210,18 @@ async function confirmKnowledgeManagement() {
   }
   if (action === 'grant' && !knowledgeBase.stewardIds.includes(assignee.id)) knowledgeBase.stewardIds.push(assignee.id)
   const operation = action === 'create' ? KnowledgeGovernanceOperations.createFromConversation : action === 'grant' ? KnowledgeGovernanceOperations.assignSteward : action === 'supplement' ? KnowledgeGovernanceOperations.supplement : KnowledgeGovernanceOperations.maintain
-  const backendProjectId = await ensureProjectRegistered(currentProject.value)
+  const accountScoped = knowledgeManagement.scope === 'personal'
+  const backendProjectId = accountScoped ? null : await ensureProjectRegistered(currentProject.value)
   const receipt = knowledgeGovernanceApplicationApi.acceptCommand({
     operation,
     accountId: currentAccount.value.id,
     actor: { tenant_id: platformApi.tenantId, user_id: currentAccount.value.id, authenticated: true },
     knowledgeBaseId: knowledgeBase.id,
     projectId: backendProjectId,
-    conversationId: currentConversation.value?.id ?? null,
+    conversationId: accountScoped ? null : currentConversation.value?.id ?? null,
     payload: action === 'grant'
-      ? { project_id: backendProjectId, conversation_id: currentConversation.value?.id ?? null, assigneeId: assignee.id, governanceOnly: true, contentAccessGranted: false, prerequisite: knowledgeBase.contentPermission, request: knowledgeManagement.messages.findLast((message) => message.role === 'user')?.text }
-      : { project_id: backendProjectId, conversation_id: currentConversation.value?.id ?? null, scope: knowledgeManagement.scope, request: knowledgeManagement.messages.findLast((message) => message.role === 'user')?.text, contentPermissionVerified: action !== 'create', automaticMaintenanceDuty: action !== 'create' },
+      ? { project_id: backendProjectId, conversation_id: accountScoped ? null : currentConversation.value?.id ?? null, assigneeId: assignee.id, governanceOnly: true, contentAccessGranted: false, prerequisite: knowledgeBase.contentPermission, request: knowledgeManagement.messages.findLast((message) => message.role === 'user')?.text }
+      : { project_id: backendProjectId, conversation_id: accountScoped ? null : currentConversation.value?.id ?? null, scope: knowledgeManagement.scope, request: knowledgeManagement.messages.findLast((message) => message.role === 'user')?.text, contentPermissionVerified: action !== 'create', automaticMaintenanceDuty: action !== 'create' },
   })
   try {
     await receipt.requestPromise
@@ -2356,14 +3234,20 @@ async function confirmKnowledgeManagement() {
   knowledgeManagement.stage = 'complete'
 }
 
-function downloadOutputFileLegacy(file) {
-  const content = `${file.name}\n生成于 AI 工作台\n追踪编号：L4-260721-1042\n`
-  const url = URL.createObjectURL(new Blob([content], { type: 'text/plain;charset=utf-8' }))
+function saveDownload(blob, fileName) {
+  const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `${file.name}.txt`
+  link.download = fileName
+  document.body.appendChild(link)
   link.click()
-  URL.revokeObjectURL(url)
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 0)
+}
+
+function downloadOutputFileLegacy(file) {
+  const content = `${file.name}\n生成于 AI 工作台\n追踪编号：L4-260721-1042\n`
+  saveDownload(new Blob([content], { type: 'text/plain;charset=utf-8' }), `${file.name}.txt`)
   showToast(`已下载 ${file.name}`)
 }
 
@@ -2372,25 +3256,28 @@ async function downloadOutputFile(file) {
   try {
     const backendProjectId = await ensureProjectRegistered(currentProject.value)
     const content = `${file.name}\n生成来源：AI 工作台\n账户：${currentAccount.value.id}\nProject：${currentProject.value.id}\n对话：${currentConversation.value.id}\n`
+    const backendConversationId = await ensureConversationRegistered(currentConversation.value, currentProject.value)
     const result = await platformApi.createGeneratedFile({
       account_id: currentAccount.value.id,
       project_id: backendProjectId,
-      conversation_id: currentConversation.value.id,
+      conversation_id: backendConversationId,
       original_name: `${file.name}.txt`,
       content,
       content_type: 'text/plain;charset=utf-8',
     })
     const downloadUrl = result.data?.download_url
-    if (downloadUrl) {
-      const baseUrl = (import.meta.env.VITE_PLATFORM_API_BASE_URL ?? '').replace(/\/$/, '')
-      const link = document.createElement('a')
-      link.href = `${baseUrl}${downloadUrl}`
-      link.download = `${file.name}.txt`
-      link.click()
+    if (!downloadUrl) {
+      downloadOutputFileLegacy(file)
+      return
     }
-    showToast(`已生成后端文件资产：${file.name}`)
+    const baseUrl = (import.meta.env.VITE_PLATFORM_API_BASE_URL ?? '').replace(/\/$/, '')
+    const href = /^https?:\/\//i.test(downloadUrl) ? downloadUrl : `${baseUrl}${downloadUrl}`
+    const response = await fetch(href)
+    if (!response.ok) throw new Error(`下载失败：${response.status}`)
+    saveDownload(await response.blob(), file.name)
+    showToast(`已下载 ${file.name}`)
   } catch (error) {
-    showToast(accountError(error))
+    downloadOutputFileLegacy(file)
   }
 }
 
@@ -2399,10 +3286,84 @@ function citeOutputFile(file) {
   showToast('产出文件已引用回当前对话')
 }
 
+function citeUploadedFile(file) {
+  inputText.value = `请引用我上传的文件「${file.name}」并结合当前对话继续处理。`
+  showToast('上传文件已引用到当前对话')
+}
+
+async function downloadUploadedFile(file) {
+  const downloadUrl = file.download_url || file.downloadUrl
+  if (downloadUrl) {
+    try {
+      const response = await fetch(downloadUrl)
+      if (!response.ok) throw new Error(`下载失败：${response.status}`)
+      saveDownload(await response.blob(), file.name)
+      showToast(`已下载 ${file.name}`)
+      return
+    } catch (error) {
+      // Fall through to a locally downloadable index when a platform URL is unavailable.
+    }
+  }
+  const content = `${file.name}\n来源：当前对话上传文件\n平台引用：${file.platform_ref || file.platformRef || '未提供'}\n`
+  saveDownload(new Blob([content], { type: 'text/plain;charset=utf-8' }), `${file.name}.txt`)
+  showToast(`已下载 ${file.name} 的文件索引`)
+}
+
 function citeProjectFile(file) {
   if (!currentConversation.value) return
   inputText.value = `请引用 Project 文件《${file.name}》并结合当前对话继续处理。`
   showToast('Project 文件已引用到当前对话')
+}
+
+async function openFilePreview(file) {
+  if (knowledgeManagement.active) {
+    knowledgeManagement.active = false
+    knowledgeManagement.stage = 'idle'
+  }
+  const knowledgeSourceId = file.knowledge_source_id || file.knowledgeSourceId
+  const fileId = file.file_id || file.fileId || file.object_id || file.id
+  const isPersonalKnowledge = file.asset_scope === 'personal_knowledge'
+    || file.assetScope === 'personal_knowledge'
+    || Boolean(file.knowledge_source_id || file.knowledgeSourceId || file.knowledge_base_id || file.knowledgeBaseId || file.knowledge_base_name || file.knowledgeBaseName)
+  filePreview.value = {
+    ...file,
+    parsedLoading: Boolean(knowledgeSourceId || isPersonalKnowledge),
+    parsedChunks: [],
+    parsedError: '',
+  }
+  if (!knowledgeSourceId && !isPersonalKnowledge) return
+  try {
+    const result = await platformApi.queryKnowledgeChunks({
+      knowledgeSourceId,
+      fileId: knowledgeSourceId ? undefined : fileId,
+      ownerAccountId: currentAccount.value?.id,
+      limit: 100,
+    })
+    let parsedResult = result
+    if (!parsedResult.items?.length && isPersonalKnowledge && fileId) {
+      await platformApi.reindexKnowledgeFile(fileId, {
+        actor: { tenant_id: platformApi.tenantId, user_id: currentAccount.value?.id, authenticated: true },
+      })
+      parsedResult = await platformApi.queryKnowledgeChunks({
+        fileId,
+        ownerAccountId: currentAccount.value?.id,
+        limit: 100,
+      })
+    }
+    if (!filePreview.value || filePreview.value.id !== file.id) return
+    filePreview.value = {
+      ...filePreview.value,
+      parsedLoading: false,
+      parsedChunks: parsedResult.items || [],
+    }
+  } catch (error) {
+    if (!filePreview.value || filePreview.value.id !== file.id) return
+    filePreview.value = {
+      ...filePreview.value,
+      parsedLoading: false,
+      parsedError: error?.message || '解析结果暂时无法读取',
+    }
+  }
 }
 
 function projectIcon(type) {
@@ -2412,12 +3373,21 @@ function projectIcon(type) {
 }
 
 onMounted(async () => {
+  document.addEventListener('click', closeConversationMenu)
   if (skipAuthForDesign) {
     await enterDesignWorkbench()
   } else {
     await restoreSession()
   }
   await scrollCurrentConversationToLatest()
+})
+
+watch(conversationScrollKey, () => {
+  void scrollCurrentConversationToLatest()
+}, { flush: 'post' })
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', closeConversationMenu)
 })
 </script>
 
@@ -2451,97 +3421,87 @@ onMounted(async () => {
       <div class="auth-security"><ShieldCheck :size="14" /><span>已预留统一身份认证接口，权限由账号 ID 返回。</span></div>
     </section>
   </div>
-  <div v-else class="page-shell" @click.self="accountMenuOpen = false">
-    <div class="workbench">
-      <header class="topbar">
-        <div class="brand"><Sparkles :size="17" /><strong>AI 工作台</strong></div>
-        <div class="context-pill"><Command :size="13" />{{ contextLabel }}</div>
-        <button class="search-trigger" title="全局搜索" @click="showToast('全局搜索接口已预留')"><Search :size="14" /><span>搜索 Project、对话和文件</span><kbd>Ctrl K</kbd></button>
-        <div class="top-spacer"></div>
-        <button class="icon-button" title="消息通知" @click="showToast(`当前有 ${notificationUnreadCount} 条未读消息`)" ><Bell :size="17" /><i v-if="notificationUnreadCount"></i></button>
-        <div class="account-switch">
-          <button class="account-trigger" @click.stop="accountMenuOpen = !accountMenuOpen">
-            <span class="avatar">{{ currentAccount.avatar }}</span>
-            <span><strong>{{ currentAccount.name }}</strong><small>{{ currentAccount.role }}</small></span>
-            <ChevronDown :size="14" />
-          </button>
-          <div v-if="accountMenuOpen" class="account-menu">
-            <div class="menu-note"><ShieldCheck :size="14" /><span>权限由登录账号返回。</span></div>
-            <button v-for="account in accountRecords" :key="account.id" :class="{ active: account.id === currentAccountId }" @click="selectAccount(account.id)">
-              <span class="avatar small">{{ account.avatar }}</span>
-              <span><strong>{{ account.name }}</strong><small>{{ account.role }} · {{ account.id }}</small></span>
-              <Check v-if="account.id === currentAccountId" :size="15" />
-            </button>
-            <button class="account-logout" @click="logout"><LogOut :size="15" /><span><strong>退出当前账号</strong><small>返回登录页面</small></span></button>
-          </div>
-        </div>
-      </header>
+  <MainLayout v-else @background-click="accountMenuOpen = false">
+    <template #topbar>
+      <WorkbenchTopbar
+        :context-label="contextLabel"
+        :notification-unread-count="notificationUnreadCount"
+        :account="currentAccount"
+        :accounts="accountRecords"
+        :current-account-id="currentAccountId"
+        :account-menu-open="accountMenuOpen"
+        @search="showToast('全局搜索接口已预留')"
+        @notifications="showToast(`当前有 ${notificationUnreadCount} 条未读消息`)"
+        @toggle-account-menu="accountMenuOpen = !accountMenuOpen"
+        @select-account="selectAccount"
+        @logout="logout"
+      />
+      
+    </template>
 
-      <div class="columns">
-        <aside class="left-column">
-          <section class="notice-panel">
-            <div class="section-title"><span><Bell :size="14" />提醒</span><b>{{ notificationUnreadCount }}</b></div>
-            <button v-for="item in visibleNotifications" :key="item.id" class="notice-row" @click="openNotification(item)">
-              <i :class="[item.tone, { unread: notificationIsUnread(item) }]"></i>
-              <span><strong>{{ item.title }}</strong><small>{{ notificationKind(item) }} · {{ item.meta }}</small></span>
-              <em class="notice-kind">{{ notificationKind(item) }}</em>
-              <ChevronRight :size="12" />
-            </button>
-            <p v-if="visibleNotifications.length" class="notice-note">点击任意提醒，直接进入对应业务对话处理。</p>
-          </section>
+    <template #sidebar>
+      <LeftSidebar
+        :notifications="visibleNotifications"
+        :notification-unread-count="notificationUnreadCount"
+        :notification-is-unread="notificationIsUnread"
+        :notification-kind="notificationKind"
+        :project-search="projectSearch"
+        :projects="filteredWorkspaceProjects"
+        :expanded-project-ids="expandedProjectIds"
+        :account-center-active="accountCenterActive"
+        :is-project-center="isProjectCenter"
+        :current-conversation-id="currentConversationId"
+        :conversation-menu-id="conversationMenuId"
+        :get-conversation-groups="groupConversationsForProject"
+        :project-icon="projectIcon"
+        :conversation-unread="conversationUnread"
+        :conversation-status-kind="conversationStatusKind"
+        :conversation-status-label="conversationStatusLabel"
+        @update:project-search="projectSearch = $event"
+        @open-notification="openNotification"
+        @open-project-dialog="openProjectDialog"
+        @toggle-project="toggleProject"
+        @select-project="selectProject"
+        @select-conversation="selectConversation"
+        @toggle-conversation-menu="toggleConversationMenu"
+        @pin-conversation="conversation => { pinConversation(conversation); conversationMenuId = null }"
+        @toggle-conversation-unread="conversation => { toggleConversationUnread(conversation); conversationMenuId = null }"
+        @rename-conversation="conversation => { requestRenameConversation(conversation); conversationMenuId = null }"
+        @delete-conversation="conversation => { requestDeleteConversation(conversation); conversationMenuId = null }"
+        @create-conversation="projectId => { selectProject(projectId); openConversationDialog() }"
+        @pin-project="pinProject"
+        @rename-project="renameProject"
+        @delete-project="requestDeleteProject"
+        @select-account-center="selectAccountCenter"
+      />
+      
+    </template>
 
-          <section class="projects-panel">
-            <div class="section-title projects-title"><span>我的 PROJECT <em>{{ fixedWorkspaceProjects.length }} 固定 · {{ customWorkspaceProjects.length }} 自建</em></span><button title="新建 Project" @click="openProjectDialog"><Plus :size="13" />新建</button></div>
-            <label class="rail-project-search"><Search :size="13" /><input v-model="projectSearch" placeholder="搜 Project / 对话名……" /></label>
-            <div v-for="project in filteredWorkspaceProjects" :key="project.id" class="project-node" :class="{ open: expandedProjectIds.has(project.id) && !accountCenterActive, fixed: project.fixed }">
-              <button class="project-row" @click="toggleProject(project.id)">
-                <component :is="projectIcon(project.type)" :size="15" />
-                <span><strong>{{ project.name }}</strong><small>{{ project.description }}</small></span>
-                <em v-if="project.fixed">固定</em>
-                <ChevronRight :size="13" class="arrow" />
-              </button>
-              <div v-if="expandedProjectIds.has(project.id) && !accountCenterActive" class="project-children">
-                <button :class="{ active: isProjectCenter }" @click="selectProject(project.id)">
-                  <LayoutDashboard :size="13" /><span>Project 专属指挥中心</span>
-                </button>
-                <div class="child-label">对话列表</div>
-                <template v-for="group in groupConversationsForProject(project)" :key="group.label">
-                  <div class="conversation-time-group">{{ group.label }}</div>
-                  <div v-for="conversation in group.conversations" :key="conversation.id" class="conversation-list-item" :class="{ unread: conversationUnread(conversation), pinned: conversation.pinned }">
-                    <button class="conversation-nav-row" :class="{ active: currentConversationId === conversation.id }" @click="selectConversation(project.id, conversation.id)"><MessageSquare :size="12" /><span>{{ conversation.title }}</span><i v-if="conversationUnread(conversation)" class="unread-dot"></i><span class="conversation-status-icon" :class="conversationStatusKind(conversation)" :title="conversationStatusLabel(conversation)"><CheckCircle2 v-if="conversationStatusKind(conversation) === 'done'" :size="12" /><Clock3 v-else-if="conversationStatusKind(conversation) === 'pending'" :size="12" /><CircleAlert v-else :size="12" /></span></button>
-                    <div class="conversation-more"><button class="conversation-more-trigger" title="更多操作" @click.stop="toggleConversationMenu(conversation.id)"><MoreHorizontal :size="14" /></button><div v-if="conversationMenuId === conversation.id" class="conversation-more-menu" @click.stop><button @click="pinConversation(conversation); conversationMenuId = null"><Pin :size="13" />{{ conversation.pinned ? '取消置顶' : '置顶会话' }}</button><button @click="toggleConversationUnread(conversation); conversationMenuId = null"><CircleDotDashed :size="13" />{{ conversationUnread(conversation) ? '标记已读' : '标记未读' }}</button><button @click="renameConversation(conversation); conversationMenuId = null"><MoreHorizontal :size="13" />重命名</button><button class="danger" @click="deleteConversation(conversation); conversationMenuId = null"><X :size="13" />删除会话</button></div></div>
-                  </div>
-                </template>
-                <button class="new-conversation" @click="selectProject(project.id); openConversationDialog()"><Plus :size="12" />新建对话</button>
-              </div>
-            </div>
-            <div v-if="!filteredWorkspaceProjects.length" class="project-empty-state"><FolderKanban :size="18" /><span>未找到匹配的 Project</span></div>
-          </section>
-
-          <section class="account-center-entry">
-            <button :class="{ active: accountCenterActive }" @click="selectAccountCenter">
-              <Command :size="16" />
-              <span><strong>综合指挥中心</strong><small>统管账号下全部 Projects</small></span>
-              <ChevronRight :size="13" />
-            </button>
-          </section>
-        </aside>
-
-        <main class="center-column">
+    <template #main>
+      <main class="center-column">
           <header class="center-header">
             <div>
-              <span class="eyebrow">{{ knowledgeManagement.active ? 'KNOWLEDGE MANAGEMENT CONVERSATION' : agentManagement.active ? 'AGENT MANAGEMENT CONVERSATION' : accountCenterActive ? 'ACCOUNT COMMAND CENTER' : currentProject.name }}</span>
-              <h1>{{ knowledgeManagement.active ? (knowledgeManagement.action === 'grant' ? `知识库治理 · ${selectedGrantKnowledge?.governanceCode ?? '管理责任配权'}` : knowledgeManagement.action === 'create' ? '从当前对话新建知识库' : `知识库${knowledgeManagement.action === 'supplement' ? '补材料' : '维护'} · ${managedKnowledgeBase?.name ?? ''}`) : agentManagement.active ? (managedCapability ? `${agentManagement.capabilityType === 'skill' ? 'Skill' : 'Agent'} 管理 · ${managedCapability.name}` : `新建自创 ${agentManagement.capabilityType === 'skill' ? 'Skill' : 'Agent'}`) : accountCenterActive ? '综合指挥中心' : currentConversation ? currentConversation.title : 'Project 专属指挥中心' }}</h1>
+              <span class="eyebrow">{{ filePreview ? 'PERSONAL KNOWLEDGE' : knowledgeManagement.active ? 'KNOWLEDGE MANAGEMENT CONVERSATION' : agentManagement.active ? 'AGENT MANAGEMENT CONVERSATION' : accountCenterActive ? 'ACCOUNT COMMAND CENTER' : currentProject.name }}</span>
+              <h1>{{ filePreview ? filePreview.name : knowledgeManagement.active ? (knowledgeManagement.action === 'grant' ? `知识库治理 · ${selectedGrantKnowledge?.governanceCode ?? '管理责任配权'}` : knowledgeManagement.action === 'create' ? '从当前对话新建知识库' : `知识库${knowledgeManagement.action === 'supplement' ? '补材料' : '维护'} · ${managedKnowledgeBase?.name ?? ''}`) : agentManagement.active ? (managedCapability ? `${agentManagement.capabilityType === 'skill' ? 'Skill' : 'Agent'} 管理 · ${managedCapability.name}` : `新建自创 ${agentManagement.capabilityType === 'skill' ? 'Skill' : 'Agent'}`) : accountCenterActive ? '综合指挥中心' : currentConversation ? currentConversation.title : 'Project 专属指挥中心' }}</h1>
             </div>
             <div class="header-actions">
-              <span class="scope-chip"><ShieldCheck :size="13" />{{ currentAccount.role }}权限</span>
-              <button v-if="knowledgeManagement.active" class="icon-button plain" title="返回当前对话" @click="closeKnowledgeManagement"><X :size="16" /></button>
+              <button v-if="filePreview" class="icon-button plain" title="返回知识库" @click="filePreview = null"><X :size="16" /></button>
+              <button v-else-if="knowledgeManagement.active" class="icon-button plain" title="返回当前对话" @click="closeKnowledgeManagement"><X :size="16" /></button>
               <button v-else-if="agentManagement.active" class="icon-button plain" title="返回当前对话" @click="closeAgentManagement"><X :size="16" /></button>
               <button class="icon-button plain" title="更多操作"><MoreHorizontal :size="17" /></button>
             </div>
           </header>
 
-          <template v-if="knowledgeManagement.active">
+          <template v-if="filePreview">
+            <FilePreview
+              :file="filePreview"
+              :project-name="currentProject?.name"
+              :conversation-title="currentConversation?.title"
+              @close="filePreview = null"
+            />
+          </template>
+
+          <template v-else-if="knowledgeManagement.active">
             <div class="center-scroll agent-chat-stream knowledge-chat-stream">
               <div class="assistant-intro agent-management-intro">
                 <span class="ai-avatar"><Database :size="18" /></span>
@@ -2550,11 +3510,21 @@ onMounted(async () => {
                   <p>{{ knowledgeManagement.action === 'grant' ? '仅登记维护责任；管理权和内容查看权严格隔离。' : knowledgeManagement.action === 'create' ? '根据当前对话沉淀经验、规则或资料，个人知识库与集团库保持独立。' : '请用自然语言说明本次变更，系统会在确认后写入治理留痕。' }}</p>
                 </div>
               </div>
-              <div v-for="message in knowledgeManagement.messages" :key="message.id" class="message agent-management-message" :class="message.role">
-                <span v-if="message.role === 'assistant'" class="message-avatar"><Database :size="16" /></span>
-                <div class="bubble"><p>{{ message.text }}</p><small v-if="message.source"><Activity :size="11" />{{ message.source }}</small></div>
-                <span v-if="message.role === 'user'" class="message-avatar user">{{ currentAccount.avatar }}</span>
-              </div>
+              <ChatMessageList
+                :messages="knowledgeManagement.messages"
+                :current-avatar="currentAccount.avatar"
+                :latest-user-message-id="knowledgeLatestUserMessageId"
+                :latest-assistant-message-id="knowledgeLatestAssistantMessageId"
+                :editing-message-id="knowledgeEditingMessageId"
+                :message-action-menu-id="knowledgeMessageActionMenuId"
+                :stream-ref="knowledgeStreamRef"
+                @edit="editKnowledgeMessage"
+                @copy="copyKnowledgeMessage"
+                @forward="requestForwardKnowledgeMessage"
+                @toggle-menu="toggleKnowledgeMessageActionMenu"
+                @favorite="toggleMessageFavorite"
+                @delete="requestDeleteKnowledgeMessage"
+              />
               <section v-if="knowledgeManagement.stage === 'confirm'" class="agent-operation-card creation-card knowledge-operation-card">
                 <div class="operation-heading"><span><ShieldCheck :size="15" />{{ knowledgeManagement.action === 'grant' ? '管理责任配权确认' : knowledgeManagement.action === 'create' ? '知识库沉淀确认' : `知识库${knowledgeManagement.action === 'supplement' ? '补材料' : '维护'}确认` }}</span><em>对话留痕</em></div>
                 <template v-if="knowledgeManagement.action === 'grant'">
@@ -2566,7 +3536,23 @@ onMounted(async () => {
                 <div class="operation-actions"><button @click="closeKnowledgeManagement">取消</button><button class="primary" @click="confirmKnowledgeManagement">{{ knowledgeManagement.action === 'grant' ? '确认登记责任' : knowledgeManagement.action === 'create' ? '确认新建知识库' : '确认提交' }}</button></div>
               </section>
             </div>
-            <footer class="composer agent-management-composer knowledge-management-composer"><div class="composer-tools"><span><Database :size="12" />{{ knowledgeManagement.action === 'create' ? '描述要从当前对话沉淀的知识与规则' : knowledgeManagement.action === 'supplement' ? '描述要补充的资料及适用范围' : knowledgeManagement.action === 'maintain' ? '描述维护内容、版本或失效项' : '说明责任分配原因；不输入或展示业务内容' }}</span><span><History :size="12" />操作全程留痕</span></div><div class="composer-input"><textarea v-model="knowledgeManagement.input" rows="2" placeholder="用自然语言说明本次知识库操作…" @keydown.ctrl.enter.prevent="sendKnowledgeManagementMessage"></textarea><button class="send-button" title="发送知识库管理指令" :disabled="!knowledgeManagement.input.trim()" @click="sendKnowledgeManagementMessage"><Send :size="17" /></button></div></footer>
+            <ChatComposer
+              class="agent-management-composer knowledge-management-composer"
+              :input-text="knowledgeManagement.input"
+              :editing-message-id="knowledgeEditingMessageId"
+              :voice-recording="voiceRecording"
+              :is-generating="false"
+              :file-input="knowledgeFileInput"
+              :image-input="knowledgeImageInput"
+              :camera-input="knowledgeCameraInput"
+              @update:input-text="knowledgeManagement.input = $event"
+              @send="sendKnowledgeManagementMessage"
+              @pause="() => {}"
+              @cancel-edit="cancelKnowledgeMessageEdit"
+              @open-picker="openKnowledgeAttachmentPicker"
+              @toggle-voice="toggleKnowledgeVoiceRecording"
+              @attach="attachKnowledgeManagementFiles"
+            />
           </template>
 
           <template v-else-if="agentManagement.active">
@@ -2621,59 +3607,26 @@ onMounted(async () => {
                 <div class="operation-actions"><button @click="closeAgentManagement">取消停用</button><button class="danger" @click="confirmAgentManagement">确认停用</button></div>
               </section>
             </div>
-            <footer class="composer agent-management-composer"><div class="composer-tools"><span><Bot :size="12" />{{ agentManagement.action === 'create' ? `描述要创建的 ${agentManagement.capabilityType === 'skill' ? 'Skill 输入、规则与输出' : 'Agent、目标效果与执行规则'}` : agentManagement.action === 'fineTune' ? '描述微调需求' : agentManagement.action === 'upgrade' ? '描述新增能力与规则' : ['promote', 'publish'].includes(agentManagement.action) ? `补充${agentManagement.action === 'publish' ? '发布升档' : '升层'}说明或直接提交` : '输入确认、取消或恢复指令' }}</span><span><History :size="12" />版本全程留痕</span></div><div class="composer-input"><textarea v-model="agentManagement.input" rows="2" placeholder="用自然语言描述你的管理需求…" @keydown.ctrl.enter.prevent="sendAgentManagementMessage"></textarea><button class="send-button" :title="`发送 ${agentManagement.capabilityType === 'skill' ? 'Skill' : 'Agent'} 管理指令`" :disabled="!agentManagement.input.trim()" @click="sendAgentManagementMessage"><Send :size="17" /></button></div></footer>
+            <footer class="composer agent-management-composer"><div class="composer-tools"><span><Bot :size="12" />{{ agentManagement.action === 'create' ? `描述要创建的 ${agentManagement.capabilityType === 'skill' ? 'Skill 输入、规则与输出' : 'Agent、目标效果与执行规则'}` : agentManagement.action === 'fineTune' ? '描述微调需求' : agentManagement.action === 'upgrade' ? '描述新增能力与规则' : ['promote', 'publish'].includes(agentManagement.action) ? `补充${agentManagement.action === 'publish' ? '发布升档' : '升层'}说明或直接提交` : '输入确认、取消或恢复指令' }}</span><span><History :size="12" />版本全程留痕</span></div><div class="composer-input"><textarea v-model="agentManagement.input" rows="2" placeholder="用自然语言描述你的管理需求…" @keydown.enter.exact.prevent="sendAgentManagementMessage"></textarea><button class="send-button" :title="`发送 ${agentManagement.capabilityType === 'skill' ? 'Skill' : 'Agent'} 管理指令`" :disabled="!agentManagement.input.trim()" @click="sendAgentManagementMessage"><Send :size="17" /></button></div></footer>
           </template>
 
           <template v-else-if="accountCenterActive">
-            <div class="center-scroll command-chat-stream">
-              <div class="assistant-intro command-intro"><span class="ai-avatar"><Command :size="18" /></span><div><strong>{{ currentAccount.name }}的综合指挥中心</strong><p>用自然语言下发账号级指令；系统在当前权限范围内统筹 Project、待办与风险，并全程留痕。</p></div></div>
-              <div class="metric-grid account-metrics command-metrics">
-                <div><span>全部 Projects</span><b>{{ workspaceProjects.length }}</b><small>2 个固定 · {{ workspaceProjects.length - 2 }} 个自建</small></div>
-                <div><span>进行中任务</span><b>9</b><small>跨 Project 汇总</small></div>
-                <div class="warning"><span>待我处理</span><b>{{ canReadTeamReports ? 4 : 2 }}</b><small>确认与待办</small></div>
-                <div class="danger"><span>风险预警</span><b>2</b><small>来自风险监控</small></div>
-              </div>
-              <div class="command-control-strip">
-                <span><Activity :size="14" />全局运行态势</span>
-                <span class="live-indicator"><i></i>实时同步</span>
-                <small>覆盖 {{ workspaceProjects.length }} 个 Project · 自动汇总任务、预警与处理证据</small>
-              </div>
-              <section class="command-dashboard-grid">
-                <article class="command-panel command-portfolio-panel">
-                  <div class="content-heading"><span><LayoutDashboard :size="15" />跨 Project 运行态势</span><small>按账号权限汇总</small></div>
-                  <div class="command-project-rollup">
-                    <button v-for="project in commandProjectRollup" :key="project.id" class="command-project-row" @click="selectProject(project.id)">
-                      <span class="command-project-main"><component :is="projectIcon(project.type)" :size="15" /><span><strong>{{ project.name }}</strong><small>{{ project.total }} 个会话 · {{ project.active }} 个需关注</small></span></span>
-                      <span class="command-progress"><i><b :style="{ width: `${project.progress}%` }"></b></i><em>{{ project.progress }}%</em></span>
-                      <ChevronRight :size="14" />
-                    </button>
-                  </div>
-                </article>
-                <article class="command-panel command-alert-panel">
-                  <div class="content-heading"><span><CircleAlert :size="15" />预警归集</span><small>{{ commandAlerts.length }} 条待跟进</small></div>
-                  <button v-for="alert in commandAlerts" :key="alert.id" class="command-alert-row" :class="alert.tone" @click="dispatchAlert(alert)">
-                    <span class="alert-mark"><CircleAlert :size="14" /></span><span><strong>{{ alert.title }}</strong><small>{{ alert.detail }}</small><em>{{ alert.age }} · {{ alert.severity }}级</em></span><ChevronRight :size="14" />
-                  </button>
-                </article>
-              </section>
-              <section class="command-panel command-queue-panel">
-                <div class="content-heading"><span><ListTodo :size="15" />统一任务队列</span><small>{{ commandPendingCount }} 项待调度 · 人工 / 自动全程留痕</small></div>
-                <div class="command-queue-head"><span>事项</span><span>来源与负责人</span><span>到期 / 状态</span><span>动作</span></div>
-                <div v-for="task in commandDispatches" :key="task.id" class="command-queue-row" :class="task.tone">
-                  <button class="queue-title" @click="openCommandRecord(task)"><strong>{{ task.title }}</strong><small>{{ task.kind }}环节 · {{ task.projectId === 'project-team' ? '我的队伍' : workspaceProjects.find((project) => project.id === task.projectId)?.name }}</small></button>
-                  <span class="queue-owner">{{ task.owner }}</span>
-                  <span class="queue-status"><small>{{ task.due }}</small><em>{{ task.status }}</em></span>
-                  <button class="queue-action" @click="dispatchCommandTask(task)">{{ task.status === '已完成' ? '查看' : task.kind === '自动' ? '执行' : '催办' }}</button>
-                </div>
-              </section>
-              <div v-for="message in commandMessages" :key="message.id" class="message command-message" :class="message.role">
-                <span v-if="message.role === 'assistant'" class="message-avatar"><Command :size="16" /></span>
-                <div class="bubble"><p>{{ message.text }}</p><button v-if="message.action" class="command-action" @click="selectProject(message.action.projectId)"><FolderKanban :size="13" />{{ message.action.label }}</button><small v-if="message.source"><Activity :size="11" />{{ message.source }}</small></div>
-                <span v-if="message.role === 'user'" class="message-avatar user">{{ currentAccount.avatar }}</span>
-              </div>
-              <section class="overview-section command-overview"><div class="content-heading"><span><FolderKanban :size="15" />Project 运行概览</span><small>点击进入专属指挥中心</small></div><button v-for="project in workspaceProjects" :key="project.id" class="overview-project" @click="selectProject(project.id)"><component :is="projectIcon(project.type)" :size="17" /><span><strong>{{ project.name }}</strong><small>{{ project.description }}</small></span><em>{{ project.status }}</em><ChevronRight :size="14" /></button></section>
-            </div>
-            <footer class="composer command-composer"><div class="composer-tools"><span><Command :size="12" />账号级自然语言指令</span><span><ShieldCheck :size="12" />{{ currentAccount.role }}权限范围</span></div><div class="composer-input"><textarea v-model="commandInput" rows="2" placeholder="例如：汇总今天需要我处理的风险，并催办未提交的工作汇报" @keydown.ctrl.enter.prevent="sendCommandMessage"></textarea><button class="send-button" title="发送指令" :disabled="!commandInput.trim()" @click="sendCommandMessage"><Send :size="17" /></button></div></footer>
+            <AccountCenterView
+              :account="currentAccount"
+              :workspace-projects="workspaceProjects"
+              :command-project-rollup="commandProjectRollup"
+              :command-alerts="commandAlerts"
+              :command-dispatches="commandDispatches"
+              :command-messages="commandMessages"
+              :command-pending-count="commandPendingCount"
+              :can-read-team-reports="canReadTeamReports"
+              :project-icon="projectIcon"
+              @select-project="selectProject"
+              @dispatch-alert="dispatchAlert"
+              @open-command-record="openCommandRecord"
+              @dispatch-command-task="dispatchCommandTask"
+            />
+            <CommandComposer v-model:value="commandInput" title="账号级自然语言指令" :scope="`${currentAccount.role}权限范围`" placeholder="例如：汇总今天需要我处理的风险，并催办未提交的工作汇报" :voice-recording="voiceRecording" @send="sendCommandMessage" @open-picker="openAttachmentPicker" @toggle-voice="toggleVoiceRecording" />
           </template>
 
           <template v-else-if="isProjectCenter">
@@ -2754,113 +3707,136 @@ onMounted(async () => {
               </button>
             </section>
           </div>
-          <footer class="composer command-composer project-command-composer">
-            <div class="composer-tools"><span><Command :size="12" />Project 级统筹指令</span><span><ShieldCheck :size="12" />仅限 {{ currentProject.name }} 权限范围</span></div>
-            <div class="composer-input"><textarea v-model="projectCommandInput" rows="2" placeholder="例如：汇总本 Project 待处理事项并催办负责人" @keydown.ctrl.enter.prevent="sendProjectCommandMessage"></textarea><button class="send-button" title="发送项目指令" :disabled="!projectCommandInput.trim()" @click="sendProjectCommandMessage"><Send :size="17" /></button></div>
-          </footer>
+          <CommandComposer v-model:value="projectCommandInput" title="Project 级统筹指令" :scope="`仅限 ${currentProject.name} 权限范围`" placeholder="例如：汇总本 Project 待处理事项并催办负责人" project :voice-recording="voiceRecording" @send="sendProjectCommandMessage" @open-picker="openAttachmentPicker" @toggle-voice="toggleVoiceRecording" />
           </template>
 
           <template v-else>
-            <div ref="chatStreamRef" class="center-scroll chat-stream">
-              <div v-for="message in currentMessages" :key="message.id" class="message" :class="message.role">
-                <span v-if="message.role === 'assistant'" class="message-avatar"><Bot :size="17" /></span>
-                <div class="bubble" :class="{ receipt: message.receipt }">
-                  <p>{{ message.text }}</p>
-                  <div v-if="message.userResult?.findings?.length" class="execution-result">
-                    <article v-for="finding in message.userResult.findings" :key="finding.finding_id || finding.title">
-                      <strong>{{ finding.title }}</strong>
-                      <p v-if="finding.detail">{{ finding.detail }}</p>
-                      <p v-if="finding.evidence?.length"><span>依据：</span>{{ finding.evidence.join('；') }}</p>
-                      <p v-if="finding.impact"><span>影响：</span>{{ finding.impact }}</p>
-                      <p v-if="finding.recommendation"><span>建议：</span>{{ finding.recommendation }}</p>
-                    </article>
-                    <p v-if="message.userResult.next_action?.prompt" class="execution-next-action">{{ message.userResult.next_action.prompt }}</p>
-                  </div>
-                  <ul v-else-if="message.resultLines?.length" class="execution-result">
-                    <li v-for="line in message.resultLines" :key="line"><CheckCircle2 :size="13" />{{ line }}</li>
-                  </ul>
-                  <div v-if="message.task" class="intent-card">
-                    <div><span><Sparkles :size="14" />{{ message.task.title }}</span><em>{{ message.task.label || '意图确认' }}</em></div>
-                    <ul><li v-for="item in message.task.items" :key="item"><CheckCircle2 :size="13" />{{ item }}</li></ul>
-                    <div v-if="message.task.adjustmentOpen" class="intent-adjustment">
-                      <textarea v-model="message.task.adjustmentText" rows="3" placeholder="例如：不是生成摘要，而是核对合同尾款与回款金额，并列出需要人工确认的问题。"></textarea>
-                      <div><button :disabled="message.task.status !== 'pending'" @click="cancelIntentAdjustment(message)">取消</button><button class="primary" :disabled="message.task.status !== 'pending' || !message.task.adjustmentText.trim()" @click="submitIntentAdjustment(message)">重新识别</button></div>
-                    </div>
-                    <div class="intent-actions"><button :disabled="message.task.status !== 'pending'" @click="openIntentAdjustment(message)">调整意图</button><button class="primary" :disabled="message.task.status !== 'pending'" @click="confirmIntent(message)">{{ message.task.status === 'running' ? '执行中...' : message.task.status === 'adjusting' ? '重新识别中...' : message.task.status === 'confirmed' ? '已确认' : message.task.status === 'completed_with_errors' ? '部分完成' : '确认并执行' }}</button></div>
-                  </div>
-                  <small v-if="message.source"><Activity :size="11" />{{ message.source }}</small>
-                </div>
-                <span v-if="message.role === 'user'" class="message-avatar user">{{ currentAccount.avatar }}</span>
-              </div>
-            </div>
-            <footer class="composer">
-              <div v-if="currentConversation && currentContextUsage >= 75" class="context-alert" :class="contextLevel(currentConversation)"><CircleAlert :size="14" /><span><strong>上下文已占 {{ currentContextUsage }}%</strong><small>{{ currentContextUsage >= 90 ? '即将触达存储上限，请立即沉淀并续接对话。' : '接近存储上限，建议沉淀当前要点后新建续接对话。' }}</small></span><button @click="startFreshConversationFromContext">沉淀并续接</button></div>
-              <div class="composer-tools composer-media-tools">
-                <button title="添加文件" @click="openAttachmentPicker('file')"><Paperclip :size="14" />文件</button>
-                <button title="添加图片" @click="openAttachmentPicker('image')"><ImageIcon :size="14" />图片</button>
-                <button title="拍照" @click="openAttachmentPicker('camera')"><Camera :size="14" />拍照</button>
-                <button title="语音输入" :class="{ recording: voiceRecording }" @click="toggleVoiceRecording"><Mic :size="14" />{{ voiceRecording ? '结束录音' : '语音' }}</button>
-                <input ref="fileInput" class="visually-hidden-input" type="file" multiple @change="attachConversationFiles($event, '文件')" />
-                <input ref="imageInput" class="visually-hidden-input" type="file" accept="image/*" multiple @change="attachConversationFiles($event, '图片')" />
-                <input ref="cameraInput" class="visually-hidden-input" type="file" accept="image/*" capture="environment" @change="attachConversationFiles($event, '照片')" />
-                <span><ShieldCheck :size="12" />按 {{ currentAccount.role }}权限发送</span>
-              </div>
-              <div class="composer-input">
-                <textarea v-model="inputText" rows="2" placeholder="向 AI 提出需求，Enter 换行，点击发送提交..." @keydown.ctrl.enter.prevent="sendMessage"></textarea>
-                <button class="send-button" title="发送" :disabled="!inputText.trim()" @click="sendMessage"><Send :size="17" /></button>
-              </div>
-            </footer>
+            <ChatMessageList
+              :messages="currentMessages"
+              :current-avatar="currentAccount.avatar"
+              :latest-user-message-id="latestUserMessageId"
+              :latest-assistant-message-id="latestAssistantMessageId"
+              :editing-message-id="editingMessageId"
+              :message-action-menu-id="messageActionMenuId"
+              :stream-ref="chatStreamRef"
+              @edit="editMessage"
+              @copy="copyMessage"
+              @forward="requestForwardMessage"
+              @toggle-menu="toggleMessageActionMenu"
+              @favorite="toggleMessageFavorite"
+              @delete="requestDeleteMessage"
+              @open-adjustment="openIntentAdjustment"
+              @cancel-adjustment="cancelIntentAdjustment"
+              @submit-adjustment="submitIntentAdjustment"
+              @confirm-intent="confirmIntent"
+            />
+            
+            <ChatComposer
+              :input-text="inputText"
+              :editing-message-id="editingMessageId"
+              :voice-recording="voiceRecording"
+              :is-generating="isGenerating"
+              :file-input="fileInput"
+              :image-input="imageInput"
+              :camera-input="cameraInput"
+              @update:input-text="inputText = $event"
+              @send="sendMessage"
+              @pause="pauseGeneration"
+              @cancel-edit="cancelMessageEdit"
+              @open-picker="openAttachmentPicker"
+              @toggle-voice="toggleVoiceRecording"
+              @attach="attachConversationFiles"
+            />
+            
           </template>
-        </main>
+      </main>
+    </template>
 
-        <aside class="right-column">
+    <template #right>
+      <aside class="right-column">
           <div class="right-main">
-            <header class="right-header">
+            <label class="right-global-search">
+              <Search :size="14" />
+              <input v-model="rightPanelSearch" placeholder="搜索 Agent、Skill、知识库、文件" />
+              <button v-if="rightPanelSearch" type="button" title="清空搜索" @click="rightPanelSearch = ''"><X :size="14" /></button>
+            </label>
+            <header v-if="false" class="right-header">
               <div><span>{{ rightTabLabel }}</span><strong>{{ currentConversation ? currentConversation.title : accountCenterActive ? '账号范围' : currentProject.name }}</strong></div>
               <span v-if="currentConversation" class="sync-state"><i></i>随对话同步</span>
             </header>
 
             <div class="right-scroll">
-              <template v-if="rightTab === 'session'">
-                <template v-if="currentConversation">
-                  <div class="session-state"><span><Activity :size="14" />执行中</span><em>62%</em><small>当前卡点：负责人确认</small></div>
-                  <div class="context-storage-state" :class="contextLevel(currentConversation)"><CircleDotDashed :size="14" /><span><strong>上下文占用 {{ currentContextUsage }}%</strong><small>{{ contextHint(currentConversation) }}</small></span><b>{{ currentContextUsage }}%</b></div>
-                  <section class="session-section">
-                    <div class="resource-heading"><span><History :size="14" />业务链路</span><em>5 个节点</em></div>
-                    <div class="session-timeline">
-                      <article v-for="node in sessionTimeline" :key="node.title" class="timeline-node" :class="[node.status, node.kind === '人工' ? 'manual' : 'automatic']">
-                        <div class="timeline-mark"><i></i><span>{{ node.time }}</span></div>
-                        <div class="timeline-content"><div><strong>{{ node.title }}</strong><em>{{ node.kind }}</em></div><p>{{ node.detail }}</p><small><FileText :size="11" />核对依据：{{ node.evidence }}</small></div>
-                      </article>
-                    </div>
-                  </section>
-                  <section class="session-section asset-section">
-                    <div class="resource-heading"><span><Database :size="14" />已沉淀业务资产</span><em>可追溯</em></div>
-                    <div class="asset-tags"><span>客户画像</span><span>专家经验</span><span>采购单据</span><span>业务规则</span><span>流程模板</span></div>
-                    <p>标准作业流程、客户资料和操作证据都绑定追踪编号；重复校验与流转由系统自动承担。</p>
-                  </section>
-                </template>
-                <template v-else-if="accountCenterActive">
-                  <div class="session-state account-session-state"><span><Activity :size="14" />全局流程同步</span><em>{{ commandPendingCount }}</em><small>待调度事项 · 账号级跨 Project 视图</small></div>
-                  <section class="session-section">
-                    <div class="resource-heading"><span><History :size="14" />全局处理留痕</span><em>{{ commandDispatches.length }} 条</em></div>
-                    <div class="session-timeline command-timeline">
-                      <button v-for="task in commandDispatches.slice(0, 4)" :key="task.id" class="timeline-node project-flow-node" :class="[task.status === '已完成' ? 'done' : 'blocked', task.kind === '人工' ? 'manual' : 'automatic']" @click="openCommandRecord(task)">
-                        <div class="timeline-mark"><i></i><span>{{ task.kind }}</span></div>
-                        <div class="timeline-content"><div><strong>{{ task.title }}</strong><em>{{ task.status }}</em></div><p>{{ task.owner }} · {{ task.due }}</p><small><FileText :size="11" />来源：{{ workspaceProjects.find((project) => project.id === task.projectId)?.name ?? 'Project' }}</small></div>
-                      </button>
-                    </div>
-                  </section>
-                  <section class="session-section asset-section"><div class="resource-heading"><span><CircleAlert :size="14" />待跟进预警</span><em>{{ commandAlerts.length }} 条</em></div><div class="asset-tags command-alert-tags"><button v-for="alert in commandAlerts" :key="alert.id" @click="dispatchAlert(alert)">{{ alert.severity }} · {{ alert.title }}</button></div></section>
-                </template>
-                <template v-else-if="isProjectCenter">
-                  <div class="session-state"><span><Activity :size="14" />{{ projectFlowRecords.filter((item) => item.status === 'blocked').length ? '存在待处理卡点' : '流程正常' }}</span><em>{{ projectFlowRecords.length }}</em><small>按对话聚合的全链路数据</small></div>
-                  <section class="session-section"><div class="resource-heading"><span><History :size="14" />Project 处理链路</span><em>{{ projectFlowRecords.length }} 条</em></div><div class="session-timeline"><button v-for="node in projectFlowRecords" :key="node.conversationId" class="timeline-node project-flow-node" :class="[node.status, node.kind === '人工' ? 'manual' : 'automatic']" @click="selectConversation(currentProject.id, node.conversationId)"><div class="timeline-mark"><i></i><span>可下钻</span></div><div class="timeline-content"><div><strong>{{ node.title }}</strong><em>{{ node.kind }}</em></div><p>{{ node.detail }}</p><small><FileText :size="11" />{{ node.evidence }}</small></div></button></div></section>
-                </template>
-                <div v-else class="right-empty"><CircleDotDashed :size="25" /><strong>选择一个 Project 查看流程数据</strong><p>综合指挥中心不混合不同 Project 的流程记录。</p></div>
-              </template>
+              <RightSessionPanel
+                v-if="rightTab === 'session'"
+                :current-conversation="currentConversation"
+                :current-project="currentProject"
+                :account-center-active="accountCenterActive"
+                :is-project-center="isProjectCenter"
+                :current-context-usage="currentContextUsage"
+                :context-level="contextLevel"
+                :context-hint="contextHint"
+                :session-timeline="sessionTimeline"
+                :project-flow-records="projectFlowRecords"
+                :command-pending-count="commandPendingCount"
+                :command-dispatches="commandDispatches"
+                :command-alerts="commandAlerts"
+                @select-conversation="selectConversation"
+                @open-command-record="openCommandRecord"
+                @dispatch-alert="dispatchAlert"
+              />
+              <RightCapabilityPanel
+                v-if="rightTab === 'agent' || rightTab === 'skill'"
+                :type="rightTab"
+                :records="rightTab === 'agent' ? filteredAgentRecords : filteredSkillRecords"
+                :selected-id="rightTab === 'agent' ? selectedAgentId : selectedSkillId"
+                :is-disabled="isResourceDisabled"
+                :can-operate="canOperateResource"
+                @select="item => rightTab === 'agent' ? selectAgent(item) : selectSkill(item)"
+                @create="rightTab === 'agent' ? openAgentCreation() : openSkillCreation()"
+                @manage="(item, action) => rightTab === 'agent' ? openAgentManagement(item, action) : openSkillManagement(item, action)"
+              />
+              <RightKnowledgePanel
+                v-if="rightTab === 'knowledge'"
+                :is-project-center="isProjectCenter"
+                :current-project="currentProject"
+                :knowledge-scope="knowledgeScope"
+                :personal-knowledge="filteredPersonalKnowledge"
+                :group-knowledge="filteredVisibleGroupKnowledge"
+                :project-knowledge="filteredProjectKnowledgeFiles"
+                :selected-personal-knowledge-id="selectedPersonalKnowledgeId"
+                :can-view-group-knowledge="canViewGroupKnowledge"
+                :can-supplement-group-knowledge="canSupplementGroupKnowledge"
+                :can-grant-group-knowledge="canGrantGroupKnowledge"
+                :current-account-id="currentAccount.id"
+                @update:knowledge-scope="knowledgeScope = $event"
+                @update:selected-personal-knowledge-id="selectedPersonalKnowledgeId = $event"
+                @operate-personal="operatePersonalKnowledge"
+                @operate-group="operateGroupKnowledge"
+                @create="createKnowledgeFromConversation"
+                @grant="openKnowledgeGrantDialog"
+                @preview="openFilePreview"
+              />
+              <RightFilesPanel
+                v-if="rightTab === 'files'"
+                :current-conversation="currentConversation"
+                :is-project-center="isProjectCenter"
+                :current-project="currentProject"
+                :uploaded-files="uploadedConversationFiles"
+                :produced-files="producedConversationFiles"
+                :project-files="projectFiles"
+                :project-knowledge-files="filteredProjectKnowledgeFiles"
+                @preview="openFilePreview"
+                @download="downloadOutputFile"
+                @download-upload="downloadUploadedFile"
+                @cite-upload="citeUploadedFile"
+                @cite-output="citeOutputFile"
+                @cite-project="citeProjectFile"
+                @select-conversation="selectConversation"
+                @show-shared-file="showToast('这是当前 Project 的共享文件，进入对话后可引用')"
+              />
+              
 
-              <template v-else-if="rightTab === 'agent'">
+              <template v-else-if="false">
                 <section class="capability-section">
                   <div class="capability-heading"><span><Building2 :size="14" />集团共用</span><em>{{ agentRecords.filter((item) => item.scope === 'group').length }}</em></div>
                   <article v-for="item in agentRecords.filter((item) => item.scope === 'group')" :key="item.id" class="capability-card agent-ledger-card" :class="{ disabled: isResourceDisabled(item), selected: selectedAgentId === item.id }" @click="selectAgent(item)">
@@ -2879,7 +3855,7 @@ onMounted(async () => {
                 </section>
               </template>
 
-              <template v-else-if="rightTab === 'skill'">
+              <template v-else-if="false">
                 <section class="capability-section">
                   <div class="capability-heading"><span><Building2 :size="14" />集团共用</span><em>{{ skillRecords.filter((item) => item.scope === 'group').length }}</em></div>
                   <article v-for="item in skillRecords.filter((item) => item.scope === 'group')" :key="item.id" class="capability-card agent-ledger-card" :class="{ disabled: isResourceDisabled(item), selected: selectedSkillId === item.id }" @click="selectSkill(item)">
@@ -2898,7 +3874,7 @@ onMounted(async () => {
                 </section>
               </template>
 
-              <template v-else-if="rightTab === 'knowledge'">
+              <template v-else-if="false">
                 <template v-if="isProjectCenter">
                   <section class="resource-section project-knowledge-scope">
                     <div class="resource-heading"><span><BookOpen :size="14" />当前 Project 知识库</span><em>{{ currentProject.knowledge.length }}</em></div>
@@ -2935,15 +3911,13 @@ onMounted(async () => {
                 </template>
               </template>
 
-              <template v-else>
+              <template v-else-if="false">
                 <template v-if="currentConversation">
-                   <label class="file-search"><Search :size="14" /><input v-model="fileSearch" placeholder="搜索当前对话文件名称" /></label>
                   <section class="resource-section"><div class="resource-heading"><span><Paperclip :size="14" />我上传的文件</span><em>{{ uploadedConversationFiles.length }}</em></div><div v-if="uploadedConversationFiles.length" class="file-list"><div v-for="file in uploadedConversationFiles" :key="file.name" class="file-row static"><span class="file-icon"><FileText :size="15" /></span><span><strong>{{ file.name }}</strong><small>{{ file.meta }}</small></span></div></div><p v-else class="empty-search">未找到匹配的上传文件</p></section>
                   <section class="resource-section"><div class="resource-heading"><span><FileOutput :size="14" />本对话产出的文件</span><em>{{ producedConversationFiles.length }}</em></div><article v-for="file in producedConversationFiles" :key="file.id" class="output-file"><div class="file-row static"><span class="file-icon output"><FileOutput :size="15" /></span><span><strong>{{ file.name }}</strong><small>{{ file.meta }}</small></span></div><div><button @click="downloadOutputFile(file)"><Download :size="12" />下载</button><button @click="citeOutputFile(file)"><MessageSquare :size="12" />引用进对话</button></div></article><p v-if="!producedConversationFiles.length" class="empty-search">未找到匹配的产出文件</p></section>
                   <section class="resource-section"><div class="resource-heading"><span><FolderKanban :size="14" />可引用的 Project 文件</span><em>{{ currentProject.knowledge.length }}</em></div><article v-for="file in currentProject.knowledge" :key="file.name" class="output-file"><div class="file-row static"><span class="file-icon group"><FileText :size="15" /></span><span><strong>{{ file.name }}</strong><small>{{ file.meta }} · 当前 Project 共享资料</small></span></div><div><button @click="citeProjectFile(file)"><MessageSquare :size="12" />引用进对话</button></div></article></section>
                 </template>
                 <template v-else-if="isProjectCenter">
-                  <label class="file-search"><Search :size="14" /><input v-model="fileSearch" placeholder="搜索当前 Project 的文件名称" /></label>
                   <section class="resource-section"><div class="resource-heading"><span><FolderKanban :size="14" />Project 与会话文件</span><em>{{ projectFiles.length }}</em></div><button v-for="file in projectFiles" :key="file.id" class="file-row project-file" @click="file.conversationId ? selectConversation(currentProject.id, file.conversationId) : showToast('这是当前 Project 的共享文件，进入对话后可引用')"><span class="file-icon" :class="{ group: !file.conversationId }"><FileText :size="15" /></span><span><strong>{{ file.name }}</strong><small>{{ file.source }} · {{ file.meta }}</small></span><ChevronRight :size="12" /></button><p v-if="!projectFiles.length" class="empty-search">未找到匹配的 Project 文件</p></section>
                 </template>
                 <div v-else class="right-empty"><FileOutput :size="25" /><strong>选择一个 Project 查看文件</strong><p>文件按 Project 与对话两个范围分层；进入对话后可上传、下载和引用。</p></div>
@@ -2954,9 +3928,46 @@ onMounted(async () => {
           <nav class="right-tabrail" aria-label="右栏功能">
             <button v-for="tab in visibleRightTabs" :key="tab.id" :title="tab.label" :class="{ active: rightTab === tab.id }" @click="rightTab = tab.id"><component :is="tab.icon" :size="17" /><span>{{ tab.label }}</span></button>
           </nav>
-        </aside>
-      </div>
-    </div>
+      </aside>
+    </template>
+    <template #overlays>
+    <DeleteConfirmDialog
+      :open="deleteMessageDialogOpen"
+      message="删除该已发送内容会同时删除对应的 AI 回答，且无法恢复。"
+      @confirm="confirmDeleteMessage"
+      @cancel="cancelDeleteMessage"
+    />
+    <DeleteConfirmDialog
+      :open="conversationDeleteDialogOpen"
+      title="确认删除对话"
+      message="确定要删除这个对话吗？对话内容和关联记录将被移除。"
+      confirm-label="删除对话"
+      @confirm="confirmConversationDelete"
+      @cancel="cancelConversationDelete"
+    />
+    <DeleteConfirmDialog
+      :open="projectDeleteDialogOpen"
+      title="确认删除 Project"
+      message="确定要删除这个 Project 吗？其中的对话和资料入口将一并移除。"
+      confirm-label="删除 Project"
+      @confirm="confirmProjectDelete"
+      @cancel="cancelProjectDelete"
+    />
+    <RenameConversationDialog
+      :open="conversationRenameDialogOpen"
+      :value="conversationRenameInput"
+      @update:value="conversationRenameInput = $event"
+      @confirm="confirmRenameConversation"
+      @cancel="cancelRenameConversation"
+    />
+    <ForwardMessageDialog
+      :open="forwardMessageDialogOpen"
+      :projects="workspaceProjects"
+      :current-project-id="currentProjectId"
+      :current-conversation-id="currentConversationId"
+      @forward="confirmForwardMessage"
+      @cancel="cancelForwardMessage"
+    />
     <div v-if="projectDialogOpen" class="dialog-backdrop" @click.self="projectDialogOpen = false">
       <form class="creation-dialog" @submit.prevent="createProject">
         <div class="dialog-icon"><FolderKanban :size="19" /></div>
@@ -2973,6 +3984,7 @@ onMounted(async () => {
         <div class="dialog-actions"><button type="button" @click="conversationDialogOpen = false">取消</button><button class="primary" type="submit" :disabled="!newConversationTitle.trim()">创建对话</button></div>
       </form>
     </div>
-    <transition name="toast"><div v-if="toast" class="toast"><CheckCircle2 :size="16" />{{ toast }}</div></transition>
-  </div>
+    <ToastNotification :message="toast" />
+    </template>
+  </MainLayout>
 </template>

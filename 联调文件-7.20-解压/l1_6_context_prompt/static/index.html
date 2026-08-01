@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>L1.6 项目对话验证台</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="cockpit">
+        <header class="topbar">
+          <div class="product">
+            <span class="bot-icon">L1</span>
+            <strong>L1.6 项目对话验证台</strong>
+          </div>
+          <button id="newProjectBtn" class="launch" type="button">+ 新建项目</button>
+          <button id="newDialogBtn" class="launch" type="button">+ 新建对话框</button>
+          <span id="activeScope" class="agent-name">Project：默认项目 / 控制中心</span>
+          <span class="spacer"></span>
+          <button id="historyPageBtn" class="top-link" type="button">历史文件中心</button>
+          <button id="promptCenterBtn" class="top-link" type="button">提示词管理中心</button>
+          <span id="apiStatus" class="role-pill">连接中</span>
+        </header>
+
+        <div class="main-grid">
+          <aside class="left-nav">
+            <section class="project-block">
+              <div class="block-title">
+                <span>项目</span>
+              </div>
+              <button id="platformControlCenterBtn" class="history-item" type="button">平台总控制中心</button>
+              <div id="projectList" class="stack-list"></div>
+            </section>
+
+            <section class="project-block">
+              <div class="block-title">
+                <span>当前项目对话框</span>
+              </div>
+              <button id="controlCenterBtn" class="history-item selected" type="button">控制中心</button>
+              <button id="quickNewDialogBtn" class="history-item" type="button">+ 新建普通对话框</button>
+              <div id="dialogList" class="stack-list"></div>
+            </section>
+
+            <section class="project-block">
+              <div class="block-title">
+                <span>功能验证</span>
+              </div>
+              <button class="history-item" data-prompt="模拟当前对话框超过85%并收口">超过85%收口</button>
+              <button class="history-item" data-prompt="查看控制中心工作汇报">控制中心查工作汇报</button>
+              <button class="history-item" data-prompt="查看最新交接和传承包">新对话读取交接和传承包</button>
+              <button class="history-item" data-prompt="查看工作区文件">查看工作区文件</button>
+              <button class="history-item" data-prompt="查看 Prompt Trace">查看 Prompt Trace</button>
+            </section>
+          </aside>
+
+          <section class="workbench">
+            <div class="workbench-head">
+              <div>
+                <strong id="workbenchTitle">控制中心</strong>
+                <span id="workbenchSubtitle">查看本项目工作汇报、传承包和对话交接</span>
+              </div>
+              <select id="projectSelect" aria-label="project"></select>
+            </div>
+
+            <div id="messages" class="messages" aria-live="polite"></div>
+
+            <div class="floating-up">↑</div>
+
+            <div id="lockBanner" class="lock-banner" hidden>
+              🔒 该对话框容量已超过 100%，对话功能已锁定。您只能翻阅历史记录。
+            </div>
+            <form id="chatForm" class="composer">
+              <button class="attach" type="button" title="上传文档">＋</button>
+              <textarea
+                id="chatInput"
+                rows="1"
+                placeholder="输入：超过85%收口 / 查看工作汇报 / 查看最新交接和传承包"
+              ></textarea>
+              <div id="capacityCircle" class="capacity-circle" title="上下文容量使用率">
+                <svg viewBox="0 0 36 36" width="30" height="30">
+                  <circle class="capacity-bg" cx="18" cy="18" r="14" />
+                  <circle class="capacity-fill" cx="18" cy="18" r="14" />
+                </svg>
+                <span class="capacity-text">0%</span>
+              </div>
+              <button id="sendBtn" class="send" type="submit">➤</button>
+            </form>
+          </section>
+
+          <aside class="right-panel">
+            <section class="side-card">
+              <h2>当前上下文</h2>
+              <div class="status-row"><span>项目</span><strong id="projectState">默认项目</strong></div>
+              <div class="status-row"><span>对话框</span><strong id="dialogState">控制中心</strong></div>
+              <div class="status-row"><span>容量</span><strong id="capacityState">0%</strong></div>
+              <div class="status-row"><span>同步包</span><strong id="syncState">无</strong></div>
+            </section>
+
+            <section class="side-card">
+              <div class="card-title">
+                <h2>控制中心文件</h2>
+                <button data-prompt="查看控制中心工作汇报">刷新</button>
+              </div>
+              <div id="reportList" class="mini-list">
+                <div class="empty">还没有工作汇报</div>
+              </div>
+            </section>
+
+            <section class="side-card">
+              <div class="card-title">
+                <h2>新对话启动包</h2>
+                <button data-prompt="查看最新交接和传承包">刷新</button>
+              </div>
+              <div id="startupList" class="mini-list">
+                <div class="empty">还没有交接文件和传承包</div>
+              </div>
+            </section>
+
+            <section class="side-card">
+              <div class="card-title">
+                <h2>工作区文件</h2>
+                <button data-prompt="查看工作区文件">刷新</button>
+              </div>
+              <div id="artifactList" class="mini-list">
+                <div class="empty">还没有文件</div>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </section>
+
+      <div class="hidden-config">
+        <input id="projectId" value="demo_project" />
+        <input id="actorId" value="u_demo" />
+        <pre id="resultOutput"></pre>
+      </div>
+
+      <div id="fileModalBackdrop" class="modal-backdrop" hidden>
+        <section class="file-modal" role="dialog" aria-modal="true" aria-labelledby="fileModalTitle">
+          <header>
+            <h2 id="fileModalTitle">文件内容</h2>
+            <button id="fileModalClose" type="button" aria-label="关闭">×</button>
+          </header>
+          <pre id="fileModalContent"></pre>
+        </section>
+      </div>
+    </main>
+
+    <script src="/static/app.js?v=prompt-center-autoload-1"></script>
+  </body>
+</html>

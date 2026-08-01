@@ -1,0 +1,68 @@
+{
+  "schema_version": "v1",
+  "trace_id": "case9-forecast-guizhong",
+  "analysis_type": "price_forecast",
+  "records": [
+    {
+      "date": "2025-07-01",
+      "source_record_id": "guizhong-demand-2025-07",
+      "price": "7958"
+    },
+    {
+      "date": "2025-08-01",
+      "source_record_id": "guizhong-demand-2025-08",
+      "price": "7997"
+    },
+    {
+      "date": "2025-09-01",
+      "source_record_id": "guizhong-demand-2025-09",
+      "price": "9103"
+    },
+    {
+      "date": "2025-10-01",
+      "source_record_id": "guizhong-demand-2025-10",
+      "price": "9326"
+    },
+    {
+      "date": "2025-11-01",
+      "source_record_id": "guizhong-demand-2025-11",
+      "price": "8615"
+    },
+    {
+      "date": "2025-12-01",
+      "source_record_id": "guizhong-demand-2025-12",
+      "price": "8929"
+    },
+    {
+      "date": "2026-01-01",
+      "source_record_id": "guizhong-demand-2026-01",
+      "price": "8760"
+    },
+    {
+      "date": "2026-02-01",
+      "source_record_id": "guizhong-demand-2026-02",
+      "price": "8664"
+    },
+    {
+      "date": "2026-03-01",
+      "source_record_id": "guizhong-demand-2026-03",
+      "price": "10891"
+    },
+    {
+      "date": "2026-04-01",
+      "source_record_id": "guizhong-demand-2026-04",
+      "price": "10737"
+    },
+    {
+      "date": "2026-05-01",
+      "source_record_id": "guizhong-demand-2026-05",
+      "price": "9972"
+    },
+    {
+      "date": "2026-06-01",
+      "source_record_id": "guizhong-demand-2026-06",
+      "price": "9789"
+    }
+  ],
+  "forecast_horizon": 3
+}

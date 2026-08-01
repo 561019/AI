@@ -183,9 +183,13 @@ FOUNDATION_MODULES: tuple[ModuleSpec, ...] = (
         8059,
         "/api/v1/context-prompts/instructions",
         "联调文件-7.20-解压/待接入/上下文与提示词管理",
-        "adapter_placeholder",
-        "L1 基础模块；负责上下文保存、提示词模板、提示词渲染和会话上下文读取。",
-        ("context.save", "context.retrieve", "prompt.template.retrieve", "prompt.render"),
+        "framework_integrated",
+        "L1 基础模块；负责普通对话容量、三件套收口、传承材料导入及指挥中心历史定位。",
+        (
+            "context.intent.prepare", "context.capacity.evaluate", "context.handoff.generate",
+            "context.handoff.import", "context.project.search", "context.account.search",
+            "context.reference.import",
+        ),
     ),
     ModuleSpec(
         "foundation-data",
@@ -273,7 +277,7 @@ FOUNDATION_MODULES: tuple[ModuleSpec, ...] = (
         "联调文件-7.20-解压/1.14执行沙箱/1.14执行沙箱",
         "adapter_registered",
         "执行任务和浏览器沙箱能力。",
-        ("sandbox.run_task", "sandbox.run_browser", "sandbox.result.query"),
+        ("sandbox.run_task", "sandbox.run_code", "sandbox.run_browser", "sandbox.result.query"),
     ),
     ModuleSpec(
         "memory-management",

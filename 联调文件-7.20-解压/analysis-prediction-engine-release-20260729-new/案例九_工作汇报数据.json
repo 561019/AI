@@ -1,0 +1,63 @@
+{
+  "schema_version": "v1",
+  "trace_id": "case9-reports",
+  "data_type": "work_reports",
+  "description": "经销商工作汇报记录",
+  "total": 6,
+  "reports": [
+    {
+      "report_id": "RPT-001",
+      "author": "付盛贤",
+      "date": "2026-05-08",
+      "region": "桂中",
+      "dealer_id": "",
+      "content": "桂中区域近期需求呈上升趋势，几条主要产品线的客户询价明显增多。经销商反馈终端客户补库意愿增强，预计Q3需求量较Q2有10-15%的增长空间。建议提前备货。",
+      "source_ref": "report:work:fu-shengxian:2026-05-08"
+    },
+    {
+      "report_id": "RPT-002",
+      "author": "王大明",
+      "date": "2026-06-20",
+      "region": "桂中",
+      "dealer_id": "D001",
+      "content": "6月以来配送压力明显增大。原本合作的3家物流车队中有1家因合同到期退出，临时调车响应速度慢，导致多单配送延误。客户投诉增多，有几家老客户明确表示不满。已申请增加物流供应商。",
+      "source_ref": "report:work:wang-daming:2026-06-20"
+    },
+    {
+      "report_id": "RPT-003",
+      "author": "王大明",
+      "date": "2026-06-28",
+      "region": "桂中",
+      "dealer_id": "D001",
+      "content": "本月回访计划执行情况不理想。截至月底，应访客户中有8家未按时完成回访，主要原因是人员请假和车辆调度冲突叠加。回访跟不到位直接影响了复购转化，上季度复购的客户中有3家本次未续订。",
+      "source_ref": "report:work:wang-daming:2026-06-28"
+    },
+    {
+      "report_id": "RPT-004",
+      "author": "刘小明",
+      "date": "2026-06-22",
+      "region": "桂中",
+      "dealer_id": "D002",
+      "content": "近期配送投诉较为集中，主要是运力不足导致时效无法保障。部分订单从下单到送达超过承诺时效2-3天。一线客服反馈客户情绪较大，有几家长期合作客户表达了转单意愿。",
+      "source_ref": "report:work:liu-xiaoming:2026-06-22"
+    },
+    {
+      "report_id": "RPT-005",
+      "author": "刘小明",
+      "date": "2026-06-29",
+      "region": "桂中",
+      "dealer_id": "D002",
+      "content": "回访工作滞后，计划内15家客户仅有9家完成。原因为团队人员不足、日常工作负荷过重。建议增加专职售后人员或调整回访排期，避免因回访不力导致老客户流失。",
+      "source_ref": "report:work:liu-xiaoming:2026-06-29"
+    },
+    {
+      "report_id": "RPT-006",
+      "author": "陈伟",
+      "date": "2026-06-25",
+      "region": "桂中",
+      "dealer_id": "D003",
+      "content": "本月运营平稳。配送准时率98%，客户回访全部按时完成。老客户复购率保持在正常区间，未发现异常。",
+      "source_ref": "report:work:chen-wei:2026-06-25"
+    }
+  ]
+}

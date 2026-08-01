@@ -38,6 +38,9 @@ def test_known_delivered_module_routes_are_recorded() -> None:
         "monitor.item.register": "/api/v1/l2/internal/messages",
         "knowledge.query": "/api/v1/knowledge-qa/tasks",
         "knowledge.retrieve": "/api/v1/knowledge/tasks",
+        "sandbox.run_task": "/api/v1/layer-interface/messages",
+        "sandbox.run_code": "/api/v1/layer-interface/messages",
+        "sandbox.run_browser": "/api/v1/layer-interface/messages",
     }
     for capability, path in expected.items():
         spec = get_adapter_spec(capability)

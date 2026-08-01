@@ -438,6 +438,7 @@ def _infer_record_id(record: dict[str, Any]) -> Any:
         "message_id", "file_id", "task_id", "call_id", "session_id", "workflow_instance_id",
         "node_instance_id", "human_task_id", "confirmation_id", "binding_id", "snapshot_id",
         "asset_id", "conversation_id", "account_id", "object_id", "event_id",
+        "knowledge_source_id", "chunk_id", "index_id",
     ):
         if record.get(key):
             return record[key]
@@ -451,7 +452,7 @@ def _compact_item(dataset: str, item: dict[str, Any]) -> dict[str, Any]:
         key: item.get(key)
         for key in (
             "message_id", "record_id", "conversation_id", "project_id", "owner_account_id",
-            "tenant_id", "role", "content_type", "task_id", "trace_id", "created_at", "updated_at",
+            "tenant_id", "role", "content_type", "content_text", "task_id", "trace_id", "created_at", "updated_at",
         )
         if item.get(key) not in (None, "")
     }

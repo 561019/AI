@@ -51,9 +51,9 @@ if (Test-Path -LiteralPath $runDir) {
 
 $netstat = netstat -ano
 foreach ($port in $ports) {
-    $pattern = "127\.0\.0\.1:$port\s+.*\s+LISTENING\s+(\d+)"
+    $pattern = "(127\.0\.0\.1|0\.0\.0\.0|\[::\]|::):$port\s+.*\s+LISTENING\s+(\d+)"
     foreach ($line in $netstat) {
-        if ($line -match $pattern) { [void]$candidatePids.Add([int]$Matches[1]) }
+        if ($line -match $pattern) { [void]$candidatePids.Add([int]$Matches[2]) }
     }
 }
 

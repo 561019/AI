@@ -39,9 +39,14 @@ CORE_CASES: tuple[VerificationCase, ...] = (
     VerificationCase("l1-template", "foundation", "L1 基础模块层", "template-management", "流程模板管理", "template", 8004, "/api/v1/templates/instructions", "template.list", "template", "查询流程模板列表", ("template.retrieve", "template.list", "template.validate", "template.register_draft", "template.update_draft", "template.publish", "template.disable")),
 )
 
+EXTRA_CASES: tuple[VerificationCase, ...] = (
+    VerificationCase("l1-execution-sandbox-code", "foundation", "L1 基础模块层", "execution-sandbox", "执行沙箱", "execution_sandbox", 8053, "/api/v1/sandbox/instructions", "sandbox.run_code", "envelope", "隔离运行一段最小 Python 代码，并返回沙箱请求回执", ("sandbox.run_code",)),
+    VerificationCase("l1-execution-sandbox-browser", "foundation", "L1 基础模块层", "execution-sandbox", "执行沙箱", "execution_sandbox", 8053, "/api/v1/sandbox/instructions", "sandbox.run_browser", "envelope", "按白名单策略隔离访问一个测试网页，并返回沙箱请求回执", ("sandbox.run_browser",)),
+)
+
 
 def list_cases() -> list[dict[str, Any]]:
-    cases = list(CORE_CASES)
+    cases = list(CORE_CASES) + list(EXTRA_CASES)
     cases.extend(_module_case("l2", "L2 业务引擎层", item) for item in BUSINESS_MODULES)
     cases.extend(_module_case("l1", "L1 基础模块层", item) for item in FOUNDATION_MODULES)
     return [_case_public(item) for item in cases]
@@ -56,7 +61,7 @@ def run_case(case_id: str) -> dict[str, Any]:
         status, response = post_json(
             url,
             request,
-            timeout=75 if case.module_code in {"intent-adapter", "content-adapter"} else 10,
+            timeout=75 if case.module_code in {"intent-adapter", "content-adapter", "execution-sandbox"} else 10,
             caller={"layer": "business_application", "module": "module-verification-page"},
         )
     except Exception as exc:  # noqa: BLE001 - verification must report unavailable modules instead of crashing the page.
@@ -170,6 +175,24 @@ def _sample_payload(case: VerificationCase) -> dict[str, Any]:
         return {**common, "query": "模块验收", "top_k": 3}
     if case.module_code == "foundation-data":
         return {**common, "dataset": "verification", "query": {"limit": 1}}
+    if case.module_code == "execution-sandbox":
+        sandbox_common = {
+            **common,
+            "adapter_timeout_seconds": 20,
+            "wait_for_result": False,
+            "retain_snapshot": True,
+            "limits": {"timeout_seconds": 10, "memory_mb": 512, "cpu_cores": 1},
+            "input": {"verification": True, "case_id": case.case_id},
+        }
+        if case.capability == "sandbox.run_code":
+            return {
+                **sandbox_common,
+                "code": "import json\nprint(json.dumps({'ok': True, 'case': 'sandbox.run_code'}, ensure_ascii=False))",
+                "language": "python",
+            }
+        if case.capability == "sandbox.run_browser":
+            return {**sandbox_common, "url": "http://sandbox-allow.test/"}
+        return {**sandbox_common, "scenario_id": "s20_purchase_plan"}
     return {**common, "sample_input": {"text": f"{case.module_name_cn} 验证请求", "capability": case.capability}}
 
 

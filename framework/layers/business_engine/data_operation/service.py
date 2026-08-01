@@ -59,7 +59,7 @@ def post(handler: Any, envelope: dict[str, Any]) -> None:
         timeout=120 if foundation_capability == "foundation_data.write" else 30,
         caller={"layer": "business_engine", "module": "data-operation"},
     )
-    if status != 200 or response.get("status") != "success":
+    if status not in {200, 202} or not isinstance(response, dict) or response.get("status") != "success":
         handler.send(502, standard_response(envelope, "failed", error={"code": "FOUNDATION_DATA_OPERATION_FAILED", "details": response}))
         return
     data = response.get("data") or {}
@@ -118,13 +118,24 @@ def _translate(capability: str, payload: dict[str, Any]) -> tuple[str, dict[str,
         }
     if capability == "data.read" and payload.get("record_id"):
         return "foundation_data.read", {"dataset": dataset, "record_id": payload.get("record_id"), "tenant_id": payload.get("tenant_id")}
+    query_filters = payload.get("filters") if isinstance(payload.get("filters"), dict) else {}
     return "foundation_data.query", {
         "dataset": dataset,
-        "filters": payload.get("filters") or {},
+        "filters": _physical_query_filters(dataset, query_filters),
         "tenant_id": payload.get("tenant_id"),
         "limit": payload.get("limit", 100),
         "compact": bool(payload.get("compact")),
     }
+
+
+def _physical_query_filters(dataset: str, filters: dict[str, Any]) -> dict[str, Any]:
+    if dataset != "extracted_fields":
+        return filters
+    physical_keys = {
+        "parse_job_id", "file_id", "object_id", "sha256", "record_id",
+        "owner_account_id", "project_id", "conversation_id", "tenant_id",
+    }
+    return {key: value for key, value in filters.items() if key in physical_keys}
 
 
 def _aggregate(data: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
@@ -197,7 +208,8 @@ def _filter_items_by_business_scope(items: list[dict[str, Any]], payload: dict[s
         sheet_ok = not preferred_sheets or any(sheet == name or name in sheet or sheet in name for name in preferred_sheets)
         entity_ok = not entity_id or entity_id in text
         field_ok = not allowed_fields or any(_field_allowed(name, allowed_fields) for name in fields)
-        if sheet_ok and entity_ok and field_ok:
+        filter_ok = _row_matches_payload_filters(fields, payload)
+        if sheet_ok and entity_ok and field_ok and filter_ok:
             kept_keys.add(key)
     result: list[dict[str, Any]] = []
     for item in items:
@@ -238,6 +250,57 @@ def _row_key(item: dict[str, Any]) -> str:
 def _field_allowed(field_name: str, allowed_fields: list[str]) -> bool:
     lower = str(field_name or "").strip().lower()
     return any(lower == allowed or allowed in lower or lower in allowed for allowed in allowed_fields)
+
+
+def _row_matches_payload_filters(fields: dict[str, Any], payload: dict[str, Any]) -> bool:
+    filters = payload.get("filters") if isinstance(payload.get("filters"), dict) else {}
+    business_filters = {
+        key: value for key, value in filters.items()
+        if key not in {"parse_job_id", "file_id", "object_id", "sha256", "record_id", "tenant_id", "owner_account_id", "project_id", "conversation_id"}
+        and value not in (None, "")
+    }
+    if not business_filters:
+        return True
+    for key, expected in business_filters.items():
+        actual = _field_value_for_filter(fields, str(key))
+        if actual in (None, ""):
+            continue
+        if isinstance(expected, list):
+            if not any(_value_matches_filter(actual, item) for item in expected):
+                return False
+        elif not _value_matches_filter(actual, expected):
+            return False
+    return True
+
+
+def _field_value_for_filter(fields: dict[str, Any], key: str) -> Any:
+    aliases = {
+        "region": ("region", "区域", "地区", "销售区域"),
+        "dealer": ("dealer", "dealer_name", "distributor", "经销商", "经销商名称", "客户", "客户名称"),
+        "dealer_name": ("dealer_name", "dealer", "distributor", "经销商", "经销商名称", "客户", "客户名称"),
+        "product_id": ("product_id", "product", "产品编号", "产品ID", "产品"),
+        "month": ("month", "月份", "年月", "period", "date", "日期"),
+        "year": ("year", "年份", "年度", "年月", "period", "date", "日期"),
+    }
+    candidates = aliases.get(key.lower(), (key,))
+    lowered = {str(name).strip().lower(): value for name, value in fields.items()}
+    for candidate in candidates:
+        direct = lowered.get(str(candidate).strip().lower())
+        if direct not in (None, ""):
+            return direct
+    for name, value in fields.items():
+        lower_name = str(name).strip().lower()
+        if any(str(candidate).strip().lower() in lower_name or lower_name in str(candidate).strip().lower() for candidate in candidates):
+            return value
+    return None
+
+
+def _value_matches_filter(actual: Any, expected: Any) -> bool:
+    actual_text = str(actual).strip().lower()
+    expected_text = str(expected).strip().lower()
+    if not expected_text:
+        return True
+    return actual_text == expected_text or expected_text in actual_text or actual_text in expected_text
 
 
 def _scope_mismatch_summary(items: list[dict[str, Any]], payload: dict[str, Any]) -> dict[str, Any]:
@@ -753,7 +816,7 @@ def _format_number(value: float) -> str:
 def _looks_like_group_count_goal(goal: str) -> bool:
     text = goal.lower()
     has_dimension = any(token in text for token in ("经销商", "客户", "供应商", "dealer", "distributor", "customer", "supplier"))
-    has_count_or_list = any(token in text for token in ("几个", "多少个", "数量", "参与", "合作", "列举", "名单", "清单", "一一列举", "分别", "哪些", "有哪些", "所有", "全部", "确定", "去重"))
+    has_count_or_list = any(token in text for token in ("几个", "多少", "多少个", "数量", "总数", "个数", "参与", "合作", "列举", "名单", "清单", "一一列举", "分别", "哪些", "有哪些", "所有", "全部", "确定", "去重"))
     return has_dimension and has_count_or_list
 
 
@@ -941,11 +1004,14 @@ def _dimension_score(name: str) -> int:
 def _group_count_summary(row_groups: dict[str, dict[str, Any]], payload: dict[str, Any]) -> dict[str, Any] | None:
     """Count uploaded rows by an identified business dimension when no filter was supplied."""
     goal = str(payload.get("analysis_goal") or payload.get("utterance") or "")
-    preferred_sheet = _preferred_sheet_from_goal(goal)
+    data_object = str(payload.get("data_object") or payload.get("object") or "")
+    scope = payload.get("business_scope") if isinstance(payload.get("business_scope"), dict) else {}
+    object_hint = " ".join(part for part in (goal, data_object, str(scope.get("label") or ""), str(scope.get("scope_key") or "")) if part)
+    object_label = "经销商" if any(token in object_hint.lower() for token in ("经销商", "dealer", "distributor")) else ("客户" if any(token in object_hint.lower() for token in ("客户", "customer")) else "对象")
+    preferred_sheet = _preferred_sheet_from_goal(goal) or ("经销商订单" if object_label == "经销商" else None)
     dimension_names = ("经销商名称", "经销商", "dealer_name", "dealer", "distributor", "customer_name", "customer", "客户名称", "客户")
     candidates: dict[str, dict[str, int]] = {}
     evidence_by_value: dict[str, list[str]] = {}
-    total_rows = 0
     for group in row_groups.values():
         if not _sheet_matches(group, preferred_sheet):
             continue
@@ -961,7 +1027,6 @@ def _group_count_summary(row_groups: dict[str, dict[str, Any]], payload: dict[st
         value = str(fields.get(dimension_name) or "").strip()
         if not value or value.lower() in {"none", "null", "nan"}:
             continue
-        total_rows += 1
         bucket = candidates.setdefault(dimension_name, {})
         bucket[value] = bucket.get(value, 0) + 1
         evidence_by_value.setdefault(value, [])
@@ -972,7 +1037,7 @@ def _group_count_summary(row_groups: dict[str, dict[str, Any]], payload: dict[st
     dimension_name, counts = max(candidates.items(), key=lambda item: len(item[1]))
     ordered = dict(sorted(counts.items(), key=lambda item: (-item[1], item[0])))
     names = list(ordered.keys())
-    object_label = "经销商" if "经销商" in goal or "dealer" in goal.lower() or "distributor" in goal.lower() else "对象"
+    total_rows = sum(ordered.values())
     source_label = preferred_sheet or "当前可访问数据"
     return {
         "operation": "group_count",

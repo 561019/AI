@@ -1,0 +1,135 @@
+### Health
+GET http://127.0.0.1:8765/health
+
+### Context estimate, harness9 Context Engineering style
+POST http://127.0.0.1:8765/api/context/estimate
+Content-Type: application/json
+
+{
+  "text": "这里放一段待估算上下文文本",
+  "context_window": 1000
+}
+
+### Create session
+POST http://127.0.0.1:8765/api/sessions
+Content-Type: application/json
+
+{
+  "project_id": "p_001",
+  "title": "阶段一单框闭环",
+  "capacity_limit": 1000,
+  "used_units": 760,
+  "summary": "已完成 Langfuse 主平台决策、Context Engineering 范围收窄和业务闭环骨架。",
+  "open_todos": ["完善前端管理台", "接入真实 Langfuse API"],
+  "decisions": ["Langfuse 作为 LLMOps 主平台", "harness9 只取 Context Engineering"],
+  "risks": ["后续需要真实 LLM 生成质量评估"],
+  "created_by": "u_001"
+}
+
+### Add context usage by text
+POST http://127.0.0.1:8765/api/sessions/sess_REPLACE_ME/context-usage
+Content-Type: application/json
+
+{
+  "text": "新增的一轮上下文文本",
+  "actor_id": "u_001"
+}
+
+### Record compaction
+POST http://127.0.0.1:8765/api/sessions/sess_REPLACE_ME/compactions
+Content-Type: application/json
+
+{
+  "summary": "压缩摘要：保留 Langfuse 主平台、Context Engineering 和自研业务闭环决策。",
+  "tokens_before": 860,
+  "tokens_after": 80,
+  "messages_before": 24,
+  "messages_after": 4,
+  "actor_id": "u_001"
+}
+
+### Capacity events
+GET http://127.0.0.1:8765/api/sessions/sess_REPLACE_ME/capacity-events
+X-Actor-Id: u_001
+
+### Create work-report prompt template
+POST http://127.0.0.1:8765/api/prompts/templates
+Content-Type: application/json
+
+{
+  "prompt_code": "work_report",
+  "scope_level": "project",
+  "scope_id": "p_001",
+  "name": "工作汇报生成指令",
+  "description": "对话框收口时生成工作汇报文件。",
+  "owner_id": "u_001"
+}
+
+### Create prompt version with Langfuse binding metadata
+POST http://127.0.0.1:8765/api/prompts/templates/pt_REPLACE_ME/versions
+Content-Type: application/json
+
+{
+  "content": "请基于会话摘要、决策、待办和风险生成工作汇报。",
+  "variables_schema": {
+    "session": "object"
+  },
+  "change_note": "初始版本",
+  "created_by": "u_001",
+  "platform_binding": {
+    "platform": "langfuse",
+    "platform_prompt_name": "work-report",
+    "platform_version": "v1",
+    "sync_status": "planned"
+  }
+}
+
+### Publish prompt version
+POST http://127.0.0.1:8765/api/prompts/versions/pv_REPLACE_ME/publish
+Content-Type: application/json
+
+{
+  "actor_id": "u_001"
+}
+
+### Create handoff-file prompt template
+POST http://127.0.0.1:8765/api/prompts/templates
+Content-Type: application/json
+
+{
+  "prompt_code": "handoff_file",
+  "scope_level": "project",
+  "scope_id": "p_001",
+  "name": "工作交接文件生成指令",
+  "description": "对话框收口时生成给下一个对话框读取的工作交接文件。",
+  "owner_id": "u_001"
+}
+
+### Close session: generate report and handoff file
+POST http://127.0.0.1:8765/api/sessions/sess_REPLACE_ME/close
+Content-Type: application/json
+
+{
+  "actor_id": "u_001"
+}
+
+### List generated files
+GET http://127.0.0.1:8765/api/artifacts/files?project_id=p_001
+X-Actor-Id: u_001
+
+### List Langfuse-style traces
+GET http://127.0.0.1:8765/api/langfuse/traces?project_id=p_001
+X-Actor-Id: u_001
+
+### Score trace
+POST http://127.0.0.1:8765/api/langfuse/traces/trace_REPLACE_ME/score
+Content-Type: application/json
+
+{
+  "score": 0.92,
+  "score_reason": "工作汇报和交接文件已生成，且关联到了提示词版本。",
+  "actor_id": "u_001"
+}
+
+### Audit events
+GET http://127.0.0.1:8765/api/audit-events
