@@ -6,21 +6,28 @@ def post(handler:Any,envelope:dict[str,Any])->None:
     if handler.path!="/api/v1/foundation/instructions": handler.send(404); return
     if validate_envelope(envelope): handler.send(400,{"error":{"code":"INVALID_REQUEST"}}); return
     source=envelope["source"]
+    capability=envelope["target"].get("capability") or "permissions.check"
     allowed_business_modules={"workflow-execution","workflow-execution-engine-original","engine-gateway","rule-adapter","intent-adapter","intent-analysis-engine-original","content-production-engine-original","document-table-parsing","analysis-prediction","data-operation","digital-asset","project-management","monitoring-reminder","external-system-integration","knowledge-qa","knowledge-map","multimedia-generation"}
     allowed_foundation_modules={"account-gateway","context-prompt-management","knowledge-base","memory-management","human-collaboration","security-compliance","cost-control","device-system-interface","execution-sandbox","evolution-mechanism","control-mechanism"}
+    allowed_application_foundation_capabilities={"context.capacity.evaluate"}
     source_allowed=(
         source.get("layer")=="business_engine" and source.get("module") in allowed_business_modules
     ) or (
         source.get("layer")=="foundation" and source.get("module") in allowed_foundation_modules
+    ) or (
+        source.get("layer")=="business_application"
+        and source.get("module")=="application-gateway"
+        and capability in allowed_application_foundation_capabilities
     )
     if not source_allowed: handler.send(403,{"error":{"code":"SOURCE_LAYER_FORBIDDEN"}}); return
-    capability=envelope["target"].get("capability") or "permissions.check"
     registry_status,registration=post_json(f"http://127.0.0.1:8400/api/v1/capabilities/{capability}/resolve",{"trace_id":envelope["trace_id"],"action":"capability.resolve"},caller={"layer":"foundation","module":"foundation-gateway"})
     if registry_status!=200: registration=None
     if not registration or registration["layer"]!="foundation": handler.send(404,{"error":{"code":"CAPABILITY_NOT_FOUND"}}); return
     if capability=="model.respond":
         request=dict(envelope.get("payload",{})); request.setdefault("trace_id",envelope["trace_id"]); request.setdefault("actor",envelope["actor"])
-        status,response=post_json(registration["endpoint"],request,timeout=40,caller={"layer":"foundation","module":"foundation-gateway"})
+        # Leave a small buffer over the provider timeout so this relay does
+        # not cancel a model response before the provider is finished.
+        status,response=post_json(registration["endpoint"],request,timeout=190,caller={"layer":"foundation","module":"foundation-gateway"})
         if status!=200: handler.send(502,standard_response(envelope,"failed",error={"code":"MODEL_UPSTREAM_FAILED","message":"模型调度服务调用失败","details":response,"retryable":True})); return
         handler.send(200,standard_response(envelope,"success",data=response)); return
     if capability.startswith("template."):

@@ -81,7 +81,12 @@ class LLMTaskAnalyzer:
         context_input = self._context_input(context)
         prompt = self._render_prompt(text=text, user_id=user_id, context=context_input)
         raw_response = self._call_model(
-            [{"role": "system", "content": prompt}],
+            [
+                {"role": "system", "content": prompt},
+                # Keep the user's actual request as a user message. Some
+                # providers, including Kimi routes, reject all-system turns.
+                {"role": "user", "content": text},
+            ],
             response_schema=self._analysis_response_schema(),
         )
         return self._parse_analysis_outcome(raw_response, source_text=self._evidence_text(text, context_input))
@@ -90,7 +95,10 @@ class LLMTaskAnalyzer:
         prompt = self._render_implicit_prompt(text=text)
         try:
             raw_response = self._call_model(
-                [{"role": "system", "content": prompt}],
+                [
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": text},
+                ],
                 response_schema=None,
             )
         except Exception as error:
@@ -149,14 +157,10 @@ class LLMTaskAnalyzer:
         )
 
     def _registered_capabilities_json(self) -> str:
-        payload = [
-            {
-                "task_types": entry.supported_tasks,
-                "description": entry.description,
-                "required_inputs": entry.required_inputs,
-            }
-            for entry in self.registry.entries
-        ]
+        # The detailed registry is enforced by the server after model output.
+        # Sending descriptions and required-input definitions for every
+        # capability on every turn makes the model prompt unnecessarily large.
+        payload = sorted({task_type for entry in self.registry.entries for task_type in entry.supported_tasks})
         return json.dumps(payload, ensure_ascii=False)
 
     def _context_input(self, context: ContextInput | dict[str, Any] | None) -> ContextInput:

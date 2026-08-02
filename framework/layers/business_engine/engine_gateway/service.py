@@ -16,7 +16,7 @@ def post(handler: Any, envelope: dict[str, Any]) -> None:
     registry_status,registration=post_json(f"http://127.0.0.1:8400/api/v1/capabilities/{capability}/resolve",{"trace_id":envelope["trace_id"],"action":"capability.resolve"},caller={"layer":"business_engine","module":"engine-gateway"})
     if registry_status!=200: registration=None
     if not registration or registration["layer"]!="business_engine": handler.send(404,{"error":{"code":"CAPABILITY_NOT_FOUND"}}); return
-    timeout = 240 if capability == "workflow.execute" else 180 if capability in {"data.persist", "document.table.extract", "document.parse"} else 65
+    timeout = 240 if capability == "workflow.execute" else 205 if capability == "intent.analyze" else 180 if capability in {"data.persist", "document.table.extract", "document.parse"} else 65
     status,result=post_json(registration["endpoint"],envelope,timeout=timeout,caller={"layer":"business_engine","module":"engine-gateway"}); task_id=envelope["payload"].get("platform_task_id")
     if status not in {200,202}:
         # Workflow execution records individual step failures and determines the

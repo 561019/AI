@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import json
 import re
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from difflib import SequenceMatcher
 from typing import Any
 from uuid import uuid4
 
-from framework.core import create_task, get_task, standard_response, update_task
+from framework.core import connect, create_task, get_task, standard_response, update_task
 from framework.envelope import make_internal_envelope
 from framework.http import post_json
 from framework.module_catalog import CAPABILITY_TO_MODULE
@@ -97,7 +98,9 @@ BUSINESS_OBJECT_SCOPES = {
         "preferred_sheets": ["项目预算", "价格成本"],
         "allowed_fields": [
             "item_name", "amount_cny", "budget_item", "budget_amount", "fixed_project_budget",
-            "unit_price", "unit_cost", "gross_margin_rate", "项目", "预算项", "费用项",
+            "unit_price", "list_price", "price", "unit_cost", "standard_variable_cost", "variable_cost",
+            "cost", "gross_margin_rate", "contribution_margin", "unit_margin", "margin", "unit", "uom",
+            "项目", "预算项", "费用项",
             "项目名称", "金额", "预算金额", "预算合计", "预备费", "单价", "成本", "毛利率",
         ],
     },
@@ -203,7 +206,7 @@ def _execute_intent(handler: Any, envelope: dict[str, Any]) -> None:
 
 
 def _normalize_task_plan(intent_task: dict[str, Any]) -> list[dict[str, Any]]:
-    parameters = intent_task.get("parameters") if isinstance(intent_task.get("parameters"), dict) else {}
+    parameters = _parameters_with_current_attachments(intent_task)
     if parameters.get("execution_kind") == "uploaded_document_sales_reconciliation":
         return []
     contract = parameters.get("intent_contract") if isinstance(parameters.get("intent_contract"), dict) else {}
@@ -238,9 +241,27 @@ def _normalize_task_plan(intent_task: dict[str, Any]) -> list[dict[str, Any]]:
     return _build_plan_from_intent_task(intent_task)
 
 
+def _parameters_with_current_attachments(intent_task: dict[str, Any]) -> dict[str, Any]:
+    """Do not schedule parsing for personal knowledge that is already indexed."""
+    source = intent_task.get("parameters") if isinstance(intent_task.get("parameters"), dict) else {}
+    parameters = dict(source)
+    utterance = str(parameters.get("utterance") or intent_task.get("description") or "")
+    if _goal_mentions_knowledge_base(utterance):
+        parameters["uploaded_documents"] = []
+        return parameters
+    documents = source.get("uploaded_documents") if isinstance(source.get("uploaded_documents"), list) else []
+    parameters["uploaded_documents"] = [
+        item for item in documents
+        if isinstance(item, dict)
+        and str(item.get("asset_scope") or item.get("assetScope") or "") != "personal_knowledge"
+    ]
+    return parameters
+
+
 def _contract_plan_needs_workflow_rebuild(plan: list[dict[str, Any]], parameters: dict[str, Any]) -> bool:
     """Reject model-produced plans that omit required v4.0 orchestration nodes."""
     utterance = str(parameters.get("utterance") or "")
+    knowledge_request = _goal_mentions_knowledge_base(utterance)
     capabilities = {str(item.get("capability") or "") for item in plan}
     business_capabilities = capabilities - DOCUMENT_CAPABILITIES - {ANSWER_CAPABILITY}
     data_operations = {
@@ -255,6 +276,13 @@ def _contract_plan_needs_workflow_rebuild(plan: list[dict[str, Any]], parameters
             return True
         if "monthly_metric_series" not in data_operations:
             return True
+    if _looks_like_budget_risk_request(utterance):
+        if "rule.calculate" not in capabilities:
+            return True
+        if "budget_summary" not in data_operations:
+            return True
+        if "monthly_metric_series" not in data_operations:
+            return True
     if _looks_like_rule_request(utterance) and "rule.calculate" not in capabilities:
         return True
     if _goal_needs_project_management(utterance) and "project.register.simple" not in capabilities:
@@ -263,9 +291,9 @@ def _contract_plan_needs_workflow_rebuild(plan: list[dict[str, Any]], parameters
         return True
     if _goal_needs_human_confirmation(utterance) and "human.task.create" not in capabilities:
         return True
-    if _goal_needs_data(utterance) and not any(capability in DATA_CAPABILITIES for capability in capabilities):
+    if _goal_needs_data(utterance) and not knowledge_request and not any(capability in DATA_CAPABILITIES for capability in capabilities):
         return True
-    if (parameters.get("uploaded_documents") or _goal_mentions_uploaded_file(utterance)) and not any(capability in DOCUMENT_CAPABILITIES for capability in capabilities):
+    if (parameters.get("uploaded_documents") or _goal_mentions_uploaded_file(utterance)) and not knowledge_request and not any(capability in DOCUMENT_CAPABILITIES for capability in capabilities):
         return True
     return False
 
@@ -306,7 +334,10 @@ def _plan_from_intent_contract(contract_tasks: list[dict[str, Any]], parameters:
             or _forecast_horizon_from_goal_text(combined_goal)
         )
         aggregate_operation = None
-        if capability == "data.aggregate" and _looks_like_entity_list_request(combined_goal):
+        if capability == "data.aggregate" and _looks_like_latest_metric_by_entity_request(combined_goal):
+            operation = "latest_metric_by_entity"
+            aggregate_operation = "latest_metric_by_entity"
+        elif capability == "data.aggregate" and _looks_like_entity_list_request(combined_goal):
             operation = "list_distinct"
             aggregate_operation = "list_distinct"
         elif capability == "data.aggregate":
@@ -375,6 +406,7 @@ def _plan_from_intent_contract(contract_tasks: list[dict[str, Any]], parameters:
             item["step"] += 1
             if not item["depends_on"]:
                 item["depends_on"] = [1]
+    _drop_cached_document_parse_steps(plan, uploaded_documents, parameters)
     _ensure_data_evidence_step(plan, parameters, uploaded_documents)
     _ensure_data_before_downstream_analysis(plan)
     if not any(item["capability"] == "content.generate" for item in plan):
@@ -391,6 +423,34 @@ def _plan_from_intent_contract(contract_tasks: list[dict[str, Any]], parameters:
             "purpose": "把模块回执整理为用户可以直接理解的结果。",
         })
     return _topologically_order_plan(plan)
+
+
+def _drop_cached_document_parse_steps(plan: list[dict[str, Any]], uploaded_documents: list[dict[str, Any]], parameters: dict[str, Any]) -> None:
+    if not plan or not uploaded_documents:
+        return
+    utterance = str(parameters.get("utterance") or "")
+    if _goal_explicitly_asks_to_parse(utterance) or not _uploaded_documents_have_cached_fields(uploaded_documents):
+        return
+    parse_keys = {
+        str(item.get("task_id") or item.get("step"))
+        for item in plan
+        if item.get("capability") in {"document.table.extract", "document.parse"}
+    }
+    parse_steps = {
+        str(item.get("step"))
+        for item in plan
+        if item.get("capability") in {"document.table.extract", "document.parse"}
+    }
+    if not parse_keys and not parse_steps:
+        return
+    plan[:] = [
+        item for item in plan
+        if item.get("capability") not in {"document.table.extract", "document.parse"}
+    ]
+    removed = parse_keys | parse_steps
+    for item in plan:
+        deps = item.get("depends_on") if isinstance(item.get("depends_on"), list) else []
+        item["depends_on"] = [dep for dep in deps if str(dep) not in removed]
 
 
 def _contract_task_goal_text(item: dict[str, Any], parameters: dict[str, Any], fallback: str = "") -> str:
@@ -491,6 +551,14 @@ def _ensure_data_before_downstream_analysis(plan: list[dict[str, Any]]) -> None:
             elif capability == "rule.calculate":
                 data_step = data_step_by_operation.get("budget_summary") or default_data_step
             item["depends_on"] = _merge_dependencies(dependencies, [data_step])
+            if capability == "rule.calculate" and _looks_like_budget_risk_request(str((item.get("payload_hint") or {}).get("user_goal") or "")):
+                item["depends_on"] = _merge_dependencies(
+                    item["depends_on"],
+                    [
+                        data_step_by_operation.get("monthly_metric_series"),
+                        data_step_by_operation.get("budget_summary"),
+                    ],
+                )
 
 
 def _merge_dependencies(existing: list[Any], required: list[Any]) -> list[Any]:
@@ -679,6 +747,11 @@ def _normalize_executable_capability(capability: str, user_goal: str = "") -> st
     lowered = value.lower()
     normalized = lowered.replace("-", "_")
     dotted = normalized.replace("_", ".")
+    if _goal_mentions_knowledge_base(user_goal) and (
+        lowered.startswith(("data.", "document.", "file.", "table."))
+        or normalized.startswith(("data_", "document_", "file_", "table_"))
+    ):
+        return "knowledge.query"
     for candidate in (value, lowered, dotted):
         if candidate in KNOWN_EXECUTABLE_CAPABILITIES:
             return candidate
@@ -748,7 +821,7 @@ def _closest_registered_capability(capability: str, user_goal: str = "") -> str:
 
 def _build_plan_from_intent_task(intent_task: dict[str, Any]) -> list[dict[str, Any]]:
     """Build a v4.0 workflow graph from one confirmed business intent."""
-    parameters = intent_task.get("parameters") if isinstance(intent_task.get("parameters"), dict) else {}
+    parameters = _parameters_with_current_attachments(intent_task)
     utterance = str(parameters.get("utterance") or intent_task.get("description") or "").strip()
     raw_capability = str(intent_task.get("capability_code") or "").strip()
     capability = _normalize_executable_capability(raw_capability, utterance)
@@ -769,6 +842,8 @@ def _build_plan_from_intent_task(intent_task: dict[str, Any]) -> list[dict[str, 
         }]
     uploaded_documents = parameters.get("uploaded_documents") if isinstance(parameters.get("uploaded_documents"), list) else []
     business_scope = _infer_business_scope(utterance, parameters)
+    cached_upload_data = _uploaded_documents_have_cached_fields(uploaded_documents)
+    explicit_parse_request = _goal_explicitly_asks_to_parse(utterance)
 
     plan: list[dict[str, Any]] = []
     used: set[str] = set()
@@ -810,7 +885,10 @@ def _build_plan_from_intent_task(intent_task: dict[str, Any]) -> list[dict[str, 
         )
 
     parse_step = None
-    if uploaded_documents or capability in DOCUMENT_CAPABILITIES or _goal_mentions_uploaded_file(utterance):
+    if (
+        (uploaded_documents or capability in DOCUMENT_CAPABILITIES or _goal_mentions_uploaded_file(utterance))
+        and (explicit_parse_request or not cached_upload_data)
+    ):
         parse_step = add(
             "document.table.extract",
             "解析当前对话上传文件",
@@ -826,8 +904,7 @@ def _build_plan_from_intent_task(intent_task: dict[str, Any]) -> list[dict[str, 
         or capability.startswith("rule.")
         or capability.startswith("project.")
         or capability.startswith("monitor.")
-        or capability.startswith("knowledge.")
-        or _goal_needs_data(utterance)
+        or (not _goal_mentions_knowledge_base(utterance) and _goal_needs_data(utterance))
     )
     data_step = None
     data_steps_by_operation: dict[str, int] = {}
@@ -835,7 +912,7 @@ def _build_plan_from_intent_task(intent_task: dict[str, Any]) -> list[dict[str, 
         aggregate_operation = _infer_data_aggregate_operation(utterance)
         data_dependencies = [step for step in (parse_step, control_step) if step]
         data_requests: list[dict[str, Any]] = []
-        if _looks_like_forecast_request(utterance):
+        if _looks_like_forecast_request(utterance) or _looks_like_budget_risk_request(utterance):
             data_requests.append({
                 "operation": "monthly_metric_series",
                 "scope": _business_scope_for_key("demand", parameters, fallback=business_scope),
@@ -888,6 +965,14 @@ def _build_plan_from_intent_task(intent_task: dict[str, Any]) -> list[dict[str, 
         elif capability_code == "rule.calculate":
             capability_data_step = data_steps_by_operation.get("budget_summary") or data_step
         dependencies = _dependencies_for_v40_capability(capability_code, capability_steps, capability_data_step, parse_step, control_step, last_business_step)
+        if capability_code == "rule.calculate" and _looks_like_budget_risk_request(utterance):
+            dependencies = _merge_dependencies(
+                dependencies,
+                [
+                    data_steps_by_operation.get("monthly_metric_series"),
+                    data_steps_by_operation.get("budget_summary"),
+                ],
+            )
         step = add(
             capability_code,
             _capability_step_name(capability_code),
@@ -926,7 +1011,9 @@ def _infer_primary_capability_from_goal(user_goal: str, fallback: str) -> str:
         if any(token in text for token in ("code", "python", "script", "代码", "脚本", "程序")):
             return "sandbox.run_code"
         return "sandbox.run_task"
-    if any(token in text for token in ("预测", "趋势", "下季度", "下半年", "半年", "下一年", "未来一年", "需求区间", "盈亏平衡", "break-even", "forecast")):
+    if _looks_like_budget_risk_request(user_goal):
+        return "rule.calculate"
+    if any(token in text for token in ("预测", "趋势", "下季度", "下半年", "半年", "下一年", "未来一年", "需求区间", "forecast")):
         return "analysis.business_metric"
     if _looks_like_rule_request(user_goal):
         return "rule.calculate"
@@ -953,6 +1040,8 @@ def _infer_business_scope(user_goal: str, parameters: dict[str, Any] | None = No
     explicit_object = str(params.get("data_object") or params.get("object") or "").strip()
     product_match = re.search(r"P-[A-Z0-9-]+", text, re.IGNORECASE)
     if _looks_like_demand_forecast_scope(text):
+        scope_key = "demand"
+    elif _looks_like_metric_by_entity_request(text):
         scope_key = "demand"
     elif product_match or any(word in text for word in ("产品", "肥料", "参数", "P-FERT")):
         scope_key = "product"
@@ -1101,7 +1190,7 @@ def _infer_v40_capability_sequence(user_goal: str, primary_capability: str) -> l
             include("sandbox.run_code")
         else:
             include("sandbox.run_task")
-    if any(token in text for token in ("预测", "趋势", "下季度", "下半年", "半年", "下一年", "未来一年", "需求区间", "盈亏平衡", "break-even", "forecast")):
+    if any(token in text for token in ("预测", "趋势", "下季度", "下半年", "半年", "下一年", "未来一年", "需求区间", "forecast")):
         include("analysis.business_metric")
     if _looks_like_rule_request(user_goal):
         include("rule.calculate")
@@ -1131,7 +1220,59 @@ def _goal_needs_data(user_goal: str) -> bool:
 
 def _goal_mentions_uploaded_file(user_goal: str) -> bool:
     text = str(user_goal or "")
+    if _goal_mentions_knowledge_base(text) and not any(
+        token in text for token in ("当前上传", "本次上传", "刚上传", "上传文件", "当前附件", "本次附件")
+    ):
+        return False
     return any(token in text for token in ("上传", "文件", "文档", "表格", "Excel", "excel", "xlsx", "采购验收"))
+
+
+def _goal_explicitly_asks_to_parse(user_goal: str) -> bool:
+    text = str(user_goal or "").lower()
+    return any(token in text for token in (
+        "parse", "extract schema", "extract table", "table structure",
+        "\u89e3\u6790", "\u91cd\u65b0\u89e3\u6790", "\u63d0\u53d6\u8868\u683c", "\u8868\u7ed3\u6784", "\u5b57\u6bb5\u7ed3\u6784",
+    ))
+
+
+def _uploaded_documents_have_cached_fields(uploaded_documents: list[dict[str, Any]]) -> bool:
+    docs = [doc for doc in uploaded_documents if isinstance(doc, dict)]
+    if not docs:
+        return False
+    tenant_id = str(next((doc.get("tenant_id") for doc in docs if doc.get("tenant_id")), "web-workbench"))
+    cache_keys = [
+        str(doc.get("sha256") or doc.get("file_id") or "").strip()
+        for doc in docs
+        if str(doc.get("sha256") or doc.get("file_id") or "").strip()
+    ]
+    if not cache_keys:
+        return False
+    try:
+        with connect() as db:
+            for cache_key in cache_keys:
+                like_pattern = f'%"{cache_key}"%'
+                row = db.execute(
+                    """
+                    SELECT 1
+                    FROM data_records
+                    WHERE dataset='extracted_fields'
+                      AND tenant_id=?
+                      AND deleted_at IS NULL
+                      AND payload_json LIKE ?
+                    LIMIT 1
+                    """,
+                    (tenant_id, like_pattern),
+                ).fetchone()
+                if row is None:
+                    return False
+    except Exception:
+        return False
+    return True
+
+
+def _goal_mentions_knowledge_base(user_goal: str) -> bool:
+    text = str(user_goal or "").lower()
+    return any(token in text for token in ("知识库", "资料库", "文档库", "knowledge base", "knowledge_base"))
 
 
 def _goal_needs_control(user_goal: str) -> bool:
@@ -1367,7 +1508,7 @@ def _build_plan_step_payload(item: dict[str, Any], intent_task: dict[str, Any], 
         **item.get("payload_hint", {}),
         "description": intent_task.get("description"),
         "platform_task": intent_task,
-        "workflow_prior_outputs": prior_outputs,
+        "workflow_prior_refs": _prior_output_refs(prior_outputs),
         "intent_task_id": item.get("task_id"),
         "intent_dependencies": item.get("depends_on") or [],
     }
@@ -1388,6 +1529,7 @@ def _build_plan_step_payload(item: dict[str, Any], intent_task: dict[str, Any], 
         user_goal = str(parameters.get("utterance") or intent_task.get("description") or payload.get("analysis_goal") or "")
         payload.setdefault("analysis_goal", user_goal)
         _apply_semantic_data_aggregate_contract(payload, user_goal)
+        _align_business_scope_with_data_operation(payload, parameters)
     if capability == "data.search":
         uploaded_documents = parameters.get("uploaded_documents") if isinstance(parameters.get("uploaded_documents"), list) else []
         if uploaded_documents:
@@ -1399,6 +1541,7 @@ def _build_plan_step_payload(item: dict[str, Any], intent_task: dict[str, Any], 
         payload.setdefault("uploaded_documents", parameters.get("uploaded_documents") or [])
     if capability.startswith("analysis."):
         payload.setdefault("analysis_goal", payload.get("user_goal") or parameters.get("utterance") or intent_task.get("description"))
+        payload.setdefault("workflow_prior_outputs", _prior_outputs_for_downstream(prior_outputs))
         target_period = payload.get("target_period") or _target_period_from_goal_text(
             " ".join(
                 str(value or "")
@@ -1432,6 +1575,7 @@ def _build_plan_step_payload(item: dict[str, Any], intent_task: dict[str, Any], 
     if capability == "rule.calculate":
         payload.setdefault("rule_context", payload.get("user_goal") or parameters.get("utterance") or intent_task.get("description"))
         payload.setdefault("input_data_refs", _prior_output_refs(prior_outputs))
+        payload.setdefault("workflow_prior_outputs", _prior_outputs_for_downstream(prior_outputs))
         payload.setdefault("expected_outputs", ["rule_results", "risks", "exceptions", "evidence_refs"])
     if capability.startswith("project."):
         payload.setdefault("project_context", payload.get("user_goal") or parameters.get("utterance") or intent_task.get("description"))
@@ -1469,7 +1613,7 @@ def _build_plan_step_payload(item: dict[str, Any], intent_task: dict[str, Any], 
         }
         payload.setdefault("input", {
             "user_goal": payload.get("user_goal") or parameters.get("utterance") or intent_task.get("description"),
-            "workflow_prior_outputs": prior_outputs,
+            "workflow_prior_refs": _prior_output_refs(prior_outputs),
         })
         if capability == "sandbox.run_browser":
             payload.setdefault("url", payload.get("target_url") or "http://sandbox-allow.test/")
@@ -1525,6 +1669,8 @@ def _sandbox_code_from_goal(user_goal: str) -> str:
 
 def _infer_data_aggregate_operation(user_goal: str) -> str:
     text = str(user_goal or "")
+    if _looks_like_latest_metric_by_entity_request(text):
+        return "latest_metric_by_entity"
     if _looks_like_rule_data_preparation_request(text):
         return "budget_summary"
     if _looks_like_forecast_request(text):
@@ -1559,7 +1705,7 @@ def _apply_semantic_data_aggregate_contract(payload: dict[str, Any], user_goal: 
     should_replace = (
         not current_operation
         or current_operation in WEAK_DATA_AGGREGATE_OPERATIONS
-        or (not explicit_operation and inferred_operation in {"list_distinct", "monthly_max_metric", "monthly_metric_series", "business_object_detail", "budget_summary"})
+        or (not explicit_operation and inferred_operation in {"list_distinct", "monthly_max_metric", "monthly_metric_series", "latest_metric_by_entity", "business_object_detail", "budget_summary"})
     )
     if inferred_operation and should_replace:
         payload["aggregate_operation"] = inferred_operation
@@ -1594,11 +1740,34 @@ def _apply_semantic_data_aggregate_contract(payload: dict[str, Any], user_goal: 
             "year": target_year,
             "expected_output": ["period_values", "monthly_values", "max_month", "max_value", "evidence"],
         })
+    elif operation == "latest_metric_by_entity":
+        metric_candidates = _metric_candidates_from_goal(user_goal)
+        payload.setdefault("entity_field_candidates", _entity_candidates_from_goal(user_goal))
+        payload.setdefault("time_field_candidates", ["month", "year_month", "period", "date", "order_date", "sales_date"])
+        payload.setdefault("metric_field_candidates", metric_candidates)
+        if metric_candidates:
+            payload.setdefault("metric_field", metric_candidates[0])
+        semantic_operation.update({
+            "entity_field_candidates": payload.get("entity_field_candidates"),
+            "metric_candidates": metric_candidates,
+            "time_field_candidates": payload.get("time_field_candidates"),
+            "expected_output": ["entity_count", "rows", "latest_period", "evidence"],
+        })
     elif operation == "list_distinct":
         payload.setdefault("distinct", True)
         payload.setdefault("expected_output", ["distinct_count", "names", "evidence"])
         semantic_operation.update({"expected_output": ["distinct_count", "names", "evidence"]})
     payload["semantic_operation"] = semantic_operation
+
+
+def _align_business_scope_with_data_operation(payload: dict[str, Any], parameters: dict[str, Any] | None = None) -> None:
+    """Keep the data domain aligned with the concrete aggregate operation."""
+    operation = str(payload.get("aggregate_operation") or payload.get("operation") or "").lower()
+    if operation in {"monthly_metric_series", "monthly_max_metric", "latest_metric_by_entity"}:
+        payload["business_scope"] = _business_scope_for_key("demand", parameters or {}, fallback={})
+        return
+    if operation == "budget_summary":
+        payload["business_scope"] = _business_scope_for_key("budget", parameters or {}, fallback={})
 
 
 def _year_from_text(text: str) -> int | None:
@@ -1617,6 +1786,43 @@ def _metric_candidates_from_goal(text: str) -> list[str]:
     if any(token in lowered for token in ("amount", "revenue", "金额", "收入")):
         return ["amount", "revenue", "amount_cny", "金额", "收入"]
     return ["demand_qty", "order_qty", "sales_qty", "quantity", "amount"]
+
+
+def _entity_candidates_from_goal(text: str) -> list[str]:
+    lowered = str(text or "").lower()
+    if any(token in lowered for token in ("product", "\u4ea7\u54c1", "\u7269\u6599")):
+        return ["product_name", "product", "product_id", "\u4ea7\u54c1\u540d\u79f0", "\u4ea7\u54c1", "\u4ea7\u54c1\u7f16\u53f7"]
+    if any(token in lowered for token in ("dealer", "distributor", "\u7ecf\u9500\u5546")):
+        return ["dealer_name", "dealer", "dealer_id", "distributor_name", "distributor", "\u7ecf\u9500\u5546\u540d\u79f0", "\u7ecf\u9500\u5546", "\u7ecf\u9500\u5546\u7f16\u53f7"]
+    if any(token in lowered for token in ("customer", "\u5ba2\u6237")):
+        return ["customer_name", "customer", "customer_id", "\u5ba2\u6237\u540d\u79f0", "\u5ba2\u6237", "\u5ba2\u6237\u7f16\u53f7"]
+    if any(token in lowered for token in ("region", "\u533a\u57df", "\u5730\u533a")):
+        return ["region", "area", "\u533a\u57df", "\u5730\u533a"]
+    return ["product_name", "product", "product_id", "dealer_name", "dealer", "customer_name", "customer", "region"]
+
+
+def _looks_like_metric_by_entity_request(text: str) -> bool:
+    lowered = str(text or "").lower()
+    has_entity = any(word in lowered for word in (
+        "product", "dealer", "distributor", "customer", "region",
+        "\u4ea7\u54c1", "\u7269\u6599", "\u7ecf\u9500\u5546", "\u5ba2\u6237", "\u533a\u57df", "\u5730\u533a",
+    ))
+    has_metric = any(word in lowered for word in (
+        "demand", "order", "sales", "amount", "revenue", "quantity", "qty",
+        "\u9700\u6c42", "\u8ba2\u5355", "\u9500\u91cf", "\u9500\u552e", "\u91d1\u989d", "\u6536\u5165", "\u6570\u91cf",
+    ))
+    has_group = any(word in lowered for word in (
+        "per ", "by ", "each", "group by", "\u6bcf\u4e2a", "\u5404", "\u5206\u522b", "\u6309",
+    ))
+    return has_entity and has_metric and has_group
+
+
+def _looks_like_latest_metric_by_entity_request(text: str) -> bool:
+    lowered = str(text or "").lower()
+    has_recent = any(word in lowered for word in (
+        "latest", "recent", "last", "\u6700\u8fd1", "\u6700\u65b0", "\u6700\u540e", "\u8fd1\u671f",
+    ))
+    return has_recent and _looks_like_metric_by_entity_request(text)
 
 
 def _looks_like_entity_list_request(text: str) -> bool:
@@ -1707,6 +1913,13 @@ def _looks_like_rule_request(text: str) -> bool:
     ))
 
 
+def _looks_like_budget_risk_request(text: str) -> bool:
+    lowered = str(text or "").lower()
+    has_budget = any(word in lowered for word in ("预算", "budget"))
+    has_risk = any(word in lowered for word in ("风险", "risk", "预警"))
+    return has_budget and has_risk
+
+
 def _looks_like_rule_data_preparation_request(text: str) -> bool:
     lowered = str(text or "").lower()
     return any(word in lowered for word in (
@@ -1739,13 +1952,9 @@ def _parsed_document_filters(uploaded_documents: list[dict[str, Any]], prior_out
     parse_job_ids = _parse_job_ids_from_prior_outputs(prior_outputs)
     if parse_job_ids:
         return {"parse_job_id": parse_job_ids[0]} if len(parse_job_ids) == 1 else {"parse_job_id": parse_job_ids}
-    sha_values = [
-        str(doc.get("sha256"))
-        for doc in uploaded_documents
-        if isinstance(doc, dict) and doc.get("sha256")
-    ]
-    if sha_values:
-        return {"sha256": sha_values[0]} if len(sha_values) == 1 else {"sha256": sha_values}
+    cached_filter = _cached_parsed_document_filter(uploaded_documents)
+    if cached_filter:
+        return cached_filter
     file_ids = [
         str(doc.get("file_id"))
         for doc in uploaded_documents
@@ -1755,7 +1964,83 @@ def _parsed_document_filters(uploaded_documents: list[dict[str, Any]], prior_out
         return {"file_id": file_ids[0]}
     if file_ids:
         return {"file_id": file_ids}
+    object_ids = [
+        str(doc.get("object_id"))
+        for doc in uploaded_documents
+        if isinstance(doc, dict) and doc.get("object_id")
+    ]
+    if len(object_ids) == 1:
+        return {"object_id": object_ids[0]}
+    if object_ids:
+        return {"object_id": object_ids}
+    sha_values = [
+        str(doc.get("sha256"))
+        for doc in uploaded_documents
+        if isinstance(doc, dict) and doc.get("sha256")
+    ]
+    if sha_values:
+        return {"sha256": sha_values[0]} if len(sha_values) == 1 else {"sha256": sha_values}
     return {}
+
+
+def _cached_parsed_document_filter(uploaded_documents: list[dict[str, Any]]) -> dict[str, Any]:
+    docs = [doc for doc in uploaded_documents if isinstance(doc, dict)]
+    if not docs:
+        return {}
+    tenant_id = str(next((doc.get("tenant_id") for doc in docs if doc.get("tenant_id")), "web-workbench"))
+    cache_keys: list[str] = []
+    for doc in docs:
+        for key in ("sha256", "file_id", "object_id"):
+            value = str(doc.get(key) or "").strip()
+            if value and value not in cache_keys:
+                cache_keys.append(value)
+    if not cache_keys:
+        return {}
+    try:
+        with connect() as db:
+            for cache_key in cache_keys:
+                like_pattern = f'%"{cache_key}"%'
+                row = db.execute(
+                    """
+                    SELECT payload_json
+                    FROM data_records
+                    WHERE dataset='extracted_fields'
+                      AND tenant_id=?
+                      AND deleted_at IS NULL
+                      AND payload_json LIKE ?
+                    ORDER BY updated_at DESC, created_at DESC
+                    LIMIT 1
+                    """,
+                    (tenant_id, like_pattern),
+                ).fetchone()
+                if row is None:
+                    continue
+                payload = _safe_json_loads(row["payload_json"] if isinstance(row, dict) else row[0])
+                if not isinstance(payload, dict):
+                    continue
+                parse_job_id = payload.get("parse_job_id") or payload.get("source_parse_job_id")
+                if parse_job_id:
+                    return {"parse_job_id": str(parse_job_id)}
+                sha256 = payload.get("sha256")
+                if sha256:
+                    return {"sha256": str(sha256)}
+                file_id = payload.get("file_id")
+                if file_id:
+                    return {"file_id": str(file_id)}
+    except Exception:
+        return {}
+    return {}
+
+
+def _safe_json_loads(value: Any) -> Any:
+    if isinstance(value, (dict, list)):
+        return value
+    if value in (None, ""):
+        return None
+    try:
+        return json.loads(str(value))
+    except Exception:
+        return None
 
 
 def _parse_job_ids_from_prior_outputs(prior_outputs: dict[str, Any]) -> list[str]:
@@ -1764,6 +2049,14 @@ def _parse_job_ids_from_prior_outputs(prior_outputs: dict[str, Any]) -> list[str
         data = prior_outputs.get(key)
         if not isinstance(data, dict):
             continue
+        artifact_refs = data.get("artifact_refs") if isinstance(data.get("artifact_refs"), list) else []
+        for ref in artifact_refs:
+            if not isinstance(ref, dict):
+                continue
+            filters = ref.get("filters") if isinstance(ref.get("filters"), dict) else (ref.get("read_params") or {}).get("filters") if isinstance(ref.get("read_params"), dict) else {}
+            parse_job_id = filters.get("parse_job_id") if isinstance(filters, dict) else None
+            if parse_job_id and str(parse_job_id) not in result:
+                result.append(str(parse_job_id))
         documents = data.get("documents") if isinstance(data.get("documents"), list) else []
         for document in documents:
             if not isinstance(document, dict):
@@ -1803,6 +2096,10 @@ def _prior_output_refs(prior_outputs: dict[str, Any]) -> list[dict[str, Any]]:
     for key, data in prior_outputs.items():
         if not isinstance(data, dict):
             continue
+        existing_refs = data.get("artifact_refs") if isinstance(data.get("artifact_refs"), list) else []
+        for ref in existing_refs:
+            if isinstance(ref, dict):
+                refs.append({"upstream_key": key, **ref})
         storage = data.get("storage_result") if isinstance(data.get("storage_result"), dict) else {}
         aggregate = storage.get("aggregate") if isinstance(storage.get("aggregate"), dict) else data.get("aggregate")
         items = storage.get("items") if isinstance(storage.get("items"), list) else data.get("items")
@@ -1816,6 +2113,47 @@ def _prior_output_refs(prior_outputs: dict[str, Any]) -> list[dict[str, Any]]:
             "items_count": len(items) if isinstance(items, list) else None,
         })
     return refs
+
+
+def _prior_outputs_for_downstream(prior_outputs: dict[str, Any]) -> dict[str, Any]:
+    """Pass small structured upstream results to compute modules.
+
+    Audit logs keep only references so requests stay readable, but analysis
+    modules need the actual monthly aggregate values. Keep aggregates and a
+    tiny amount of metadata, not full extracted-field rows.
+    """
+    compact: dict[str, Any] = {}
+    for key, data in prior_outputs.items():
+        if not isinstance(data, dict):
+            continue
+        storage = data.get("storage_result") if isinstance(data.get("storage_result"), dict) else {}
+        aggregate = storage.get("aggregate") if isinstance(storage.get("aggregate"), dict) else data.get("aggregate")
+        item: dict[str, Any] = {
+            "state": data.get("state"),
+            "module": data.get("module"),
+            "platform_capability": data.get("platform_capability"),
+        }
+        if isinstance(aggregate, dict):
+            item["aggregate"] = aggregate
+            item["storage_result"] = {"aggregate": aggregate}
+        analysis_result = data.get("analysis_result") if isinstance(data.get("analysis_result"), dict) else None
+        if isinstance(analysis_result, dict):
+            compact_analysis = {
+                key: value
+                for key, value in analysis_result.items()
+                if key in {"status", "metric_reason", "source_metric", "platform_analysis_type"}
+            }
+            forecasts = analysis_result.get("forecasts") if isinstance(analysis_result.get("forecasts"), list) else []
+            if forecasts:
+                compact_analysis["forecasts"] = forecasts[:24]
+            if compact_analysis:
+                item["analysis_result"] = compact_analysis
+        if isinstance(data.get("artifact_refs"), list):
+            item["artifact_refs"] = data.get("artifact_refs")[:5]
+        if isinstance(data.get("next_read_hints"), list):
+            item["next_read_hints"] = data.get("next_read_hints")[:5]
+        compact[str(key)] = {k: v for k, v in item.items() if v not in (None, [], {})}
+    return compact
 
 
 def _default_human_confirmation_cards(human_context: Any, prior_outputs: dict[str, Any]) -> list[dict[str, Any]]:
@@ -1865,14 +2203,34 @@ def _compact_prior_outputs_for_model(prior_outputs: dict[str, Any], user_goal: s
         if not isinstance(data, dict):
             continue
         step: dict[str, Any] = {"state": data.get("state"), "module": data.get("module")}
+        for answer_key in ("answer", "user_answer", "summary"):
+            answer_value = data.get(answer_key)
+            if isinstance(answer_value, str) and answer_value.strip():
+                step[answer_key] = answer_value.strip()[:4000]
         storage = data.get("storage_result") if isinstance(data.get("storage_result"), dict) else {}
         aggregate = storage.get("aggregate") if isinstance(storage.get("aggregate"), dict) else data.get("aggregate")
         if isinstance(aggregate, dict):
             step["aggregate"] = aggregate
+        knowledge_context = data.get("knowledge_context") if isinstance(data.get("knowledge_context"), dict) else {}
+        if knowledge_context:
+            step["knowledge_context"] = {
+                key: value
+                for key, value in knowledge_context.items()
+                if key in {"source_dataset", "count", "items"}
+            }
+        if isinstance(data.get("evidence"), list):
+            step["evidence"] = data.get("evidence")[:20]
         items = storage.get("items") if isinstance(storage.get("items"), list) else data.get("items")
         if isinstance(items, list):
             step["items_count"] = len(items)
             step["sample_rows"] = _compact_extracted_field_rows(items, user_goal, limit=120)
+        elif isinstance(storage.get("sample_items"), list):
+            step["items_count"] = storage.get("items_count")
+            step["sample_rows"] = storage.get("sample_items")
+        if isinstance(data.get("artifact_refs"), list):
+            step["artifact_refs"] = data.get("artifact_refs")
+        if isinstance(data.get("next_read_hints"), list):
+            step["next_read_hints"] = data.get("next_read_hints")
         if data.get("platform_capability"):
             step["platform_capability"] = data.get("platform_capability")
         if data.get("module_name_cn"):
@@ -1982,6 +2340,38 @@ def _failed_step_message(code: str, details: dict[str, Any]) -> str:
     return "模块调用未通过。"
 
 
+def _knowledge_answer_from_steps(steps: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Keep a concrete knowledge.query answer from being overwritten downstream.
+
+    The final content step may polish the response, but it must not turn a
+    successful knowledge answer into an unsupported "not enough data" message.
+    This helper is generic: it uses the upstream module result, not any
+    hard-coded filename or field value.
+    """
+    for step in steps:
+        if step.get("capability") != "knowledge.query":
+            continue
+        if step.get("status_code") not in {200, 202}:
+            continue
+        data = (step.get("response") or {}).get("data") or {}
+        if not isinstance(data, dict):
+            continue
+        answer = data.get("user_answer") or data.get("answer") or data.get("summary")
+        if not isinstance(answer, str) or not answer.strip():
+            continue
+        if _is_unusable_model_content(answer):
+            continue
+        return {
+            "finding_id": "knowledge-query-result",
+            "title": answer.strip(),
+            "detail": "",
+            "evidence": data.get("evidence") or [],
+            "impact": "",
+            "recommendation": "",
+        }
+    return None
+
+
 def _build_generic_user_result(intent_task: dict[str, Any], steps: list[dict[str, Any]], workflow_state: str) -> dict[str, Any]:
     content_data = next(
         (((step.get("response") or {}).get("data") or {})
@@ -2005,17 +2395,21 @@ def _build_generic_user_result(intent_task: dict[str, Any], steps: list[dict[str
     if project_flow_answer:
         findings.append(project_flow_answer)
 
-    analysis_answer = _analysis_prediction_answer(steps)
-    if analysis_answer:
-        findings.append(analysis_answer)
-
     rule_answer = _rule_calculation_answer(steps)
     if rule_answer:
         findings.append(rule_answer)
 
+    analysis_answer = _analysis_prediction_answer(steps)
+    if analysis_answer and not (_looks_like_budget_risk_request(str((intent_task.get("parameters") or {}).get("utterance") or intent_task.get("description") or "")) and rule_answer):
+        findings.append(analysis_answer)
+
     sandbox_answer = _execution_sandbox_answer(steps)
     if sandbox_answer:
         findings.append(sandbox_answer)
+
+    knowledge_answer = _knowledge_answer_from_steps(steps)
+    if knowledge_answer:
+        findings.append(knowledge_answer)
 
     aggregate_first = _aggregate_should_override_content(aggregate)
     if not findings and aggregate_first and isinstance(aggregate, dict) and aggregate.get("answer"):
@@ -2300,6 +2694,44 @@ def _rule_calculation_answer(steps: list[dict[str, Any]]) -> dict[str, Any] | No
             if break_even_missing:
                 lines.append("盈亏平衡数量目前还不能给出最终值，因为还需要确认产品单价、单位成本和目标利润口径。")
             continue
+        if item.get("rule_id") == "break_even.quantity":
+            unit = item.get("unit") or "单位"
+            inputs = item.get("inputs") if isinstance(item.get("inputs"), dict) else {}
+            input_parts = []
+            if inputs.get("fixed_cost") not in (None, ""):
+                input_parts.append(f"固定成本 {_format_number(inputs.get('fixed_cost'))} 元")
+            if inputs.get("unit_contribution_margin") not in (None, ""):
+                input_parts.append(f"单位边际贡献 {_format_number(inputs.get('unit_contribution_margin'))} 元")
+            basis = "，".join(input_parts)
+            suffix = f"（{basis}）" if basis else ""
+            lines.append(f"盈亏平衡数量为 {_format_number(observed_value)} {unit}{suffix}。")
+            continue
+        if item.get("rule_id") == "budget_risk.assessment":
+            inputs = item.get("inputs") if isinstance(item.get("inputs"), dict) else {}
+            level = item.get("risk_level_cn") or item.get("risk_level") or "待核对"
+            unit = item.get("unit") or "单位"
+            demand_qty = inputs.get("estimated_demand_qty")
+            contribution = inputs.get("estimated_contribution")
+            coverage_ratio = inputs.get("coverage_ratio") or observed_value
+            break_even_qty = inputs.get("break_even_qty")
+            basis = inputs.get("estimate_basis")
+            parts = [f"预算风险等级：{level}"]
+            if demand_qty not in (None, ""):
+                parts.append(f"预计目标期间需求约 {_format_number(demand_qty)} {unit}")
+            if contribution not in (None, ""):
+                parts.append(f"预计边际贡献约 {_format_number(contribution)} 元")
+            if coverage_ratio not in (None, ""):
+                parts.append(f"约为预算的 {_format_ratio(coverage_ratio)}")
+            if break_even_qty not in (None, ""):
+                parts.append(f"盈亏平衡数量 {_format_number(break_even_qty)} {unit}")
+            line = "，".join(parts) + "。"
+            if basis:
+                line += f" 测算依据：{basis}。"
+            lines.append(line)
+            continue
+        if item.get("rule_id") == "budget_risk.input_check":
+            lines.append(item.get("message") or "预算风险还不能形成完整测算，需要补充预算、价格成本或需求数据。")
+            continue
         if item.get("rule_id") == "price_cost.margin_available" and status != "passed":
             lines.append("价格成本口径还不完整，正式测算前需要补充或确认单价、单位成本、毛利率等字段。")
             continue
@@ -2491,6 +2923,14 @@ def _format_number(value: Any) -> str:
     if number.is_integer():
         return f"{int(number):,}"
     return f"{number:,.2f}".rstrip("0").rstrip(".")
+
+
+def _format_ratio(value: Any) -> str:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return str(value or "")
+    return f"{number:.2f}倍"
 
 
 def _project_flow_answer(steps: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -3044,6 +3484,278 @@ def _invoke_foundation_capability(envelope: dict[str, Any], platform_task_id: st
     return _invoke_capability(envelope, platform_task_id, capability, "foundation", "foundation-gateway", "http://127.0.0.1:8300/api/v1/foundation/instructions", payload, step=step)
 
 
+def _normalize_capability_response(
+    envelope: dict[str, Any],
+    platform_task_id: str,
+    capability: str,
+    payload: dict[str, Any],
+    status: int,
+    response: Any,
+    *,
+    step: int,
+) -> tuple[Any, list[dict[str, Any]]]:
+    if not isinstance(response, dict):
+        return response, []
+    if status not in {200, 202} or response.get("status") != "success":
+        return _compact_value(response), []
+    data = response.get("data") if isinstance(response.get("data"), dict) else {}
+    artifact_refs = _extract_artifact_refs(envelope, platform_task_id, capability, payload, data, step=step)
+    compact = dict(response)
+    compact["data"] = _compact_capability_data(data, artifact_refs)
+    if artifact_refs:
+        _persist_workflow_artifacts(envelope, platform_task_id, capability, step, artifact_refs)
+    return compact, artifact_refs
+
+
+def _compact_capability_data(data: dict[str, Any], artifact_refs: list[dict[str, Any]]) -> dict[str, Any]:
+    keep_keys = {
+        "state", "module", "module_name_cn", "platform_capability", "storage_capability",
+        "integration_status", "summary", "summary_cn", "user_result", "result_type",
+        "normalized_task", "received_summary", "aggregate",
+        "forecast", "predictions", "project_record", "monitor_items",
+        "confirmation_cards", "next_action", "content", "answer", "user_answer", "output", "business_result",
+    }
+    compact: dict[str, Any] = {key: _compact_value(value) for key, value in data.items() if key in keep_keys}
+    for list_key in ("rule_results", "risks", "exceptions"):
+        value = data.get(list_key)
+        if isinstance(value, list):
+            compact[list_key] = [
+                _compact_value(item, string_limit=1200, list_limit=12)
+                for item in value[:24]
+            ]
+    analysis_result = data.get("analysis_result")
+    if isinstance(analysis_result, dict):
+        # The final user summary is built from this structured result. Keep the
+        # forecast rows as a real list; generic audit compaction turns lists into
+        # {count, sample}, which previously made a successful forecast look empty.
+        compact_analysis = {
+            key: _compact_value(value)
+            for key, value in analysis_result.items()
+            if key != "forecasts"
+        }
+        forecasts = analysis_result.get("forecasts")
+        if isinstance(forecasts, list):
+            compact_analysis["forecasts"] = [
+                _compact_value(item, string_limit=800, list_limit=20)
+                for item in forecasts[:24]
+            ]
+        compact["analysis_result"] = compact_analysis
+    storage = data.get("storage_result") if isinstance(data.get("storage_result"), dict) else {}
+    if storage:
+        storage_compact = {
+            key: _compact_value(storage.get(key))
+            for key in ("state", "count", "item", "aggregate", "dataset", "record_id")
+            if key in storage
+        }
+        items = storage.get("items") if isinstance(storage.get("items"), list) else None
+        if items is not None:
+            storage_compact["items_count"] = len(items)
+            storage_compact["sample_items"] = _compact_list_sample(items)
+        compact["storage_result"] = storage_compact
+    for list_key in ("items", "records", "rows", "documents", "fields", "chunks"):
+        value = data.get(list_key)
+        if isinstance(value, list):
+            compact[f"{list_key}_count"] = len(value)
+            compact[f"{list_key}_sample"] = _compact_list_sample(value)
+    if artifact_refs:
+        compact["artifact_refs"] = artifact_refs
+        compact["next_read_hints"] = [
+            ref.get("next_read_hint")
+            for ref in artifact_refs
+            if isinstance(ref.get("next_read_hint"), dict)
+        ]
+    return compact
+
+
+def _extract_artifact_refs(
+    envelope: dict[str, Any],
+    platform_task_id: str,
+    capability: str,
+    payload: dict[str, Any],
+    data: dict[str, Any],
+    *,
+    step: int,
+) -> list[dict[str, Any]]:
+    refs: list[dict[str, Any]] = []
+    existing_refs = data.get("artifact_refs") if isinstance(data.get("artifact_refs"), list) else []
+    for ref in existing_refs:
+        if isinstance(ref, dict):
+            refs.append(_normalize_artifact_ref(envelope, platform_task_id, capability, payload, ref, step=step))
+    documents = data.get("documents") if isinstance(data.get("documents"), list) else []
+    for document in documents:
+        if not isinstance(document, dict):
+            continue
+        parse_job_id = document.get("parse_job_id") or document.get("reused_from_parse_job_id")
+        if parse_job_id:
+            refs.append(_normalize_artifact_ref(
+                envelope, platform_task_id, capability, payload,
+                {
+                    "artifact_type": "parsed_table_fields",
+                    "dataset": "extracted_fields",
+                    "schema": "document_table_extract_v1",
+                    "record_count": document.get("field_count") or document.get("row_count"),
+                    "filters": {"parse_job_id": str(parse_job_id)},
+                    "summary": document.get("summary") or f"parsed document fields for {parse_job_id}",
+                },
+                step=step,
+            ))
+    storage = data.get("storage_result") if isinstance(data.get("storage_result"), dict) else {}
+    received_summary = data.get("received_summary") if isinstance(data.get("received_summary"), dict) else {}
+    dataset = storage.get("dataset") or received_summary.get("dataset") or payload.get("dataset") or payload.get("collection")
+    if dataset:
+        filters = received_summary.get("filters")
+        if not isinstance(filters, dict):
+            filters = payload.get("filters") if isinstance(payload.get("filters"), dict) else {}
+        items = storage.get("items") if isinstance(storage.get("items"), list) else data.get("items")
+        aggregate = storage.get("aggregate") if isinstance(storage.get("aggregate"), dict) else data.get("aggregate")
+        record_count = storage.get("count") or (len(items) if isinstance(items, list) else None)
+        if record_count is not None or isinstance(aggregate, dict):
+            refs.append(_normalize_artifact_ref(
+                envelope, platform_task_id, capability, payload,
+                {
+                    "artifact_type": "dataset_query_result",
+                    "dataset": dataset,
+                    "schema": f"{dataset}_query_v1",
+                    "record_count": record_count,
+                    "filters": filters,
+                    "aggregate": aggregate if isinstance(aggregate, dict) else None,
+                    "summary": f"{capability} produced readable data reference for {dataset}",
+                },
+                step=step,
+            ))
+    return _dedupe_artifact_refs(refs)
+
+
+def _normalize_artifact_ref(
+    envelope: dict[str, Any],
+    platform_task_id: str,
+    capability: str,
+    payload: dict[str, Any],
+    ref: dict[str, Any],
+    *,
+    step: int,
+) -> dict[str, Any]:
+    context = envelope.get("context") if isinstance(envelope.get("context"), dict) else {}
+    actor = envelope.get("actor") or {}
+    dataset = str(ref.get("dataset") or payload.get("dataset") or payload.get("collection") or "workflow_artifacts")
+    filters = ref.get("filters") if isinstance(ref.get("filters"), dict) else {}
+    read_params = ref.get("read_params") if isinstance(ref.get("read_params"), dict) else {
+        "dataset": dataset,
+        "filters": filters,
+    }
+    artifact_id = str(ref.get("artifact_id") or f"artifact-{platform_task_id}-{step}-{uuid4().hex[:8]}")
+    next_read_hint = ref.get("next_read_hint") if isinstance(ref.get("next_read_hint"), dict) else {
+        "capability": ref.get("read_capability") or "data.search",
+        "dataset": dataset,
+        "filters": filters,
+    }
+    return {
+        "artifact_id": artifact_id,
+        "artifact_type": ref.get("artifact_type") or "module_output",
+        "dataset": dataset,
+        "schema": ref.get("schema") or f"{dataset}_ref_v1",
+        "record_count": ref.get("record_count"),
+        "filters": filters,
+        "aggregate": ref.get("aggregate") if isinstance(ref.get("aggregate"), dict) else None,
+        "read_capability": ref.get("read_capability") or next_read_hint.get("capability") or "data.search",
+        "read_params": read_params,
+        "next_read_hint": next_read_hint,
+        "summary": ref.get("summary") or ref.get("description") or f"{capability} output reference",
+        "retention_policy": ref.get("retention_policy") or "workflow-temp-7d",
+        "expires_at": ref.get("expires_at") or (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
+        "trace_id": envelope.get("trace_id"),
+        "workflow_instance_id": f"wf-{platform_task_id}",
+        "platform_task_id": platform_task_id,
+        "source_capability": capability,
+        "source_step": step,
+        "tenant_id": actor.get("tenant_id"),
+        "owner_account_id": actor.get("user_id") or actor.get("actor_id"),
+        "project_id": context.get("project_id"),
+        "conversation_id": context.get("conversation_id"),
+    }
+
+
+def _dedupe_artifact_refs(refs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    seen: set[tuple[str, str, str]] = set()
+    result: list[dict[str, Any]] = []
+    for ref in refs:
+        filters = ref.get("filters") if isinstance(ref.get("filters"), dict) else {}
+        key = (str(ref.get("dataset") or ""), str(filters), str(ref.get("source_capability") or ""))
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(ref)
+    return result
+
+
+def _persist_workflow_artifacts(envelope: dict[str, Any], platform_task_id: str, capability: str, step: int, refs: list[dict[str, Any]]) -> None:
+    if not refs:
+        return
+    records = []
+    for ref in refs:
+        records.append({
+            **ref,
+            "record_id": ref["artifact_id"],
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+    persist_envelope = make_internal_envelope(
+        envelope["trace_id"],
+        envelope.get("actor") or {},
+        f"{platform_task_id}-artifact-{step}",
+        "data.persist",
+        "business_engine",
+        "engine-gateway",
+        {
+            "dataset": "workflow_artifacts",
+            "operation": "upsert",
+            "records": records,
+            "owner_account_id": (envelope.get("actor") or {}).get("user_id") or (envelope.get("actor") or {}).get("actor_id"),
+            "project_id": (envelope.get("context") or {}).get("project_id") if isinstance(envelope.get("context"), dict) else None,
+            "conversation_id": (envelope.get("context") or {}).get("conversation_id") if isinstance(envelope.get("context"), dict) else None,
+        },
+        context=envelope.get("context") if isinstance(envelope.get("context"), dict) else None,
+    )
+    post_json(
+        "http://127.0.0.1:8200/api/v1/engine/instructions",
+        persist_envelope,
+        timeout=70,
+        caller={"layer": "business_engine", "module": "workflow-execution"},
+    )
+
+
+def _compact_payload_for_audit(payload: dict[str, Any]) -> dict[str, Any]:
+    compact: dict[str, Any] = {}
+    for key, value in payload.items():
+        if key == "workflow_prior_outputs":
+            continue
+        if key == "workflow_prior_refs":
+            compact[key] = _compact_value(value)
+            continue
+        if key in {"conversation_context", "uploaded_documents", "input_data_refs", "workflow_evidence", "input"}:
+            compact[key] = _compact_value(value)
+            continue
+        compact[key] = _compact_value(value)
+    return compact
+
+
+def _compact_value(value: Any, *, string_limit: int = 2000, list_limit: int = 20) -> Any:
+    if isinstance(value, str):
+        return value if len(value) <= string_limit else f"{value[:string_limit]}...(truncated {len(value) - string_limit} chars)"
+    if isinstance(value, list):
+        return {
+            "count": len(value),
+            "sample": [_compact_value(item, string_limit=string_limit, list_limit=list_limit) for item in value[:list_limit]],
+            "truncated": len(value) > list_limit,
+        }
+    if isinstance(value, dict):
+        return {str(key): _compact_value(item, string_limit=string_limit, list_limit=list_limit) for key, item in value.items()}
+    return value
+
+
+def _compact_list_sample(items: list[Any], *, limit: int = 10) -> list[Any]:
+    return [_compact_value(item, string_limit=800, list_limit=5) for item in items[:limit]]
+
+
 def _invoke_capability(envelope: dict[str, Any], platform_task_id: str, capability: str, target_layer: str, target_module: str, url: str, payload: dict[str, Any], *, step: int) -> dict[str, Any]:
     context = envelope.get("context") if isinstance(envelope.get("context"), dict) else {}
     actor = envelope.get("actor") or {}
@@ -3059,6 +3771,9 @@ def _invoke_capability(envelope: dict[str, Any], platform_task_id: str, capabili
     )
     execution_envelope["idempotency_key"] = f"case2-{step}-{capability}-{platform_task_id}-{uuid4()}"
     status, response = post_json(url, execution_envelope, timeout=70, caller={"layer": "business_engine", "module": "workflow-execution"})
+    compact_response, artifact_refs = _normalize_capability_response(
+        envelope, platform_task_id, capability, payload, status, response, step=step
+    )
     return {
         "plan_item": {
             "step": step,
@@ -3069,6 +3784,7 @@ def _invoke_capability(envelope: dict[str, Any], platform_task_id: str, capabili
         },
         "status_code": status,
         "capability": capability,
-        "request_payload": payload,
-        "response": response,
+        "request_payload": _compact_payload_for_audit(payload),
+        "artifact_refs": artifact_refs,
+        "response": compact_response,
     }

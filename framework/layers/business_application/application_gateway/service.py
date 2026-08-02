@@ -467,6 +467,9 @@ def post(handler: Any, body: dict[str, Any]) -> None:
     if handler.path == "/api/v1/uploads/reindex":
         _reindex_personal_knowledge_file(handler, body)
         return
+    if handler.path == "/api/v1/application/context/capacity":
+        _evaluate_context_capacity(handler, body)
+        return
     if handler.path == "/api/v1/generated-files":
         _create_generated_file(handler, body)
         return
@@ -513,7 +516,10 @@ def post(handler: Any, body: dict[str, Any]) -> None:
         if persisted_context
         else client_context if isinstance(client_context, list) else []
     )
-    status, forwarded_response = post_json("http://127.0.0.1:8200/api/v1/engine/instructions", forwarded, timeout=70, caller={"layer": "business_application", "module": "application-gateway"})
+    # Intent analysis may wait for a high-latency model response. Keep this
+    # outer request longer than every downstream timeout in that path.
+    intent_timeout = 210 if forwarded["target"].get("capability") == "intent.analyze" else 70
+    status, forwarded_response = post_json("http://127.0.0.1:8200/api/v1/engine/instructions", forwarded, timeout=intent_timeout, caller={"layer": "business_application", "module": "application-gateway"})
     if status not in {200, 202}:
         error = _friendly_dependency_error(forwarded_response)
         update_task(task_id, state="failed", error=error)
@@ -523,6 +529,59 @@ def post(handler: Any, body: dict[str, Any]) -> None:
     _persist_task_and_assistant_message(body, task_id, task, "intent_analysis")
     response = standard_response(body, "accepted", task_id=task_id, progress=0, status_url=f"http://127.0.0.1:8100/api/v1/tasks/{task_id}")
     idempotent_put("application", body["idempotency_key"], body, response); handler.send(202, response)
+
+
+def _evaluate_context_capacity(handler: Any, body: dict[str, Any]) -> None:
+    trace_id = str(body.get("trace_id") or body.get("traceId") or uuid4())
+    request_id = str(body.get("request_id") or uuid4())
+    actor = body.get("actor") if isinstance(body.get("actor"), dict) else {
+        "tenant_id": body.get("tenant_id") or "web-workbench",
+        "user_id": body.get("accountId") or body.get("account_id") or "",
+        "authenticated": True,
+    }
+    actor = {
+        **actor,
+        "tenant_id": actor.get("tenant_id") or body.get("tenant_id") or "web-workbench",
+        "user_id": actor.get("user_id") or actor.get("userId") or body.get("accountId") or body.get("account_id") or "",
+        "authenticated": bool(actor.get("authenticated", True)),
+    }
+    project_id = str(body.get("project_id") or body.get("projectId") or "")
+    conversation_id = str(body.get("conversation_id") or body.get("conversationId") or "")
+    binding_error = _validate_owned_context(trace_id, actor, project_id, conversation_id)
+    if binding_error:
+        handler.send(403, {"status": "failed", "trace_id": trace_id, "error": binding_error})
+        return
+    payload = {
+        "project_id": project_id,
+        "conversation_id": conversation_id,
+        "capacity_limit": int(body.get("capacity_limit") or body.get("capacityLimit") or 8000),
+    }
+    envelope = make_internal_envelope(
+        trace_id,
+        actor,
+        request_id,
+        "context.capacity.evaluate",
+        "foundation",
+        "foundation-gateway",
+        payload,
+        source_layer="business_application",
+        source_module="application-gateway",
+        context={"project_id": project_id, "conversation_id": conversation_id, "locale": "zh-CN"},
+    )
+    status, response = post_json(
+        "http://127.0.0.1:8300/api/v1/foundation/instructions",
+        envelope,
+        timeout=45,
+        caller={"layer": "business_application", "module": "application-gateway"},
+    )
+    if status != 200 or not isinstance(response, dict) or response.get("status") != "success":
+        handler.send(502, {
+            "status": "failed",
+            "trace_id": trace_id,
+            "error": {"code": "CONTEXT_CAPACITY_EVALUATION_FAILED", "details": response},
+        })
+        return
+    handler.send(200, {"status": "succeeded", "trace_id": trace_id, "data": response.get("data") or {}})
 
 
 def _load_recent_conversation_context(envelope: dict[str, Any], *, limit: int) -> list[dict[str, Any]]:

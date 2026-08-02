@@ -155,6 +155,7 @@ const conversationRenameDialogOpen = ref(false)
 const pendingConversationRename = ref(null)
 const conversationRenameInput = ref('')
 const sessionMessages = reactive({})
+const contextCapacityEvaluations = new Map()
 const notificationReadIds = ref([])
 const notificationRecords = ref(structuredClone(notifications))
 const disabledResourceIds = ref([])
@@ -419,6 +420,46 @@ const contextLabel = computed(() => {
 
 function getContextUsage(conversation) {
   return conversation.contextUsage ?? contextProfiles[conversation.id] ?? 24
+}
+
+function conversationCapacitySignature(conversation) {
+  const messages = [
+    ...(conversation?.messages || []),
+    ...(sessionMessages[conversation?.id] || []),
+  ]
+  const textLength = messages.reduce((total, message) => total + String(message?.text || message?.content || '').length, 0)
+  return `${conversation?.id || ''}:${messages.length}:${textLength}`
+}
+
+async function evaluateCurrentConversationCapacity() {
+  const conversation = currentConversation.value
+  const project = currentProject.value
+  if (!authState.loggedIn || !currentAccount.value.id || !project || !conversation) return
+  const signature = conversationCapacitySignature(conversation)
+  const state = contextCapacityEvaluations.get(conversation.id)
+  if (state?.pending || state?.signature === signature) return
+  contextCapacityEvaluations.set(conversation.id, { signature, pending: true })
+  try {
+    const backendProjectId = await ensureProjectRegistered(project)
+    const backendConversationId = await ensureConversationRegistered(conversation, project)
+    const result = await platformApi.evaluateContextCapacity({
+      actor: { user_id: currentAccount.value.id, userId: currentAccount.value.id, authenticated: true },
+      projectId: backendProjectId,
+      conversationId: backendConversationId,
+      capacityLimit: 8000,
+    })
+    const data = result.data || {}
+    const ratio = Number(data.capacity_ratio)
+    if (Number.isFinite(ratio)) {
+      conversation.contextUsage = Math.max(0, Math.min(100, Math.round(ratio * 100)))
+      conversation.contextCapacityState = data.state || ''
+      conversation.contextCapacityNextAction = data.next_action || ''
+      conversation.contextCapacityTraceId = result.trace_id || ''
+    }
+    contextCapacityEvaluations.set(conversation.id, { signature, pending: false, evaluatedAt: Date.now() })
+  } catch (error) {
+    contextCapacityEvaluations.set(conversation.id, { signature: '', pending: false, error })
+  }
 }
 
 function conversationTimeGroup(conversation) {
@@ -831,10 +872,11 @@ function sleep(ms) {
 }
 
 function extractUploadedDocuments(conversation) {
-  const documents = [
-    ...(conversation?.files || []),
-    ...personalKnowledgeFiles.value,
-  ]
+  // Personal knowledge is account-scoped and is retrieved by the knowledge
+  // service. Only files explicitly attached to this conversation belong in
+  // uploaded_documents; otherwise every knowledge file is misclassified as a
+  // current attachment and the workflow reparses it.
+  const documents = conversation?.files || []
   const seen = new Set()
   return documents
     .map((file) => file.platform_ref || file.platformRef)
@@ -1060,6 +1102,8 @@ function formatTaskResponse(task, uploadedDocumentCount = 0) {
     const fileText = uploadedDocumentCount ? `，已关联 ${uploadedDocumentCount} 个上传文件` : ''
     return `我已完成意图识别${fileText}。请确认下方理解是否正确；如果不对，可以先调整意图。`
   }
+  if (task.state === 'succeeded' || task.state === 'completed_with_errors') return formatWorkflowConversationResponse(data)
+  if (task.state === 'failed') return '任务执行失败，请查看接口调用与任务记录。'
   if (firstTask) {
     return `已完成任务识别：${safeIntentBusinessGoal(firstTask, firstTask.parameters || {})}。`
   }
@@ -1369,7 +1413,7 @@ async function submitIntentAnalysis(text, { conversationId, project, uploadedDoc
           source: `L4/L2 链路 · ${result.trace_id || envelope.trace_id} · ${result.task_id}`,
         })
         if (currentMessage) {
-          currentMessage.task = buildIntentCard(task, documents) || currentMessage.task
+          currentMessage.task = task.state === 'waiting_human' ? (buildIntentCard(task, documents) || currentMessage.task) : null
         }
         finishGeneration(generationKey)
       }).catch((error) => {
@@ -3385,6 +3429,17 @@ onMounted(async () => {
 watch(conversationScrollKey, () => {
   void scrollCurrentConversationToLatest()
 }, { flush: 'post' })
+
+watch(() => [
+  authState.loggedIn,
+  currentAccountId.value,
+  currentProjectId.value,
+  currentConversationId.value,
+  currentMessages.value.length,
+  currentMessages.value.at(-1)?.text?.length || 0,
+], () => {
+  void evaluateCurrentConversationCapacity()
+}, { flush: 'post', immediate: true })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', closeConversationMenu)

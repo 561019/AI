@@ -122,6 +122,27 @@ export const platformApi = {
     })
   },
 
+  evaluateContextCapacity({ actor, projectId, conversationId, capacityLimit = 8000 } = {}) {
+    return request('/api/v1/application/context/capacity', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        trace_id: newId('ctx-cap'),
+        request_id: uniqueId('request'),
+        tenant_id: tenantId,
+        actor: {
+          ...actor,
+          tenant_id: tenantId,
+          user_id: actor?.user_id || actor?.userId || actor?.accountId || '',
+          authenticated: true,
+        },
+        project_id: projectId,
+        conversation_id: conversationId,
+        capacity_limit: capacityLimit,
+      }),
+    })
+  },
+
   getTask(taskId) {
     return request(`/api/v1/tasks/${encodeURIComponent(taskId)}`)
   },

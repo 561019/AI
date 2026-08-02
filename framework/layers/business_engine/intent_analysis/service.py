@@ -24,11 +24,15 @@ TASK_CAPABILITY_MAP = {
     "DATA_ANALYSIS_GROUP_SUM": "data.aggregate",
     "DATA_ANALYSIS_PIVOT": "data.aggregate",
     "DATA_ANALYSIS_PROBLEM": "data.aggregate",
+    "DATA_ANALYSIS_YOY": "analysis.business_metric",
+    "DATA_ANALYSIS_MOM": "analysis.business_metric",
     "DATA_ANALYSIS_FORECAST": "analysis.business_metric",
+    "COMPLAINT_INFORMATION_ORGANIZE": "data.aggregate",
     "DATA_FILTER": "data.search",
     "DATA_SORT": "data.search",
     "CONTENT_GENERATE": "content.generate",
     "DOCUMENT_GENERATE": "content.generate",
+    "IMPROVEMENT_PLAN_GENERATE": "content.generate",
     "MULTIMEDIA_GENERATE": "multimedia.generate",
     "MONITORING_REMINDER": "reminder.handle",
     "PROJECT_MANAGEMENT": "project.query",
@@ -47,6 +51,9 @@ TASK_CAPABILITY_MAP = {
     "CONTEXT_HISTORY_SEARCH": "context.project.search",
     "CONTEXT_ACCOUNT_SEARCH": "context.account.search",
     "CONTEXT_IMPORT": "context.handoff.import",
+    "EXTERNAL_DATA_FETCH": "external.api.call",
+    "EXTERNAL_SYSTEM_SUBMIT": "external.system.invoke",
+    "DIGITAL_ASSET_ACCRUAL_VOUCHER": "asset.create",
 }
 
 CAPABILITY_ALIASES = {
@@ -109,16 +116,22 @@ def _normalize_capability_alias(capability: str) -> str:
 
 
 def _resolve_registered_capability(capability: str, task: dict[str, Any], utterance: str) -> dict[str, Any]:
-    value = _normalize_capability_alias(capability)
+    original_value = str(capability or "").strip()
+    value = _normalize_capability_alias(original_value)
     if value in REGISTERED_CAPABILITIES:
-        return {"capability": value, "status": "matched", "original_capability": capability}
-    closest = _closest_registered_capability(value, task, utterance)
-    if closest:
+        status = "alias_matched" if value != original_value and original_value else "matched"
+        return {"capability": value, "status": status, "original_capability": capability}
+    task_type = str(task.get("task_type") or "").strip().upper()
+    mapped_from_task_type = TASK_CAPABILITY_MAP.get(task_type)
+    if mapped_from_task_type in REGISTERED_CAPABILITIES:
         return {
-            "capability": closest,
-            "status": "nearest_matched",
+            "capability": mapped_from_task_type,
+            "status": "task_type_mapped",
             "original_capability": capability,
-            "message": f"已将模型返回的能力 {capability or '空'} 映射为平台已登记能力 {closest}。",
+            "message": (
+                f"模型返回的能力码 {capability or '空'} 未直接登记；"
+                f"已按候选任务类型 {task_type} 映射到平台能力 {mapped_from_task_type}。"
+            ),
         }
     return {
         "capability": "",
@@ -196,7 +209,11 @@ def post(handler: Any, envelope: dict[str, Any]) -> None:
     if handler.path != "/api/v1/intent/analyze":
         handler.send(404); return
     utterance = str(envelope.get("payload", {}).get("utterance", "")).strip()
-    uploaded_documents = envelope.get("payload", {}).get("uploaded_documents") or []
+    uploaded_documents = _current_conversation_documents(
+        envelope.get("payload", {}).get("uploaded_documents") or []
+    )
+    if _goal_mentions_knowledge_base(utterance):
+        uploaded_documents = []
     if not utterance:
         handler.send(422, {"error": {"code": "PRECONDITION_REQUIRED"}}); return
     context_envelope = make_internal_envelope(
@@ -239,7 +256,7 @@ def post(handler: Any, envelope: dict[str, Any]) -> None:
     explicit_sandbox_capability = _explicit_sandbox_capability_from_utterance(utterance)
     status, delivered = post_json(
         "http://127.0.0.1:8003/api/v1/delivered-intent/analyze", request,
-        timeout=55, caller={"layer": "business_engine", "module": "intent-adapter"},
+        timeout=200, caller={"layer": "business_engine", "module": "intent-adapter"},
     )
     if status != 200 or not delivered.get("success"):
         if explicit_sandbox_capability:
@@ -282,7 +299,11 @@ def post(handler: Any, envelope: dict[str, Any]) -> None:
             model_capability or TASK_CAPABILITY_MAP.get(task_type, f"unmapped.{task_type.lower()}")
         )
         capability_match = _resolve_registered_capability(capability_candidate, task, utterance)
-        capability = str(capability_match.get("capability") or "")
+        capability = _normalize_capability_for_context(
+            utterance,
+            str(capability_match.get("capability") or ""),
+            uploaded_documents,
+        )
         original_capability = str(capability_match.get("original_capability") or capability_candidate)
         if not capability:
             handler.send(422, standard_response(envelope, "failed", error={
@@ -411,7 +432,37 @@ def post(handler: Any, envelope: dict[str, Any]) -> None:
 
 
 def _normalize_capability_for_context(utterance: str, capability: str, uploaded_documents: list[dict[str, Any]]) -> str:
+    text = str(utterance or "").lower()
+    value = str(capability or "")
+    if _goal_mentions_knowledge_base(text) and value in {
+        "", "data.search", "data.query", "data.retrieve", "data.aggregate",
+        "document.parse", "document.table.extract", "content.generate",
+    }:
+        return "knowledge.query"
     return capability
+
+
+def _goal_mentions_knowledge_base(text: str) -> bool:
+    lowered = str(text or "").lower()
+    return any(token in lowered for token in (
+        "个人知识库",
+        "知识库",
+        "资料库",
+        "文档库",
+        "knowledge base",
+        "knowledge_base",
+    ))
+
+
+def _current_conversation_documents(documents: Any) -> list[dict[str, Any]]:
+    """Keep knowledge assets out of the one-off attachment parsing path."""
+    if not isinstance(documents, list):
+        return []
+    return [
+        item for item in documents
+        if isinstance(item, dict)
+        and str(item.get("asset_scope") or item.get("assetScope") or "") != "personal_knowledge"
+    ]
 
 
 def _explicit_sandbox_capability_from_utterance(utterance: str) -> str:
@@ -595,6 +646,8 @@ def _build_data_access_contract(
     uploaded_documents: list[dict[str, Any]],
 ) -> dict[str, Any]:
     """Describe where later engines should read data without doing the read here."""
+    if _goal_mentions_knowledge_base(utterance):
+        uploaded_documents = []
     raw_object = str(parameters.get("data_object") or parameters.get("object") or "").strip()
     explicit_fields = parameters.get("fields") if isinstance(parameters.get("fields"), list) else []
     dataset = "extracted_fields" if uploaded_documents else "business_records"
@@ -679,11 +732,12 @@ def _extract_intent_details(utterance: str, uploaded_documents: list[dict[str, A
 
 def _extract_data_sources(text: str, uploaded_documents: list[dict[str, Any]]) -> list[str]:
     sources: list[str] = []
-    if uploaded_documents or any(word in text for word in ("当前上传", "上传文件", "附件", "文件", "表格")):
+    knowledge_request = _goal_mentions_knowledge_base(text)
+    if not knowledge_request and (uploaded_documents or any(word in text for word in ("当前上传", "本次上传", "刚上传", "上传文件", "当前附件", "本次附件"))):
         sources.append("current_uploaded_files")
     if any(word in text for word in ("已入库", "平台数据", "授权数据", "当前项目", "项目数据", "数据库")):
         sources.append("authorized_platform_data")
-    if any(word in text for word in ("知识库", "制度", "资料库", "文档库")):
+    if knowledge_request or any(word in text for word in ("知识库", "制度", "资料库", "文档库")):
         sources.append("knowledge_base")
     return sources or ["current_conversation_or_authorized_data"]
 
@@ -819,7 +873,7 @@ def _extract_risk_checks(text: str) -> list[str]:
 
 def _extract_constraints(text: str, uploaded_documents: list[dict[str, Any]]) -> list[str]:
     constraints = []
-    if uploaded_documents or any(word in text for word in ("基于当前上传文件", "当前上传文件", "上传文件")):
+    if not _goal_mentions_knowledge_base(text) and (uploaded_documents or any(word in text for word in ("基于当前上传文件", "当前上传文件", "上传文件"))):
         constraints.append("优先基于当前对话上传文件")
     if any(word in text for word in ("不要", "不能", "仅", "只")):
         constraints.append("遵守用户显式限制")
@@ -1147,7 +1201,9 @@ def _ensure_required_generic_task_cards(
         ),
         "",
     )
-    if (forecast_horizon or target_period) and not data_series_task_id:
+    needs_rule = bool(extracted_details.get("calculations") or extracted_details.get("risk_checks"))
+    needs_budget_risk = any("预算" in str(item) and "风险" in str(item) for item in (extracted_details.get("risk_checks") or []))
+    if (forecast_horizon or target_period or needs_budget_risk) and not data_series_task_id:
         data_series = _generated_contract_task(
             utterance, uploaded_documents, extracted_details,
             task_id="intent-aggregate-metric-series",
@@ -1176,7 +1232,6 @@ def _ensure_required_generic_task_cards(
         capabilities.append("analysis.business_metric")
         operations.append("forecast")
 
-    needs_rule = bool(extracted_details.get("calculations") or extracted_details.get("risk_checks"))
     budget_task_id = next(
         (
             str(item.get("task_id"))
@@ -1202,6 +1257,13 @@ def _ensure_required_generic_task_cards(
         operations.append("budget_summary")
 
     if needs_rule and "rule.calculate" not in capabilities:
+        rule_dependencies = []
+        if budget_task_id:
+            rule_dependencies.append(budget_task_id)
+        if needs_budget_risk and data_series_task_id:
+            rule_dependencies.append(data_series_task_id)
+        if not rule_dependencies and parse_task_id:
+            rule_dependencies.append(parse_task_id)
         rule = _generated_contract_task(
             utterance, uploaded_documents, extracted_details,
             task_id="intent-rule-calculate",
@@ -1209,7 +1271,7 @@ def _ensure_required_generic_task_cards(
             task_type="calculate",
             operation="calculate",
             task_name="执行用户要求的计算和风险检查",
-            dependencies=[budget_task_id] if budget_task_id else ([parse_task_id] if parse_task_id else []),
+            dependencies=rule_dependencies,
         )
         normalized.append(rule)
         capabilities.append("rule.calculate")
@@ -1815,6 +1877,8 @@ def _extract_model_intent_summary(raw_result: Any, utterance: str, uploaded_docu
             )
             if isinstance(raw, dict):
                 break
+        if not isinstance(raw, dict):
+            return _model_task_summary_from_tasks(tasks, utterance, uploaded_documents)
     if not isinstance(raw, dict):
         return None
     business_goal = _clean_user_text(raw.get("business_goal") or raw.get("goal") or raw.get("user_goal"))
@@ -1843,6 +1907,44 @@ def _extract_model_intent_summary(raw_result: Any, utterance: str, uploaded_docu
         "planned_steps": task_list[:5],
         "output_focus": output_focus,
         "confirmation_question": confirmation_question,
+    }
+
+
+def _model_task_summary_from_tasks(tasks: list[dict[str, Any]], utterance: str, uploaded_documents: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if not isinstance(tasks, list):
+        return None
+    task_list: list[str] = []
+    for task in tasks:
+        if not isinstance(task, dict):
+            continue
+        text = _clean_user_text(
+            task.get("task_description")
+            or task.get("description")
+            or task.get("object")
+            or task.get("task_type")
+        )
+        if text and not _is_generic_confirmation_text(text):
+            task_list.append(text)
+    task_list = task_list[:5]
+    if not task_list:
+        return None
+    business_goal = _clean_user_text(utterance)
+    if not business_goal:
+        business_goal = task_list[0]
+    data_scope = (
+        f"\u5f53\u524d\u5bf9\u8bdd\u4e0a\u4f20\u7684 {len(uploaded_documents)} \u4e2a\u6587\u4ef6"
+        if uploaded_documents
+        else "\u5f53\u524d\u5bf9\u8bdd\u4e0a\u4f20\u6587\u4ef6\u6216\u6388\u6743\u9879\u76ee\u6570\u636e"
+    )
+    output_focus = _clean_user_text("\u3001".join(task_list[:3]))
+    return {
+        "source": "model_task_list",
+        "business_goal": business_goal,
+        "data_scope": data_scope,
+        "task_list": task_list,
+        "planned_steps": task_list,
+        "output_focus": output_focus,
+        "confirmation_question": "\u8bf7\u786e\u8ba4\u4ee5\u4e0a\u7406\u89e3\u662f\u5426\u7b26\u5408\u4f60\u7684\u610f\u56fe\u3002",
     }
 
 

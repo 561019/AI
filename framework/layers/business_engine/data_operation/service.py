@@ -149,6 +149,8 @@ def _aggregate(data: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
         return {**data, "items": items, "aggregate": _business_object_detail(items, payload)}
     if operation == "budget_summary":
         return {**data, "items": items, "aggregate": _budget_summary(items, payload)}
+    if operation == "latest_metric_by_entity":
+        return {**data, "items": items, "aggregate": _latest_metric_by_entity(items, payload)}
     scope = payload.get("business_scope") if isinstance(payload.get("business_scope"), dict) else {}
     allow_entity_list = scope.get("scope_key") != "customer_feedback"
     if operation in {"list", "list_distinct", "entity_list", "enumerate"} or (allow_entity_list and (_looks_like_entity_list_goal(goal) or _looks_like_group_count_goal(goal))):
@@ -394,13 +396,162 @@ def _budget_summary(items: list[dict[str, Any]], payload: dict[str, Any]) -> dic
     }
 
 
+def _latest_metric_by_entity(items: list[dict[str, Any]], payload: dict[str, Any]) -> dict[str, Any]:
+    rows = _row_groups(items)
+    if not rows:
+        return {
+            "operation": "latest_metric_by_entity",
+            "answer": "\u5f53\u524d\u6388\u6743\u6570\u636e\u4e2d\u6ca1\u6709\u627e\u5230\u53ef\u8ba1\u7b97\u7684\u8868\u683c\u884c\u3002",
+            "detail": "\u5df2\u5c1d\u8bd5\u6309\u884c\u8fd8\u539f\u7ed3\u6784\u5316\u5b57\u6bb5\uff0c\u4f46\u6ca1\u6709\u5f62\u6210\u53ef\u7528\u8bb0\u5f55\u3002",
+            "rows": [],
+            "entity_count": 0,
+            "evidence": [],
+        }
+    entity_field = _choose_field_from_candidates(rows, payload.get("entity_field_candidates"))
+    metric_field = str(payload.get("metric_field") or "").strip()
+    if metric_field and not _field_exists(rows, metric_field):
+        metric_field = ""
+    if not metric_field:
+        metric_field = _choose_field_from_candidates(rows, payload.get("metric_field_candidates"))
+    if not entity_field:
+        entity_field = _infer_entity_field(rows)
+    rows_for_time = _rows_having_fields(rows, [entity_field, metric_field]) if entity_field and metric_field else rows
+    time_field = _choose_field_from_candidates(rows_for_time, payload.get("time_field_candidates"))
+    if not time_field:
+        time_field, _ = _infer_month_metric_fields(rows_for_time)
+    if not metric_field:
+        _, metric_field = _infer_month_metric_fields(rows)
+    if not entity_field or not time_field or not metric_field:
+        return {
+            "operation": "latest_metric_by_entity",
+            "answer": "\u5f53\u524d\u6388\u6743\u6570\u636e\u8fd8\u4e0d\u8db3\u4ee5\u6309\u5b9e\u4f53\u8ba1\u7b97\u6700\u8fd1\u4e00\u671f\u6307\u6807\u3002",
+            "detail": {
+                "entity_field": entity_field,
+                "time_field": time_field,
+                "metric_field": metric_field,
+                "available_fields": _available_field_names(rows)[:40],
+            },
+            "rows": [],
+            "entity_count": 0,
+            "evidence": [],
+            "error": {"code": "LATEST_METRIC_FIELDS_NOT_IDENTIFIED"},
+        }
+
+    grouped: dict[str, dict[str, Any]] = {}
+    for group in rows.values():
+        fields = group.get("fields") or {}
+        entity = str(fields.get(entity_field) or "").strip()
+        metric_value = _number(fields.get(metric_field))
+        period = _period_from_fields(fields, 0) or _period_from_value(fields.get(time_field), 0)
+        if not entity or metric_value is None or not period:
+            continue
+        current = grouped.get(entity)
+        if not current or str(period) > str(current.get("period") or ""):
+            grouped[entity] = {
+                "entity": entity,
+                "period": period,
+                "metric": metric_field,
+                "value": metric_value,
+                "evidence": _group_evidence(group, limit=4),
+            }
+        elif current and period == current.get("period"):
+            current["value"] = float(current.get("value") or 0) + metric_value
+            current["evidence"] = (current.get("evidence") or [])[:4]
+
+    result_rows = sorted(grouped.values(), key=lambda item: str(item.get("entity") or ""))
+    latest_period = max((str(item.get("period") or "") for item in result_rows), default="")
+    if not result_rows:
+        return {
+            "operation": "latest_metric_by_entity",
+            "answer": "\u672a\u627e\u5230\u540c\u65f6\u5305\u542b\u5b9e\u4f53\u3001\u65f6\u95f4\u548c\u6307\u6807\u503c\u7684\u4e1a\u52a1\u8bb0\u5f55\u3002",
+            "detail": {
+                "entity_field": entity_field,
+                "time_field": time_field,
+                "metric_field": metric_field,
+            },
+            "rows": [],
+            "entity_count": 0,
+            "evidence": [],
+        }
+    display_rows = [
+        {
+            "entity": item["entity"],
+            "period": item["period"],
+            "metric": item["metric"],
+            "value": item["value"],
+        }
+        for item in result_rows
+    ]
+    evidence: list[str] = []
+    for item in result_rows:
+        evidence.extend(item.get("evidence") or [])
+    return {
+        "operation": "latest_metric_by_entity",
+        "answer": _format_latest_metric_answer(entity_field, metric_field, display_rows),
+        "detail": {
+            "entity_field": entity_field,
+            "time_field": time_field,
+            "metric_field": metric_field,
+            "latest_period": latest_period,
+        },
+        "entity_count": len(display_rows),
+        "latest_period": latest_period,
+        "rows": display_rows,
+        "evidence": evidence[:16],
+    }
+
+
+def _infer_entity_field(rows: dict[str, dict[str, Any]]) -> str:
+    candidates = ["product_name", "product", "product_id", "dealer_name", "dealer", "customer_name", "customer", "region"]
+    return _choose_field_from_candidates(rows, candidates)
+
+
+def _rows_having_fields(rows: dict[str, dict[str, Any]], field_names: list[str]) -> dict[str, dict[str, Any]]:
+    required = [str(name or "").strip().lower() for name in field_names if str(name or "").strip()]
+    if not required:
+        return rows
+    result: dict[str, dict[str, Any]] = {}
+    for key, row in rows.items():
+        field_lookup = {str(name).strip().lower() for name in (row.get("fields") or {})}
+        if all(name in field_lookup for name in required):
+            result[key] = row
+    return result or rows
+
+
+def _available_field_names(rows: dict[str, dict[str, Any]]) -> list[str]:
+    names: list[str] = []
+    for row in rows.values():
+        for name in (row.get("fields") or {}):
+            if name not in names:
+                names.append(str(name))
+    return names
+
+
+def _group_evidence(group: dict[str, Any], *, limit: int) -> list[str]:
+    evidence = group.get("evidence") if isinstance(group.get("evidence"), list) else []
+    if evidence:
+        return evidence[:limit]
+    return [_evidence_label(item) for item in (group.get("items") or [])[:limit] if isinstance(item, dict)]
+
+
+def _format_latest_metric_answer(entity_field: str, metric_field: str, rows: list[dict[str, Any]]) -> str:
+    parts = [
+        f"{item.get('entity')}: {item.get('period')} {metric_field}={_format_number(float(item.get('value') or 0))}"
+        for item in rows[:20]
+    ]
+    suffix = f"\uff0c\u7b49 {len(rows)} \u9879" if len(rows) > 20 else ""
+    return f"\u6309 {entity_field} \u627e\u5230 {len(rows)} \u4e2a\u5bf9\u8c61\u7684\u6700\u8fd1\u4e00\u671f {metric_field}\uff1a" + "\uff1b".join(parts) + suffix + "\u3002"
+
+
 def _is_price_cost_field(field_name: str) -> bool:
     lower = str(field_name or "").lower()
     return any(token in lower for token in (
         "unit_price", "price", "unit_cost", "cost", "gross_margin_rate",
         "fixed_project_budget", "margin", "budget",
+        "list_price", "standard_variable_cost", "variable_cost", "contribution_margin", "unit_margin",
+        "unit", "uom",
         "\u5355\u4ef7", "\u4ef7\u683c", "\u6210\u672c", "\u6bdb\u5229",
-        "\u56fa\u5b9a\u9879\u76ee\u9884\u7b97", "\u9884\u7b97",
+        "\u56fa\u5b9a\u9879\u76ee\u9884\u7b97", "\u9884\u7b97", "\u5355\u4f4d",
     ))
 
 

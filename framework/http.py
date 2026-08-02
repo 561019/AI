@@ -60,4 +60,47 @@ def _record(url: str, payload: dict[str, Any], status: int, response: Any, start
     target = inferred_target or logical_target
     trace_id = str(payload.get("trace_id") or payload.get("envelope", {}).get("trace_id") or "untraced")
     capability = str(logical_target.get("capability") or payload.get("task_type") or payload.get("action") or "http.call")
-    record_interface_call(trace_id=trace_id, source=source, target=target, capability=capability, method="POST", url=url, request=payload, response=response, status_code=status, duration_ms=(perf_counter() - started) * 1000)
+    record_interface_call(
+        trace_id=trace_id,
+        source=source,
+        target=target,
+        capability=capability,
+        method="POST",
+        url=url,
+        request=_compact_audit_payload(payload),
+        response=_compact_audit_payload(response),
+        status_code=status,
+        duration_ms=(perf_counter() - started) * 1000,
+    )
+
+
+def _compact_audit_payload(value: Any, *, string_limit: int = 4000, list_limit: int = 20, depth: int = 0) -> Any:
+    if depth > 8:
+        return {"_truncated": True, "reason": "max_depth"}
+    if isinstance(value, str):
+        if len(value) <= string_limit:
+            return value
+        return {"_truncated": True, "size_chars": len(value), "preview": value[:string_limit]}
+    if isinstance(value, list):
+        return {
+            "count": len(value),
+            "sample": [_compact_audit_payload(item, string_limit=string_limit, list_limit=list_limit, depth=depth + 1) for item in value[:list_limit]],
+            "truncated": len(value) > list_limit,
+        }
+    if isinstance(value, dict):
+        compact: dict[str, Any] = {}
+        for key, item in value.items():
+            key_text = str(key)
+            if key_text in {"workflow_prior_outputs", "conversation_context"}:
+                compact[key_text] = _compact_audit_payload(item, string_limit=1200, list_limit=8, depth=depth + 1)
+            elif key_text in {"items", "records", "rows", "fields", "chunks", "documents"} and isinstance(item, list):
+                compact[f"{key_text}_count"] = len(item)
+                compact[f"{key_text}_sample"] = [
+                    _compact_audit_payload(row, string_limit=1200, list_limit=8, depth=depth + 1)
+                    for row in item[: min(list_limit, 8)]
+                ]
+                compact[f"{key_text}_truncated"] = len(item) > min(list_limit, 8)
+            else:
+                compact[key_text] = _compact_audit_payload(item, string_limit=string_limit, list_limit=list_limit, depth=depth + 1)
+        return compact
+    return value
