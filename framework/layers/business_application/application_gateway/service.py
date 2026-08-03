@@ -470,6 +470,15 @@ def post(handler: Any, body: dict[str, Any]) -> None:
     if handler.path == "/api/v1/application/context/capacity":
         _evaluate_context_capacity(handler, body)
         return
+    if handler.path == "/api/v1/application/context/handoff":
+        _generate_context_handoff(handler, body)
+        return
+    if handler.path == "/api/v1/application/context/handoff/query":
+        _query_context_handoff(handler, body)
+        return
+    if handler.path == "/api/v1/application/knowledge/files/delete":
+        _delete_knowledge_file(handler, body)
+        return
     if handler.path == "/api/v1/generated-files":
         _create_generated_file(handler, body)
         return
@@ -507,15 +516,11 @@ def post(handler: Any, body: dict[str, Any]) -> None:
         handler.send(503, standard_response(body, "failed", error={"code": "DATA_PERSISTENCE_FAILED", "message": "用户请求未能写入数据模块", "details": persistence})); return
     task_id = create_task(body["trace_id"], body["request_id"])
     forwarded = json.loads(json.dumps(body)); forwarded["source"] = {"layer": "business_application", "module": "application-gateway"}; forwarded["payload"]["platform_task_id"] = task_id
-    persisted_context = _load_recent_conversation_context(body, limit=12)
     client_context = body.get("payload", {}).get("conversation_context")
-    # Prefer persisted data, but retain the browser's bounded window while a
-    # just-written message is not yet visible to the data query.
-    forwarded["payload"]["conversation_context"] = (
-        persisted_context
-        if persisted_context
-        else client_context if isinstance(client_context, list) else []
-    )
+    # Context selection belongs to context-prompt-management.  The application
+    # gateway only forwards a client-provided bounded window as a last-resort
+    # hint; it no longer decides which historical messages are relevant.
+    forwarded["payload"]["conversation_context"] = client_context if isinstance(client_context, list) else []
     # Intent analysis may wait for a high-latency model response. Keep this
     # outer request longer than every downstream timeout in that path.
     intent_timeout = 210 if forwarded["target"].get("capability") == "intent.analyze" else 70
@@ -584,58 +589,350 @@ def _evaluate_context_capacity(handler: Any, body: dict[str, Any]) -> None:
     handler.send(200, {"status": "succeeded", "trace_id": trace_id, "data": response.get("data") or {}})
 
 
-def _load_recent_conversation_context(envelope: dict[str, Any], *, limit: int) -> list[dict[str, Any]]:
-    """Load a small, ownership-scoped context window for intent resolution."""
-    actor = envelope.get("actor") or {}
-    context = envelope.get("context") or {}
-    conversation_id = str(context.get("conversation_id") or envelope.get("trace_id") or "")
-    if not conversation_id:
-        return []
-    query = make_internal_envelope(
-        envelope.get("trace_id") or str(uuid4()),
+def _context_actor(body: dict[str, Any]) -> dict[str, Any]:
+    raw = body.get("actor") if isinstance(body.get("actor"), dict) else {}
+    return {
+        **raw,
+        "tenant_id": raw.get("tenant_id") or body.get("tenant_id") or "web-workbench",
+        "user_id": raw.get("user_id") or raw.get("userId") or body.get("account_id") or body.get("accountId") or "",
+        "authenticated": bool(raw.get("authenticated", True)),
+    }
+
+
+def _call_context_foundation(
+    *,
+    trace_id: str,
+    request_id: str,
+    actor: dict[str, Any],
+    capability: str,
+    payload: dict[str, Any],
+    context: dict[str, Any],
+    timeout: int = 120,
+) -> tuple[int, dict[str, Any]]:
+    envelope = make_internal_envelope(
+        trace_id,
         actor,
-        str(uuid4()),
-        "data.search",
-        "business_engine",
-        "engine-gateway",
-        {
-            "dataset": "conversation_messages",
-            "filters": {
-                "conversation_id": conversation_id,
-                "owner_account_id": actor.get("user_id") or actor.get("actor_id"),
-                "project_id": context.get("project_id"),
-            },
-            "limit": max(1, min(limit, 30)),
-            "compact": True,
-        },
+        request_id,
+        capability,
+        "foundation",
+        "foundation-gateway",
+        payload,
         source_layer="business_application",
         source_module="application-gateway",
         context=context,
     )
+    return post_json(
+        "http://127.0.0.1:8300/api/v1/foundation/instructions",
+        envelope,
+        timeout=timeout,
+        caller={"layer": "business_application", "module": "application-gateway"},
+    )
+
+
+def _generate_context_handoff(handler: Any, body: dict[str, Any]) -> None:
+    trace_id = str(body.get("trace_id") or body.get("traceId") or uuid4())
+    request_id = str(body.get("request_id") or uuid4())
+    actor = _context_actor(body)
+    project_id = str(body.get("project_id") or body.get("projectId") or "")
+    conversation_id = str(body.get("conversation_id") or body.get("conversationId") or "")
+    binding_error = _validate_owned_context(trace_id, actor, project_id, conversation_id)
+    if binding_error:
+        handler.send(403, {"status": "failed", "trace_id": trace_id, "error": binding_error})
+        return
+    status, response = _call_context_foundation(
+        trace_id=trace_id,
+        request_id=request_id,
+        actor=actor,
+        capability="context.handoff.generate",
+        payload={"project_id": project_id, "conversation_id": conversation_id},
+        context={"project_id": project_id, "conversation_id": conversation_id, "locale": "zh-CN"},
+        timeout=180,
+    )
+    if status != 200 or not isinstance(response, dict) or response.get("status") != "success":
+        handler.send(502, {"status": "failed", "trace_id": trace_id, "error": {"code": "CONTEXT_HANDOFF_GENERATION_FAILED", "details": response}})
+        return
+    generated = response.get("data") if isinstance(response.get("data"), dict) else {}
+    artifacts = generated.get("generated_files") if isinstance(generated.get("generated_files"), list) else []
+    persisted_artifacts = []
+    for artifact in artifacts:
+        if not isinstance(artifact, dict):
+            continue
+        persisted = _persist_handoff_knowledge_artifact(
+            trace_id=trace_id,
+            actor=actor,
+            project_id=project_id,
+            conversation_id=conversation_id,
+            artifact=artifact,
+        )
+        if persisted.get("status") != "success":
+            handler.send(502, {"status": "failed", "trace_id": trace_id, "error": {"code": "CONTEXT_HANDOFF_KNOWLEDGE_PERSISTENCE_FAILED", "details": persisted}})
+            return
+        persisted_artifacts.append(persisted.get("data") or {})
+    generated["knowledge_files"] = persisted_artifacts
+    handler.send(200, {"status": "succeeded", "trace_id": trace_id, "data": generated})
+
+
+def _persist_handoff_knowledge_artifact(
+    *,
+    trace_id: str,
+    actor: dict[str, Any],
+    project_id: str,
+    conversation_id: str,
+    artifact: dict[str, Any],
+) -> dict[str, Any]:
+    content = str(artifact.get("content") or "").strip()
+    if not content:
+        return {"status": "failed", "error": {"code": "CONTEXT_HANDOFF_ARTIFACT_EMPTY"}}
+    artifact_type = str(artifact.get("artifact_type") or artifact.get("type") or "handoff_file")
+    version = int(artifact.get("handoff_version") or 1)
+    owner = str(actor.get("user_id") or "")
+    bundle_id = str(artifact.get("bundle_id") or "")
+    knowledge_base_id = f"kb_context_handoff_{owner}"
+    file_id = f"gen_{uuid4().hex[:16]}"
+    object_id = f"obj_{uuid4().hex[:16]}"
+    original_name = {
+        "work_report": f"工作汇报_v{version}.md",
+        "handoff_file": f"交接文件_v{version}.md",
+        "inheritance_package": f"继承包_v{version}.md",
+    }.get(artifact_type, f"{artifact_type}_v{version}.md")
+    stored_name = f"{file_id}.md"
+    GENERATED_ROOT.mkdir(parents=True, exist_ok=True)
+    saved_path = GENERATED_ROOT / stored_name
+    saved_path.write_text(content, encoding="utf-8")
+    timestamp = datetime.now(timezone.utc).isoformat()
+    digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
+    source_record_id = str(artifact.get("record_id") or "")
+    knowledge_source_id = f"ks_handoff_{file_id}"
+    platform_ref = {
+        "type": "generated_knowledge_document",
+        "file_id": file_id,
+        "object_id": object_id,
+        "original_name": original_name,
+        "content_type": "text/markdown;charset=utf-8",
+        "size_bytes": len(content.encode("utf-8")),
+        "sha256": digest,
+        "storage_uri": f"local://framework/data/foundation_data/objects/generated/{stored_name}",
+        "saved_path": str(saved_path),
+    }
+    file_record = {
+        "file_id": file_id,
+        "record_id": file_id,
+        "object_id": object_id,
+        "tenant_id": actor.get("tenant_id") or "web-workbench",
+        "owner_account_id": owner,
+        "project_id": project_id,
+        "conversation_id": conversation_id,
+        "original_name": original_name,
+        "content_type": "text/markdown;charset=utf-8",
+        "size_bytes": len(content.encode("utf-8")),
+        "sha256": digest,
+        "storage_uri": platform_ref["storage_uri"],
+        "saved_path": str(saved_path),
+        "platform_ref": platform_ref,
+        "asset_scope": "personal_knowledge",
+        "knowledge_base_id": knowledge_base_id,
+        "knowledge_base_name": "上下文交接包",
+        "knowledge_source_id": knowledge_source_id,
+        "source_type": "context_handoff",
+        "artifact_type": artifact_type,
+        "source_record_id": source_record_id,
+        "bundle_id": bundle_id,
+        "handoff_version": version,
+        "state": "active",
+        "deleted": False,
+        "created_at": timestamp,
+        "updated_at": timestamp,
+    }
+    object_record = {
+        "object_id": object_id,
+        "record_id": object_id,
+        "tenant_id": actor.get("tenant_id") or "web-workbench",
+        "owner_account_id": owner,
+        "project_id": project_id,
+        "conversation_id": conversation_id,
+        "object_type": "context_handoff_knowledge_file",
+        "original_name": original_name,
+        "content_type": file_record["content_type"],
+        "size_bytes": file_record["size_bytes"],
+        "sha256": digest,
+        "storage_uri": platform_ref["storage_uri"],
+        "saved_path": str(saved_path),
+        "source_type": "context_handoff",
+        "artifact_type": artifact_type,
+        "bundle_id": bundle_id,
+        "handoff_version": version,
+        "state": "active",
+        "deleted": False,
+        "created_at": timestamp,
+        "updated_at": timestamp,
+    }
+    persisted = _persist_records(trace_id, actor, str(uuid4()), [
+        {"dataset": "generated_files", "operation": "upsert", "records": [{**file_record, "status": "available"}]},
+        {"dataset": "storage_objects", "operation": "upsert", "records": [object_record]},
+        {"dataset": "uploaded_files", "operation": "upsert", "records": [file_record]},
+    ])
+    if persisted.get("status") != "success":
+        saved_path.unlink(missing_ok=True)
+        return persisted
+    register_envelope = make_internal_envelope(
+        trace_id,
+        actor,
+        str(uuid4()),
+        "knowledge_source.register",
+        "business_engine",
+        "engine-gateway",
+        {
+            "knowledge_source_id": knowledge_source_id,
+            "knowledge_base_id": knowledge_base_id,
+            "knowledge_base_name": "上下文交接包",
+            "asset_scope": "personal_knowledge",
+            "source_type": "context_handoff",
+            "scope": "personal",
+            "project_id": project_id,
+            "conversation_id": conversation_id,
+            "source_record_id": source_record_id,
+            "artifact_type": artifact_type,
+            "bundle_id": bundle_id,
+            "handoff_version": version,
+            "uploaded_files": [platform_ref],
+        },
+        source_layer="business_application",
+        source_module="application-gateway",
+        context={"project_id": project_id, "conversation_id": conversation_id, "locale": "zh-CN"},
+    )
     status, response = post_json(
         "http://127.0.0.1:8200/api/v1/engine/instructions",
-        query,
-        timeout=20,
+        register_envelope,
+        timeout=180,
         caller={"layer": "business_application", "module": "application-gateway"},
     )
     if status not in {200, 202} or not isinstance(response, dict) or response.get("status") != "success":
-        return []
-    operation = response.get("data") or {}
-    storage = operation.get("storage_result") if isinstance(operation.get("storage_result"), dict) else {}
-    items = storage.get("items") if isinstance(storage.get("items"), list) else []
-    compact: list[dict[str, Any]] = []
-    for item in items[-limit:]:
-        if not isinstance(item, dict):
+        return {"status": "failed", "details": response}
+    index_result = ((response.get("data") or {}).get("knowledge_index_result") or {})
+    return {
+        "status": "success",
+        "data": {
+            "file_id": file_id,
+            "object_id": object_id,
+            "original_name": original_name,
+            "project_id": project_id,
+            "conversation_id": conversation_id,
+            "knowledge_base_id": knowledge_base_id,
+            "knowledge_base_name": "上下文交接包",
+            "knowledge_source_id": knowledge_source_id,
+            "asset_scope": "personal_knowledge",
+            "source_type": "context_handoff",
+            "artifact_type": artifact_type,
+            "source_record_id": source_record_id,
+            "bundle_id": bundle_id,
+            "handoff_version": version,
+            "state": "active",
+            "deleted": False,
+            "meta": f"上下文交接包 · {artifact_type} · v{version}",
+            "knowledge_chunk_count": index_result.get("chunk_count", 0),
+        },
+    }
+
+
+def _query_context_handoff(handler: Any, body: dict[str, Any]) -> None:
+    trace_id = str(body.get("trace_id") or body.get("traceId") or uuid4())
+    actor = _context_actor(body)
+    project_id = str(body.get("project_id") or body.get("projectId") or "")
+    conversation_id = str(body.get("conversation_id") or body.get("conversationId") or "")
+    scope = str(body.get("scope") or ("conversation" if conversation_id else "project" if project_id else "account"))
+    if scope in {"conversation", "project"}:
+        binding_error = _validate_owned_context(
+            trace_id,
+            actor,
+            project_id,
+            conversation_id if scope == "conversation" else None,
+        )
+        if binding_error:
+            handler.send(403, {"status": "failed", "trace_id": trace_id, "error": binding_error})
+            return
+    status, response = _call_context_foundation(
+        trace_id=trace_id,
+        request_id=str(body.get("request_id") or uuid4()),
+        actor=actor,
+        capability="context.control_center.query",
+        payload={"scope": scope, "project_id": project_id, "conversation_id": conversation_id},
+        context={"project_id": project_id, "conversation_id": conversation_id, "locale": "zh-CN"},
+        timeout=60,
+    )
+    if status != 200 or not isinstance(response, dict) or response.get("status") != "success":
+        handler.send(502, {"status": "failed", "trace_id": trace_id, "error": {"code": "CONTEXT_HANDOFF_QUERY_FAILED", "details": response}})
+        return
+    handler.send(200, {"status": "succeeded", "trace_id": trace_id, "data": response.get("data") or {}})
+
+
+def _delete_knowledge_file(handler: Any, body: dict[str, Any]) -> None:
+    trace_id = str(body.get("trace_id") or body.get("traceId") or uuid4())
+    actor = _context_actor(body)
+    file_id = str(body.get("file_id") or body.get("fileId") or "")
+    if not file_id:
+        handler.send(422, {"status": "failed", "trace_id": trace_id, "error": {"code": "KNOWLEDGE_FILE_ID_REQUIRED"}})
+        return
+    file_record = _read_data_record(trace_id, actor, "uploaded_files", file_id)
+    if not file_record:
+        handler.send(404, {"status": "failed", "trace_id": trace_id, "error": {"code": "KNOWLEDGE_FILE_NOT_FOUND"}})
+        return
+    if str(file_record.get("owner_account_id") or "") != str(actor.get("user_id") or ""):
+        handler.send(403, {"status": "failed", "trace_id": trace_id, "error": {"code": "KNOWLEDGE_FILE_OWNER_MISMATCH"}})
+        return
+    source_envelope = make_internal_envelope(
+        trace_id,
+        actor,
+        str(body.get("request_id") or uuid4()),
+        "knowledge.material.delete",
+        "foundation",
+        "foundation-gateway",
+        {
+            "file_id": file_id,
+            "knowledge_source_id": file_record.get("knowledge_source_id"),
+            "project_id": file_record.get("project_id"),
+            "conversation_id": file_record.get("conversation_id"),
+        },
+        source_layer="business_application",
+        source_module="application-gateway",
+        context={"project_id": file_record.get("project_id"), "conversation_id": file_record.get("conversation_id"), "locale": "zh-CN"},
+    )
+    status, response = post_json(
+        "http://127.0.0.1:8300/api/v1/foundation/instructions",
+        source_envelope,
+        timeout=120,
+        caller={"layer": "business_application", "module": "application-gateway"},
+    )
+    if status != 200 or not isinstance(response, dict) or response.get("status") != "success":
+        handler.send(502, {"status": "failed", "trace_id": trace_id, "error": {"code": "KNOWLEDGE_INDEX_DELETE_FAILED", "details": response}})
+        return
+    timestamp = datetime.now(timezone.utc).isoformat()
+    tombstone = {
+        "state": "deleted",
+        "deleted": True,
+        "deleted_at": timestamp,
+        "deleted_by": actor.get("user_id"),
+        "delete_reason": str(body.get("reason") or "user_requested"),
+    }
+    writes = []
+    delete_targets = [("uploaded_files", file_id), ("storage_objects", file_record.get("object_id"))]
+    if str(file_record.get("source_type") or "") == "context_handoff" or file_id.startswith("gen_"):
+        delete_targets.append(("generated_files", file_id))
+    for dataset, record_id in delete_targets:
+        if not record_id:
             continue
-        content = item.get("content")
-        if not isinstance(content, str) or not content.strip():
-            continue
-        compact.append({
-            "role": str(item.get("role") or "unknown"),
-            "content": content[:2000],
-            "created_at": item.get("created_at"),
-        })
-    return compact
+        writes.append({"dataset": dataset, "operation": "update", "records": [{"record_id": str(record_id), **tombstone}]})
+        writes.append({"dataset": dataset, "operation": "delete", "records": [{"record_id": str(record_id)}]})
+    persisted = _persist_records(trace_id, actor, str(uuid4()), writes)
+    if persisted.get("status") != "success":
+        handler.send(502, {"status": "failed", "trace_id": trace_id, "error": {"code": "KNOWLEDGE_FILE_DELETE_FAILED", "details": persisted}})
+        return
+    handler.send(200, {"status": "succeeded", "trace_id": trace_id, "data": {
+        "file_id": file_id,
+        "state": "deleted",
+        "deleted": True,
+        "deleted_at": timestamp,
+        "deleted_by": actor.get("user_id"),
+    }})
 
 
 def _confirm(handler: Any, confirmation_id: str, decision: dict[str, Any]) -> None:

@@ -143,6 +143,67 @@ export const platformApi = {
     })
   },
 
+  generateContextHandoff({ actor, projectId, conversationId } = {}) {
+    return request('/api/v1/application/context/handoff', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        trace_id: newId('ctx-handoff'),
+        request_id: uniqueId('request'),
+        tenant_id: tenantId,
+        actor: {
+          ...actor,
+          tenant_id: tenantId,
+          user_id: actor?.user_id || actor?.userId || actor?.accountId || '',
+          authenticated: true,
+        },
+        project_id: projectId,
+        conversation_id: conversationId,
+      }),
+    })
+  },
+
+  queryContextHandoff({ actor, scope = 'conversation', projectId = '', conversationId = '' } = {}) {
+    return request('/api/v1/application/context/handoff/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        trace_id: newId('ctx-query'),
+        request_id: uniqueId('request'),
+        tenant_id: tenantId,
+        actor: {
+          ...actor,
+          tenant_id: tenantId,
+          user_id: actor?.user_id || actor?.userId || actor?.accountId || '',
+          authenticated: true,
+        },
+        scope,
+        project_id: projectId,
+        conversation_id: conversationId,
+      }),
+    })
+  },
+
+  deleteKnowledgeFile({ actor, fileId, reason = 'user_requested' } = {}) {
+    return request('/api/v1/application/knowledge/files/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        trace_id: newId('kb-delete'),
+        request_id: uniqueId('request'),
+        tenant_id: tenantId,
+        actor: {
+          ...actor,
+          tenant_id: tenantId,
+          user_id: actor?.user_id || actor?.userId || actor?.accountId || '',
+          authenticated: true,
+        },
+        file_id: fileId,
+        reason,
+      }),
+    })
+  },
+
   getTask(taskId) {
     return request(`/api/v1/tasks/${encodeURIComponent(taskId)}`)
   },

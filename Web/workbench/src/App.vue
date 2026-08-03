@@ -156,6 +156,7 @@ const pendingConversationRename = ref(null)
 const conversationRenameInput = ref('')
 const sessionMessages = reactive({})
 const contextCapacityEvaluations = new Map()
+const handoffGeneratingConversationId = ref(null)
 const notificationReadIds = ref([])
 const notificationRecords = ref(structuredClone(notifications))
 const disabledResourceIds = ref([])
@@ -333,10 +334,13 @@ const matchesRightPanelSearch = (item, fields = []) => {
 }
 const filteredAgentRecords = computed(() => agentRecords.value.filter((item) => matchesRightPanelSearch(item, ['name', 'detail', 'level'])))
 const filteredSkillRecords = computed(() => skillRecords.value.filter((item) => matchesRightPanelSearch(item, ['name', 'detail', 'level', 'version'])))
-const filteredPersonalKnowledge = computed(() => personalKnowledge.value.filter((item) => matchesRightPanelSearch(item, ['name', 'meta', 'updated'])))
+const filteredPersonalKnowledge = computed(() => personalKnowledge.value
+  .map((item) => ({ ...item, files: (item.files || []).filter((file) => !isDeletedKnowledgeFile(file)) }))
+  .filter((item) => item.files.length > 0)
+  .filter((item) => matchesRightPanelSearch(item, ['name', 'meta', 'updated'])))
 const personalKnowledgeFiles = computed(() => personalKnowledge.value
   .filter((item) => !item.ownerAccountId || String(item.ownerAccountId) === String(currentAccount.value?.id || ''))
-  .flatMap((item) => (item.files || []).map((file) => ({
+  .flatMap((item) => (item.files || []).filter((file) => !isDeletedKnowledgeFile(file)).map((file) => ({
     ...file,
     knowledgeBaseId: item.id,
     knowledgeBaseName: item.name,
@@ -855,6 +859,13 @@ function uploadedRecordToFile(file, overrides = {}) {
     knowledgeBaseName: file.knowledge_base_name || file.knowledgeBaseName || platformRef?.knowledge_base_name,
     knowledgeSourceId: file.knowledge_source_id || file.knowledgeSourceId || platformRef?.knowledge_source_id,
     knowledgeChunkCount: file.knowledge_chunk_count ?? file.knowledgeChunkCount ?? platformRef?.knowledge_chunk_count,
+    sourceType: file.source_type || file.sourceType,
+    artifactType: file.artifact_type || file.artifactType,
+    sourceRecordId: file.source_record_id || file.sourceRecordId,
+    bundleId: file.bundle_id || file.bundleId,
+    handoffVersion: file.handoff_version ?? file.handoffVersion,
+    state: file.state,
+    deleted: Boolean(file.deleted),
     assetScope: file.asset_scope || file.assetScope,
     uploadedAt: file.uploaded_at || file.created_at || file.uploadedAt,
     download_url: file.download_url || fallbackDownloadUrl,
@@ -1539,6 +1550,7 @@ function buildPersonalKnowledgeFromUploads(uploadItems, account) {
   const groups = new Map()
   ;(uploadItems || [])
     .filter((file) => isPersonalKnowledgeUpload(file))
+    .filter((file) => !isDeletedKnowledgeFile(file))
     .filter((file) => String(file.owner_account_id || file.ownerAccountId || '') === String(account.id))
     .forEach((file) => {
       const knowledgeBaseId = file.knowledge_base_id || file.knowledgeBaseId || `pkb-${account.id}`
@@ -1564,6 +1576,10 @@ function buildPersonalKnowledgeFromUploads(uploadItems, account) {
   const records = [...groups.values()]
   records.forEach(refreshKnowledgeBaseMeta)
   return records
+}
+
+function isDeletedKnowledgeFile(file) {
+  return Boolean(file?.deleted) || String(file?.state || '').toLowerCase() === 'deleted'
 }
 
 async function loadAccountWorkspace(account) {
@@ -2632,6 +2648,128 @@ function startFreshConversationFromContext() {
   })
   selectConversation(currentProject.value.id, id)
   showToast('已沉淀上下文并创建续接对话')
+}
+
+function ensureContextHandoffKnowledgeBase() {
+  const id = `kb_context_handoff_${currentAccount.value.id}`
+  let knowledgeBase = personalKnowledge.value.find((item) => item.id === id)
+  if (!knowledgeBase) {
+    knowledgeBase = {
+      id,
+      name: '上下文交接包',
+      meta: '个人知识库 · 0 个文件',
+      updated: '刚刚',
+      ownerAccountId: currentAccount.value.id,
+      files: [],
+    }
+    personalKnowledge.value.unshift(knowledgeBase)
+  }
+  if (!knowledgeBase.files) knowledgeBase.files = []
+  return knowledgeBase
+}
+
+function addHandoffFilesToKnowledge(files = []) {
+  if (!files.length || !currentAccount.value.id) return
+  const knowledgeBase = ensureContextHandoffKnowledgeBase()
+  files.forEach((file) => {
+    const normalized = uploadedRecordToFile({
+      file_id: file.file_id,
+      object_id: file.object_id,
+      original_name: file.original_name,
+      content_type: 'text/markdown;charset=utf-8',
+      owner_account_id: currentAccount.value.id,
+      project_id: file.project_id,
+      conversation_id: file.conversation_id,
+      asset_scope: file.asset_scope || 'personal_knowledge',
+      knowledge_base_id: file.knowledge_base_id,
+      knowledge_base_name: file.knowledge_base_name,
+      knowledge_source_id: file.knowledge_source_id,
+      knowledge_chunk_count: file.knowledge_chunk_count,
+      source_type: file.source_type,
+      artifact_type: file.artifact_type,
+      source_record_id: file.source_record_id,
+      bundle_id: file.bundle_id,
+      handoff_version: file.handoff_version,
+      state: file.state,
+      deleted: file.deleted,
+      uploaded_at: new Date().toISOString(),
+    }, {
+      assetScope: file.asset_scope || 'personal_knowledge',
+      knowledgeBaseId: knowledgeBase.id,
+      knowledgeBaseName: knowledgeBase.name,
+      ownerAccountId: currentAccount.value.id,
+      source: `个人知识库 · ${knowledgeBase.name}`,
+    })
+    const index = knowledgeBase.files.findIndex((item) => String(item.id || item.fileId) === String(normalized.id))
+    if (index >= 0) knowledgeBase.files.splice(index, 1, normalized)
+    else knowledgeBase.files.unshift(normalized)
+  })
+  refreshKnowledgeBaseMeta(knowledgeBase)
+  selectedPersonalKnowledgeId.value = knowledgeBase.id
+}
+
+async function generateCurrentContextHandoff() {
+  if (!currentConversation.value || !currentProject.value || !currentAccount.value.id) return
+  const conversation = currentConversation.value
+  if (handoffGeneratingConversationId.value === conversation.id) return
+  handoffGeneratingConversationId.value = conversation.id
+  try {
+    showToast('正在生成工作汇报、交接文件和继承包...')
+    const backendProjectId = await ensureProjectRegistered(currentProject.value)
+    const backendConversationId = await ensureConversationRegistered(conversation, currentProject.value)
+    const result = await platformApi.generateContextHandoff({
+      actor: { user_id: currentAccount.value.id, userId: currentAccount.value.id, authenticated: true },
+      projectId: backendProjectId,
+      conversationId: backendConversationId,
+    })
+    const files = result.data?.knowledge_files || []
+    addHandoffFilesToKnowledge(files)
+    conversation.contextCapacityState = 'handoff_generated'
+    conversation.contextCapacityNextAction = 'create_or_switch_next_session'
+    conversation.handoffVersion = result.data?.handoff_version
+    rightTab.value = 'knowledge'
+    showToast(`已生成交接包 v${result.data?.handoff_version || ''}，并写入知识库`)
+  } catch (error) {
+    showToast(accountError(error))
+  } finally {
+    handoffGeneratingConversationId.value = null
+  }
+}
+
+async function deleteKnowledgeFile(file, knowledgeBase = null) {
+  if (!file || !currentAccount.value.id) return
+  const fileId = file.id || file.file_id || file.fileId
+  if (!fileId) return
+  const base = personalKnowledge.value.find((item) => String(item.id) === String(knowledgeBase?.id))
+    || personalKnowledge.value.find((item) => (item.files || []).some((candidate) => String(candidate.id || candidate.fileId) === String(fileId)))
+  const removed = base?.files ? base.files.find((item) => String(item.id || item.fileId) === String(fileId)) : null
+  const baseIndex = base ? personalKnowledge.value.findIndex((item) => String(item.id) === String(base.id)) : -1
+  const previousSelectedPersonalKnowledgeId = selectedPersonalKnowledgeId.value
+  if (base?.files) base.files = base.files.filter((item) => String(item.id || item.fileId) !== String(fileId))
+  if (base) refreshKnowledgeBaseMeta(base)
+  if (base && !base.files.length) {
+    personalKnowledge.value = personalKnowledge.value.filter((item) => String(item.id) !== String(base.id))
+    if (String(selectedPersonalKnowledgeId.value) === String(base.id)) selectedPersonalKnowledgeId.value = personalKnowledge.value[0]?.id ?? null
+  }
+  if (filePreview.value && String(filePreview.value.id || filePreview.value.fileId) === String(fileId)) filePreview.value = null
+  try {
+    await platformApi.deleteKnowledgeFile({
+      actor: { user_id: currentAccount.value.id, userId: currentAccount.value.id, authenticated: true },
+      fileId,
+    })
+    showToast('文件已从知识库移除')
+  } catch (error) {
+    if (base && removed) {
+      if (!personalKnowledge.value.some((item) => String(item.id) === String(base.id))) {
+        const restoreIndex = baseIndex >= 0 ? Math.min(baseIndex, personalKnowledge.value.length) : 0
+        personalKnowledge.value.splice(restoreIndex, 0, base)
+      }
+      base.files.unshift(removed)
+      refreshKnowledgeBaseMeta(base)
+      selectedPersonalKnowledgeId.value = previousSelectedPersonalKnowledgeId
+    }
+    showToast(accountError(error))
+  }
 }
 
 function openCommandRecord(record) {
@@ -3830,6 +3968,7 @@ onBeforeUnmount(() => {
                 :current-context-usage="currentContextUsage"
                 :context-level="contextLevel"
                 :context-hint="contextHint"
+                :handoff-generating="handoffGeneratingConversationId === currentConversation?.id"
                 :session-timeline="sessionTimeline"
                 :project-flow-records="projectFlowRecords"
                 :command-pending-count="commandPendingCount"
@@ -3838,6 +3977,7 @@ onBeforeUnmount(() => {
                 @select-conversation="selectConversation"
                 @open-command-record="openCommandRecord"
                 @dispatch-alert="dispatchAlert"
+                @generate-handoff="generateCurrentContextHandoff"
               />
               <RightCapabilityPanel
                 v-if="rightTab === 'agent' || rightTab === 'skill'"
@@ -3870,6 +4010,7 @@ onBeforeUnmount(() => {
                 @create="createKnowledgeFromConversation"
                 @grant="openKnowledgeGrantDialog"
                 @preview="openFilePreview"
+                @delete-file="deleteKnowledgeFile"
               />
               <RightFilesPanel
                 v-if="rightTab === 'files'"

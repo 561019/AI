@@ -218,7 +218,15 @@ def post(handler: Any, envelope: dict[str, Any]) -> None:
         handler.send(422, {"error": {"code": "PRECONDITION_REQUIRED"}}); return
     context_envelope = make_internal_envelope(
         envelope["trace_id"], envelope["actor"], str(envelope.get("payload", {}).get("platform_task_id") or envelope["request_id"]),
-        "context.intent.prepare", "foundation", "context-prompt-management", {},
+        "context.intent.prepare", "foundation", "context-prompt-management", {
+            "utterance": utterance,
+            "uploaded_documents": uploaded_documents,
+            "conversation_context": (
+                envelope.get("payload", {}).get("conversation_context")
+                or envelope.get("context", {}).get("conversation_context")
+                or []
+            ),
+        },
         source_layer="business_engine", source_module="intent-adapter",
         context=envelope.get("context") if isinstance(envelope.get("context"), dict) else {},
     )
@@ -237,7 +245,7 @@ def post(handler: Any, envelope: dict[str, Any]) -> None:
         "trace_id": envelope["trace_id"], "actor": envelope["actor"],
         "platform_task_id": envelope.get("payload", {}).get("platform_task_id"),
         "uploaded_documents": uploaded_documents,
-        "conversation_context": prepared_context.get("materials") or (
+        "conversation_context": prepared_context.get("conversation_context") or prepared_context.get("materials") or (
             envelope.get("payload", {}).get("conversation_context")
             or envelope.get("context", {}).get("conversation_context")
             or []

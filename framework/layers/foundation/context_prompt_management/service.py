@@ -8,6 +8,7 @@ through the foundation gateway and foundation-data service.
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
@@ -20,7 +21,7 @@ from framework.http import post_json
 CAPABILITIES = {
     "context.intent.prepare", "context.capacity.evaluate", "context.handoff.generate",
     "context.handoff.import", "context.project.search", "context.account.search",
-    "context.reference.import",
+    "context.reference.import", "context.control_center.query",
 }
 WARNING_RATIO = 0.80
 HANDOFF_RATIO = 0.85
@@ -55,6 +56,8 @@ def post(handler: Any, envelope: dict[str, Any]) -> None:
             data = _import_material(envelope, payload, cross_project=True)
         elif capability == "context.project.search":
             data = _search(envelope, payload, account_scope=False)
+        elif capability == "context.control_center.query":
+            data = _control_center_query(envelope, payload)
         else:
             data = _search(envelope, payload, account_scope=True)
     except ContextError as exc:
@@ -110,13 +113,250 @@ def _write(envelope: dict[str, Any], dataset: str, record: dict[str, Any]) -> No
 def _prepare_intent_context(envelope: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
     _, owner, project_id, conversation_id = _identity(envelope, payload)
     if not project_id or not conversation_id:
-        raise ContextError("CONVERSATION_CONTEXT_REQUIRED", "意图分析需要当前 Project 和普通对话框")
+        raise ContextError("CONVERSATION_CONTEXT_REQUIRED", "intent analysis requires current project and conversation")
+    utterance = str(payload.get("utterance") or payload.get("text") or "").strip()
     imports = _query(envelope, "context_imports", {"target_conversation_id": conversation_id, "owner_account_id": owner}, 100)
     materials = [
         {key: item.get(key) for key in ("source_record_type", "source_record_id", "title", "content", "source_project_id", "imported_at")}
         for item in imports if str(item.get("target_project_id") or project_id) == project_id
     ]
-    return {"scope": "conversation", "conversation_id": conversation_id, "project_id": project_id, "materials": materials, "context_ref": f"ctx-import:{conversation_id}"}
+    messages = _query(
+        envelope,
+        "conversation_messages",
+        {"conversation_id": conversation_id, "owner_account_id": owner, "project_id": project_id},
+        300,
+    )
+    selected_messages = _select_relevant_conversation_context(
+        messages,
+        utterance=utterance,
+        current_trace_id=str(envelope.get("trace_id") or ""),
+        fallback_items=payload.get("conversation_context") if isinstance(payload.get("conversation_context"), list) else [],
+        limit=12,
+    )
+    imported_context = _compact_imported_materials(materials, limit=8)
+    return {
+        "scope": "conversation",
+        "conversation_id": conversation_id,
+        "project_id": project_id,
+        "materials": materials,
+        "conversation_context": imported_context + selected_messages,
+        "context_ref": f"ctx-intent:{conversation_id}",
+        "selection": {
+            "strategy": "relevance_filtered",
+            "candidate_message_count": len(messages),
+            "selected_message_count": len(selected_messages),
+            "imported_material_count": len(imported_context),
+        },
+    }
+
+
+def _compact_imported_materials(materials: list[dict[str, Any]], *, limit: int) -> list[dict[str, Any]]:
+    compact: list[dict[str, Any]] = []
+    for item in materials[: max(0, limit)]:
+        if not isinstance(item, dict):
+            continue
+        content = str(item.get("content") or "").strip()
+        if not content:
+            continue
+        title = str(item.get("title") or item.get("source_record_type") or "导入上下文材料").strip()
+        compact.append({
+            "role": "context",
+            "content_type": "context_import",
+            "title": title,
+            "content": f"{title}\n{content}"[:2000],
+            "created_at": item.get("imported_at"),
+            "source_record_id": item.get("source_record_id"),
+            "source_project_id": item.get("source_project_id"),
+        })
+    return compact
+
+
+def _select_relevant_conversation_context(
+    messages: list[dict[str, Any]],
+    *,
+    utterance: str,
+    current_trace_id: str,
+    fallback_items: list[dict[str, Any]],
+    limit: int,
+) -> list[dict[str, Any]]:
+    candidates: list[tuple[int, str, dict[str, Any]]] = []
+    seen: set[tuple[str, str]] = set()
+    terms = _context_terms(utterance)
+    follow_up = _is_follow_up_question(utterance)
+    ordered = sorted(
+        [item for item in messages if isinstance(item, dict)],
+        key=lambda item: str(item.get("created_at") or ""),
+        reverse=True,
+    )
+    for index, item in enumerate(ordered):
+        compact_item = _compact_conversation_context_item(item)
+        content = compact_item.get("content")
+        if not isinstance(content, str) or not content.strip():
+            continue
+        if current_trace_id and str(compact_item.get("trace_id") or "") == current_trace_id:
+            continue
+        if utterance and compact_item.get("role") == "user" and content.strip() == utterance:
+            continue
+        dedupe_key = (str(compact_item.get("role") or ""), content)
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        score = _conversation_context_score(
+            compact_item,
+            terms=terms,
+            current_text=utterance,
+            follow_up=follow_up,
+            recency_rank=index,
+        )
+        if score > 0:
+            candidates.append((score, str(compact_item.get("created_at") or ""), compact_item))
+    if not candidates and fallback_items:
+        for index, item in enumerate(fallback_items):
+            if not isinstance(item, dict):
+                continue
+            compact_item = _compact_conversation_context_item(item)
+            content = compact_item.get("content")
+            if not isinstance(content, str) or not content.strip():
+                continue
+            score = _conversation_context_score(
+                compact_item,
+                terms=terms,
+                current_text=utterance,
+                follow_up=follow_up,
+                recency_rank=index,
+            )
+            if score > 0:
+                candidates.append((score, str(compact_item.get("created_at") or ""), compact_item))
+    candidates.sort(key=lambda row: (-row[0], row[1]))
+    selected = [item for _, _, item in candidates[: max(1, limit)]]
+    selected.sort(key=lambda item: str(item.get("created_at") or ""))
+    return selected
+
+
+def _compact_conversation_context_item(item: dict[str, Any]) -> dict[str, Any]:
+    role = str(item.get("role") or "unknown")
+    content_type = str(item.get("content_type") or "")
+    content_text = item.get("content_text")
+    content = item.get("content")
+    text = ""
+    if isinstance(content_text, str) and content_text.strip():
+        text = content_text.strip()
+    elif isinstance(content, str) and content.strip():
+        text = content.strip()
+    elif isinstance(content, dict):
+        text = _extract_user_visible_text(content)
+    if content_type == "execution_error":
+        text = ""
+    if content_type == "intent_analysis" and role == "assistant":
+        text = ""
+    return {
+        "role": role,
+        "content": text[:2000],
+        "content_type": content_type,
+        "created_at": item.get("created_at"),
+        "trace_id": item.get("trace_id"),
+    }
+
+
+def _extract_user_visible_text(result: Any) -> str:
+    if not isinstance(result, dict):
+        return str(result or "").strip()
+    data = result.get("data") if isinstance(result.get("data"), dict) else result
+    capability_result = data.get("capability_result") if isinstance(data.get("capability_result"), dict) else {}
+    user_result = capability_result.get("user_result") if isinstance(capability_result.get("user_result"), dict) else {}
+    for value in (
+        user_result.get("summary"),
+        user_result.get("answer"),
+        capability_result.get("summary_cn"),
+        capability_result.get("summary"),
+        capability_result.get("answer"),
+        capability_result.get("user_answer"),
+        data.get("summary_cn"),
+        data.get("summary"),
+    ):
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    content = capability_result.get("content")
+    if isinstance(content, str) and content.strip():
+        return content.strip()
+    return ""
+
+
+def _is_follow_up_question(text: str) -> bool:
+    value = (text or "").strip()
+    if not value:
+        return False
+    follow_up_markers = (
+        "它", "这个", "这条", "该", "上述", "上面", "前面", "上一轮", "刚才",
+        "那个", "这些", "那些", "属于哪个", "还有呢", "继续",
+    )
+    return any(marker in value for marker in follow_up_markers) and len(value) <= 80
+
+
+def _context_terms(text: str) -> set[str]:
+    value = text or ""
+    terms: set[str] = set()
+    for quoted in re.findall(r"《([^》]{2,80})》", value):
+        terms.add(quoted.strip())
+    for token in re.findall(r"[A-Za-z0-9][A-Za-z0-9_.-]{1,80}", value):
+        terms.add(token.lower())
+    important_terms = (
+        "个人知识库", "知识库", "当前上传文件", "上传文件", "综合联调测试主数据",
+        "项目编号", "项目名称", "项目", "区域", "地区", "产品名称", "产品",
+        "需求数量", "需求", "最近一个月", "今年下半年", "下半年", "预测",
+        "盈亏平衡", "预算风险", "预算", "风险", "桂中",
+    )
+    for term in important_terms:
+        if term in value:
+            terms.add(term)
+    for chunk in re.split(r"[，。！？；：、\s\[\]\(\)（）{}<>《》\"'“”‘’]+", value):
+        chunk = chunk.strip()
+        if 2 <= len(chunk) <= 24:
+            chunk = re.sub(r"^(请|帮我|告诉我|根据|基于|当前|本次|这个|那个|它|那|的|把)", "", chunk)
+            chunk = re.sub(r"(是什么|有哪些|怎么|为什么|多少|一下|呢|吗|吧|呀)$", "", chunk)
+            if 2 <= len(chunk) <= 24:
+                terms.add(chunk)
+    return {term for term in terms if term}
+
+
+def _conversation_context_score(
+    item: dict[str, Any],
+    *,
+    terms: set[str],
+    current_text: str,
+    follow_up: bool,
+    recency_rank: int,
+) -> int:
+    text = str(item.get("content") or "")
+    if not text:
+        return 0
+    role = str(item.get("role") or "")
+    content_type = str(item.get("content_type") or "")
+    if current_text and role == "user" and text.strip() == current_text.strip():
+        return 0
+    score = 0
+    lowered = text.lower()
+    asks_about_failure = any(marker in current_text for marker in ("为什么", "哪里", "报错", "失败", "不行", "不能", "问题"))
+    negative_result_markers = (
+        "未能查询到", "无法给出", "无法直接给出", "数据不足", "当前数据还不足",
+        "没有返回", "模型网关", "请检查", "建议您补充", "查不到",
+    )
+    if content_type == "execution_result" and not asks_about_failure:
+        if any(marker in text for marker in negative_result_markers):
+            return 0
+    for term in terms:
+        if term and term.lower() in lowered:
+            score += 12 if len(term) >= 4 else 6
+    if role == "assistant" and content_type == "execution_result":
+        score += 20
+        if follow_up:
+            score += 25
+        score += max(0, 8 - recency_rank)
+    if role == "user" and follow_up:
+        score += 5 if score > 0 else 0
+    if content_type in {"execution_error", "intent_analysis"}:
+        score -= 50
+    return score if score >= 12 else 0
 
 
 def _evaluate_capacity(envelope: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
@@ -155,17 +395,50 @@ def _generate_handoff(envelope: dict[str, Any], payload: dict[str, Any]) -> dict
     handoff = _generate_artifact(envelope, "handoff_file", source)
     package = _generate_artifact(envelope, "inheritance_package", {**source, "work_report": report, "handoff_file": handoff})
     version = max([int(item.get("version_no") or 0) for item in old_packages] or [0]) + 1
+    bundle_id = f"handoff-bundle-{uuid4().hex[:16]}"
     records = [
         ("context_work_reports", {"report_id": f"report-{uuid4().hex[:16]}", "content": report, "title": "工作汇报", "source_record_type": "work_report"}),
         ("context_handoff_files", {"handoff_id": f"handoff-{uuid4().hex[:16]}", "content": handoff, "title": "工作交接文件", "source_record_type": "handoff_file"}),
-        ("context_inheritance_packages", {"package_id": f"package-{uuid4().hex[:16]}", "content": package, "title": f"传承包 v{version}", "version_no": version, "source_record_type": "inheritance_package"}),
+        ("context_inheritance_packages", {"package_id": f"package-{uuid4().hex[:16]}", "content": package, "title": f"继承包 v{version}", "version_no": version, "source_record_type": "inheritance_package"}),
     ]
     generated = []
     for dataset, item in records:
-        item.update({"record_id": item.get("report_id") or item.get("handoff_id") or item.get("package_id"), "tenant_id": tenant_id, "owner_account_id": owner, "project_id": project_id, "conversation_id": conversation_id, "created_at": _now(), "storage_class": "fixed", "retention_policy": "context-handoff-history"})
+        item.update({
+            "record_id": item.get("report_id") or item.get("handoff_id") or item.get("package_id"),
+            "tenant_id": tenant_id,
+            "owner_account_id": owner,
+            "project_id": project_id,
+            "conversation_id": conversation_id,
+            "source_conversation_id": conversation_id,
+            "handoff_version": version,
+            "bundle_id": bundle_id,
+            "artifact_type": item["source_record_type"],
+            "state": "active",
+            "deleted": False,
+            "created_at": _now(),
+            "storage_class": "fixed",
+            "retention_policy": "context-handoff-history",
+        })
         _write(envelope, dataset, item)
-        generated.append({"type": item["source_record_type"], "record_id": item["record_id"], "title": item["title"]})
-    return {"conversation_id": conversation_id, "project_id": project_id, "generated_files": generated, "next_action": "create_or_switch_next_session"}
+        generated.append({
+            "type": item["source_record_type"],
+            "artifact_type": item["artifact_type"],
+            "record_id": item["record_id"],
+            "title": item["title"],
+            "content": item["content"],
+            "project_id": project_id,
+            "conversation_id": conversation_id,
+            "handoff_version": version,
+            "bundle_id": bundle_id,
+        })
+    return {
+        "conversation_id": conversation_id,
+        "project_id": project_id,
+        "handoff_version": version,
+        "bundle_id": bundle_id,
+        "generated_files": generated,
+        "next_action": "create_or_switch_next_session",
+    }
 
 
 def _generate_artifact(envelope: dict[str, Any], kind: str, source: dict[str, Any]) -> str:
@@ -221,6 +494,57 @@ def _search(envelope: dict[str, Any], payload: dict[str, Any], *, account_scope:
             record_id = str(item.get("record_id") or item.get("message_id") or "")
             matches.append({"dataset": dataset, "record_id": record_id, "project_id": item.get("project_id"), "conversation_id": item.get("conversation_id"), "message_id": item.get("message_id"), "title": item.get("title") or item.get("original_name") or dataset, "snippet": text[:240], "jump_target": {"project_id": item.get("project_id"), "conversation_id": item.get("conversation_id"), "message_id": item.get("message_id")}})
     return {"scope": "account" if account_scope else "project", "matches": matches[:50], "count": min(len(matches), 50)}
+
+
+def _control_center_query(envelope: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+    _, owner, project_id, conversation_id = _identity(envelope, payload)
+    scope = str(payload.get("scope") or "conversation")
+    if scope not in {"conversation", "project", "account"}:
+        raise ContextError("CONTEXT_SCOPE_INVALID", "上下文指挥中心范围无效")
+    if scope == "conversation" and not conversation_id:
+        raise ContextError("CONVERSATION_CONTEXT_REQUIRED", "对话指挥中心需要当前 conversation")
+    if scope in {"conversation", "project"} and not project_id:
+        raise ContextError("PROJECT_CONTEXT_REQUIRED", "Project 指挥中心需要当前 Project")
+
+    filters = {"owner_account_id": owner}
+    if scope in {"conversation", "project"}:
+        filters["project_id"] = project_id
+    if scope == "conversation":
+        filters["conversation_id"] = conversation_id
+
+    records: list[dict[str, Any]] = []
+    for dataset in ("context_work_reports", "context_handoff_files", "context_inheritance_packages"):
+        records.extend(_query(envelope, dataset, filters, 500))
+
+    bundles: dict[str, dict[str, Any]] = {}
+    for item in records:
+        if str(item.get("state") or "active") == "deleted" or item.get("deleted") is True:
+            continue
+        bundle_id = str(item.get("bundle_id") or f"legacy-{item.get('record_id')}")
+        bundle = bundles.setdefault(bundle_id, {
+            "bundle_id": bundle_id,
+            "project_id": item.get("project_id"),
+            "conversation_id": item.get("conversation_id"),
+            "handoff_version": int(item.get("handoff_version") or item.get("version_no") or 1),
+            "created_at": item.get("created_at"),
+            "artifacts": [],
+        })
+        bundle["handoff_version"] = max(bundle["handoff_version"], int(item.get("handoff_version") or item.get("version_no") or 1))
+        bundle["created_at"] = max(str(bundle.get("created_at") or ""), str(item.get("created_at") or ""))
+        bundle["artifacts"].append({
+            "artifact_type": item.get("artifact_type") or item.get("source_record_type"),
+            "record_id": item.get("record_id"),
+            "title": item.get("title"),
+            "content": item.get("content") or "",
+            "state": item.get("state") or "active",
+        })
+
+    packages = sorted(
+        bundles.values(),
+        key=lambda item: (str(item.get("project_id") or ""), str(item.get("created_at") or "")),
+        reverse=True,
+    )
+    return {"scope": scope, "owner_account_id": owner, "packages": packages[:100], "count": min(len(packages), 100)}
 
 
 def _now() -> str:

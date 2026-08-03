@@ -45,6 +45,8 @@ def post(handler: Any, envelope: dict[str, Any]) -> None:
             data = _index_uploaded_materials(envelope, payload)
         elif capability in {"knowledge.retrieve", "knowledge.material.get", "search.query", "search.retrieve_context"}:
             data = _retrieve_context(envelope, payload)
+        elif capability == "knowledge.material.delete":
+            data = _delete_material(envelope, payload)
         else:
             data = {
                 "state": "completed",
@@ -176,6 +178,8 @@ def _index_uploaded_materials(envelope: dict[str, Any], payload: dict[str, Any])
                 "keywords": _keywords(chunk_text),
                 "parse_engine": MODULE_CODE,
                 "parse_state": "completed",
+                "state": "indexed",
+                "deleted": False,
                 "created_at": timestamp,
                 "updated_at": timestamp,
             })
@@ -294,6 +298,10 @@ def _retrieve_context(envelope: dict[str, Any], payload: dict[str, Any]) -> dict
         filters = {**filters, "owner_account_id": actor.get("user_id")}
     result = _foundation_query(envelope, "knowledge_chunks", filters, int(payload.get("limit") or 20))
     items = result.get("items") if isinstance(result.get("items"), list) else []
+    items = [
+        item for item in items
+        if not item.get("deleted") and str(item.get("state") or "indexed") != "deleted"
+    ]
     ranked = sorted(items, key=lambda item: _score_chunk(item, query), reverse=True)
     if query:
         ranked = [item for item in ranked if _score_chunk(item, query) > 0] or ranked
@@ -306,6 +314,65 @@ def _retrieve_context(envelope: dict[str, Any], payload: dict[str, Any]) -> dict
         "count": len(contexts),
         "items": contexts,
         "source_dataset": "knowledge_chunks",
+    }
+
+
+def _delete_material(envelope: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+    actor = envelope.get("actor") if isinstance(envelope.get("actor"), dict) else {}
+    owner = str(actor.get("user_id") or actor.get("actor_id") or "")
+    file_id = str(payload.get("file_id") or "")
+    source_id = str(payload.get("knowledge_source_id") or "")
+    if not owner or not file_id:
+        raise ValueError("file_id and owner account are required")
+
+    chunk_result = _foundation_query(envelope, "knowledge_chunks", {"owner_account_id": owner, "file_id": file_id}, 500)
+    chunks = chunk_result.get("items") if isinstance(chunk_result.get("items"), list) else []
+    source_ids = {str(item.get("knowledge_source_id")) for item in chunks if item.get("knowledge_source_id")}
+    if source_id:
+        source_ids.add(source_id)
+
+    index_result = _foundation_query(envelope, "knowledge_indexes", {"owner_account_id": owner}, 500)
+    indexes = [
+        item for item in (index_result.get("items") if isinstance(index_result.get("items"), list) else [])
+        if str(item.get("knowledge_source_id") or "") in source_ids
+    ]
+    source_result = _foundation_query(envelope, "knowledge_sources", {"owner_account_id": owner}, 500)
+    sources = [
+        item for item in (source_result.get("items") if isinstance(source_result.get("items"), list) else [])
+        if str(item.get("knowledge_source_id") or item.get("record_id") or "") in source_ids
+    ]
+    timestamp = datetime.now(timezone.utc).isoformat()
+    writes: list[dict[str, Any]] = []
+    for dataset, records in (("knowledge_chunks", chunks), ("knowledge_indexes", indexes), ("knowledge_sources", sources)):
+        if not records:
+            continue
+        tombstones = []
+        deletes = []
+        for item in records:
+            record_id = str(item.get("record_id") or item.get("chunk_id") or item.get("index_id") or item.get("knowledge_source_id") or "")
+            if not record_id:
+                continue
+            tombstones.append({
+                "record_id": record_id,
+                "state": "deleted",
+                "deleted": True,
+                "deleted_at": timestamp,
+                "deleted_by": owner,
+                "delete_reason": "user_requested",
+            })
+            deletes.append({"record_id": record_id})
+        if tombstones:
+            writes.append({"dataset": dataset, "operation": "update", "records": tombstones})
+            writes.append({"dataset": dataset, "operation": "delete", "records": deletes})
+    if writes:
+        _foundation_write(envelope, writes)
+    return {
+        "state": "deleted",
+        "file_id": file_id,
+        "knowledge_source_ids": sorted(source_ids),
+        "deleted_at": timestamp,
+        "deleted_by": owner,
+        "deleted_count": len(chunks) + len(indexes) + len(sources),
     }
 
 

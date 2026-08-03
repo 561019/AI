@@ -9,7 +9,7 @@ def post(handler:Any,envelope:dict[str,Any])->None:
     capability=envelope["target"].get("capability") or "permissions.check"
     allowed_business_modules={"workflow-execution","workflow-execution-engine-original","engine-gateway","rule-adapter","intent-adapter","intent-analysis-engine-original","content-production-engine-original","document-table-parsing","analysis-prediction","data-operation","digital-asset","project-management","monitoring-reminder","external-system-integration","knowledge-qa","knowledge-map","multimedia-generation"}
     allowed_foundation_modules={"account-gateway","context-prompt-management","knowledge-base","memory-management","human-collaboration","security-compliance","cost-control","device-system-interface","execution-sandbox","evolution-mechanism","control-mechanism"}
-    allowed_application_foundation_capabilities={"context.capacity.evaluate"}
+    allowed_application_foundation_capabilities={"context.capacity.evaluate", "context.handoff.generate", "context.control_center.query", "knowledge.material.delete"}
     source_allowed=(
         source.get("layer")=="business_engine" and source.get("module") in allowed_business_modules
     ) or (

@@ -188,7 +188,7 @@ FOUNDATION_MODULES: tuple[ModuleSpec, ...] = (
         (
             "context.intent.prepare", "context.capacity.evaluate", "context.handoff.generate",
             "context.handoff.import", "context.project.search", "context.account.search",
-            "context.reference.import",
+            "context.reference.import", "context.control_center.query",
         ),
     ),
     ModuleSpec(
@@ -266,6 +266,7 @@ FOUNDATION_MODULES: tuple[ModuleSpec, ...] = (
             "knowledge.retrieve", "knowledge.material.get",
             "chunk.split", "vector.embed", "vector.index.upsert",
             "search.query", "search.rerank", "search.retrieve_context",
+            "knowledge.material.delete",
         ),
     ),
     ModuleSpec(

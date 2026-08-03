@@ -1,5 +1,5 @@
 <script setup>
-import { BookOpen, Building2, Database, Eye, FileText, LockKeyhole, Settings2, ShieldCheck, ShieldPlus, Sparkles, Upload, UserRound } from '@lucide/vue'
+import { BookOpen, Building2, Database, Eye, FileText, LockKeyhole, Settings2, ShieldCheck, ShieldPlus, Sparkles, Trash2, Upload, UserRound } from '@lucide/vue'
 
 defineProps({
   isProjectCenter: { type: Boolean, default: false },
@@ -23,6 +23,7 @@ const emit = defineEmits([
   'create',
   'grant',
   'preview',
+  'delete-file',
 ])
 </script>
 
@@ -54,6 +55,7 @@ const emit = defineEmits([
               <FileText :size="13" />
               <span><strong>{{ file.name }}</strong><small>{{ file.meta }} · 已解析 {{ file.knowledgeChunkCount ?? 0 }} 个片段</small></span>
               <Eye :size="13" />
+              <i class="knowledge-file-delete" title="删除文件" @click.stop.prevent="emit('delete-file', file, item)"><Trash2 :size="13" /></i>
             </button>
           </div>
           <p v-else class="knowledge-file-empty">该知识库暂未上传文件</p>
